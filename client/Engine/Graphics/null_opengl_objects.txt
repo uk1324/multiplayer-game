@@ -1,0 +1,2 @@
+Null OpenGL objects are represented by 0.
+https://www.khronos.org/opengl/wiki/OpenGL_Object

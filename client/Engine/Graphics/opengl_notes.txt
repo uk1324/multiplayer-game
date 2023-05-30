@@ -1,0 +1,7 @@
+Website for checking OpenGL compatibility.
+https://opengl.gpuinfo.org/listextensions.php
+
+Anisotropic filtering takes different samples on x and y so that textures at distorted angles aren't blurry.
+This doesn't fix moire patters so it should be used with mipmaps not as a replacement.
+It is core since 4.6 but it has 97% support as an extension.
+glTexParameterf(TARGET, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16);

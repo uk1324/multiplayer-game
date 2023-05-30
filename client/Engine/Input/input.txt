@@ -1,0 +1,8 @@
+Making the input system event based makes it a lot hader to write more complex behaviour it is hard and unsafe to pass data to the Action.
+I don't know how to pass data to the actions for example the attack action must know the weapon but should it be pased on construction or on every frame.
+If on every frame how would that be implemented?
+
+Don't know if the polling system Action should a string or an enum.
+An enum is good because it is easy to see what actions a scene has and when removing the action from the enum the errors will show you where it is used.
+It also shows error on typos. The problem is that if 2 scenes have different actions sets a multiple definition error might occur.
+If I separate the input logic for each scene this error shouldn't happen. But I will just use strings so this doesn't happen.
