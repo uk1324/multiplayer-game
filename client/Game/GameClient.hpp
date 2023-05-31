@@ -8,18 +8,18 @@ class GameClient
 public:
 	GameClient();
 	~GameClient();
-
+	float dt;
 	void update(float dt);
 	void processMessages();
 	void processMessage(yojimbo::Message* message);
 
-	struct PredictedTranslation {
-		Vec2 translation;
-		int frame;
+	struct PastInput {
+		ClientInputMessage::Input input;
+		int sequenceNumber;
 	};
 	struct PredictedTransform {
 		Vec2 pos;
-		std::vector<PredictedTranslation> predictedTranslations;
+		std::vector<PastInput> inputs;
 	};
 	PredictedTransform playerTransform;
 
@@ -36,11 +36,14 @@ public:
 
 	std::unordered_map<PlayerIndex, InterpolatedTransform> playerIndexToTransform;
 
-	int lastReceivedUpdateFrame = 0;
+	std::vector<ClientInputMessage::Input> pastInputCommands;
 
-	int currentFrame = 0;
+	int newestUpdateLastReceivedClientSequenceNumber = 0;
+	int newestUpdateSequenceNumber = 0;
+
+	i32 sequenceNumber = 0;
 	bool joinedGame = false;
-	PlayerIndex clientPlayerIndex;
+	PlayerIndex clientPlayerIndex = -1;
 
 	
 

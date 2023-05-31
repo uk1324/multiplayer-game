@@ -28,6 +28,7 @@ static constexpr int CLIENT_PORT = 30001;
 static const uint8_t DEFAULT_PRIVATE_KEY[yojimbo::KeyBytes] = { 0 };
 static const int MAX_CLIENTS = 64;
 
+static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
 namespace GameMessageType {
     enum GameMessageType {
@@ -48,7 +49,7 @@ public:
     template <typename Stream>
     bool Serialize(Stream& stream) {
         serialize_int(stream, clientPlayerIndex, 0, MAX_CLIENTS);
-        serialize_int(stream, currentFrame, 0, INT_MAX);
+        serialize_int(stream, currentFrame, -2, INT_MAX);
         return true;
     }
 
@@ -69,16 +70,22 @@ public:
 //};
 
 struct ClientInputMessage : public yojimbo::Message {
-    int frame;
-    bool left = false, up = false, right = false, down = false;
+    i32 sequenceNumber;
+    struct Input {
+        bool up = false, down = false, left = false, right = false;
+    };
+    static constexpr int INPUTS_COUNT = 4;
+    Input inputs[INPUTS_COUNT];
 
     template <typename Stream>
     bool Serialize(Stream& stream) {
-        serialize_int(stream, frame, 0, INT_MAX);
-        serialize_bool(stream, left);
-        serialize_bool(stream, up);
-        serialize_bool(stream, right);
-        serialize_bool(stream, down);
+        serialize_int(stream, sequenceNumber, 0, INT_MAX);
+        for (int i = 0; i < std::size(inputs); i++) {
+            serialize_bool(stream, inputs[i].left);
+            serialize_bool(stream, inputs[i].up);
+            serialize_bool(stream, inputs[i].right);
+            serialize_bool(stream, inputs[i].down);
+        }
         return true;
     }
 
@@ -86,11 +93,18 @@ struct ClientInputMessage : public yojimbo::Message {
 };
 
 struct PlayerPositionUpdateMessage : public yojimbo::BlockMessage {
-    int lastReceivedInputFrameValue;
+    i32 lastReceivedClientSequenceNumber;
+    i32 sequenceNumber;
+    
+    void set(i32 lastReceivedClientSequenceNumber, i32 sequenceNumber) {
+        this->lastReceivedClientSequenceNumber = lastReceivedClientSequenceNumber;
+        this->sequenceNumber = sequenceNumber;
+    }
 
     template <typename Stream>
     bool Serialize(Stream& stream) {
-        serialize_int(stream, lastReceivedInputFrameValue, 0, INT_MAX);
+        serialize_int(stream, lastReceivedClientSequenceNumber, 0, INT_MAX);
+        serialize_int(stream, sequenceNumber, 0, INT_MAX);
         return true;
     }
 

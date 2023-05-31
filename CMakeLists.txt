@@ -39,7 +39,7 @@ add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 
 target_link_libraries(client client-lib)
 target_include_directories(client PUBLIC "/dependencies")
-target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/yojimbo/yojimbo.lib")
+target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/yojimbo.lib")
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
