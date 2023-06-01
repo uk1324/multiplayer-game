@@ -83,15 +83,25 @@ void GameClient::update(float dt) {
 	}
 	for (auto& [_, bullet] : bullets) {
 		bullet.transform.updateInterpolatedPosition(sequenceNumber);
+		bullet.aliveFramesLeft--;
+	}
+
+	for (auto it = bullets.begin(); it != bullets.end();) {
+		if (it->second.aliveFramesLeft >= 0)
+			++it;
+		else
+			it = bullets.erase(it);
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
-		renderer.drawSprite(renderer.bulletSprite, transform.pos, 0.5f);
+		renderer.drawSprite(renderer.bulletSprite, transform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
 	}
 	for (auto& [_, bullet] : bullets) {
-		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, 0.1f);
+		const auto opacityChangeFrames = 60.0f;
+		const auto opacity = 1.0f - std::clamp((opacityChangeFrames - bullet.aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
+		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 	}
-	renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, 0.5f);
+	renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
 	renderer.update();
 	sequenceNumber++;
 }
@@ -175,11 +185,14 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 
 			for (int i = 0; i < msg->bulletsCount; i++) {
-				const auto& bullet = msgBullets[i];
-				bullets[bullet.index].transform.positions.push_back(InterpolationPosition{
-					.pos = bullet.position,
-					.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR
+				const auto& msgBullet = msgBullets[i];
+				auto& bullet = bullets[msgBullet.index];
+				bullet.transform.positions.push_back(InterpolationPosition{
+					.pos = msgBullet.position,
+					.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR,
 				});
+				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
+				bullet.ownerPlayerId = msgBullet.ownerPlayerId;
 			}
 
 			break;
@@ -196,31 +209,18 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 			if (positions[i].frameToDisplayAt <= sequenceNumber && positions[i + 1].frameToDisplayAt > sequenceNumber) {
 				auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
 				t = std::clamp(t, 0.0f, 1.0f);
-				/*auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
-				t = std::clamp(t, 0.0f, 1.0f);
+
 				const auto start = positions[i].pos;
 				const auto end = positions[i + 1].pos;
-				pos = lerp(start, end, t);*/
-				if (i == 0) {
-					const auto start = positions[i].pos;
-					const auto end = positions[i + 1].pos;
-					pos = lerp(start, end, t);
-				} else {
-					const auto start = positions[i].pos;
-					const auto startVel = (start - positions[i - 1].pos) / (6 * 0.1f);
-					const auto end = positions[i + 1].pos;
-					auto endVel = (end - start) / (6 * 0.1f);
-					if (i + 1 < positions.size()) {
-						endVel = (positions[i + 1].pos - end) / (6 * 0.1f);
-					}
-					pos = cubicHermite(start, startVel, end, endVel, t);
-				}
-
+				pos = lerp(start, end, t);
+				// Can't use hermite interpolation because it overshoots, which makes it look like it's rubber banding.
+				// TODO: The overhsooting might not happen if I store more frames, but this would also add more latency. But I don't think that would actually fix that.
+				// https://gdcvault.com/play/1024597/Replicating-Chaos-Vehicle-Replication-in
 			}
 		}
 
-		if (positions.size() > 3) {
-			positions.erase(positions.begin(), positions.begin() + i - 2);
+		if (positions.size() > 2) {
+			positions.erase(positions.begin(), positions.begin() + i - 1);
 		}
 	}
 }

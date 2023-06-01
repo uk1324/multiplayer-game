@@ -39,6 +39,8 @@ struct GameServer {
 	struct Bullet {
 		Vec2 pos{ 0.0f };
 		Vec2 velocity{ 0.0f };
+		int ownerPlayerId = -1;
+		int aliveFramesLeft = -1;
 	};
 
 	std::unordered_map<PlayerIndex, Player> players;

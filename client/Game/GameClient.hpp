@@ -35,6 +35,8 @@ public:
 	};
 	struct Bullet {
 		InterpolatedTransform transform;
+		i32 ownerPlayerId = -1;
+		i32 aliveFramesLeft = -1;
 	};
 	std::unordered_map<PlayerIndex, InterpolatedTransform> playerIndexToTransform;
 	std::unordered_map<i32, Bullet> bullets;

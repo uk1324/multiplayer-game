@@ -56,7 +56,7 @@ void GameServer::update(float dt) {
 		}
 	}
 
-	for (auto& [_, player] : players) {
+	for (auto& [playerId, player] : players) {
 		if (player.inputs.empty()) {
 			if (!player.receivedInputThisFrame) {
 				// Maybe duplicate last frame's input
@@ -69,9 +69,12 @@ void GameServer::update(float dt) {
 			player.newestExecutedInputSequenceNumber = sequenceNumber;
 
 			if (input.shoot) {
+				const auto direction = Vec2::oriented(input.rotation);
 				bullets[bulletIndexCounter] = Bullet{
-					.pos = player.pos,
-					.velocity = Vec2::oriented(input.rotation) * 0.1f
+					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
+					.velocity = direction * 1.0f,
+					.ownerPlayerId = playerId,
+					.aliveFramesLeft = 100,
 				};
 				bulletIndexCounter++;
 			}
@@ -82,6 +85,14 @@ void GameServer::update(float dt) {
 
 	for (auto& [_, bullet] : bullets) {
 		bullet.pos += bullet.velocity * dt;
+		bullet.aliveFramesLeft--;
+	}
+
+	for (auto it = bullets.begin(); it != bullets.end();) {
+		if (it->second.aliveFramesLeft >= 0)
+			++it;
+		else
+			it = bullets.erase(it);
 	}
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
@@ -121,7 +132,13 @@ void GameServer::broadcastWorldState() {
 		}
 		i = 0;
 		for (const auto& [bulletIndex, bullet] : bullets) {
-			msgBullets[i] = WorldUpdateMessage::Bullet{ .index = bulletIndex, .position = bullet.pos, .velocity = bullet.velocity };
+			msgBullets[i] = WorldUpdateMessage::Bullet{ 
+				.index = bulletIndex, 
+				.position = bullet.pos, 
+				.velocity = bullet.velocity,
+				.ownerPlayerId = bullet.ownerPlayerId,
+				.aliveFramesLeft = bullet.aliveFramesLeft
+			};
 			i++;
 		}
 

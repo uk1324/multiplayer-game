@@ -30,10 +30,10 @@ static const int MAX_CLIENTS = 64;
 
 static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
-//static constexpr float DEBUG_LATENCY = 1000.0f;
-//static constexpr float DEBUG_JITTER = 50.0f;
-static constexpr float DEBUG_LATENCY = 0.0f;
-static constexpr float DEBUG_JITTER = 0.0f;
+static constexpr float DEBUG_LATENCY = 200.0f;
+static constexpr float DEBUG_JITTER = 50.0f;
+//static constexpr float DEBUG_LATENCY = 0.0f;
+//static constexpr float DEBUG_JITTER = 0.0f;
 
 namespace GameMessageType {
     enum GameMessageType {
@@ -102,6 +102,8 @@ struct WorldUpdateMessage : public yojimbo::BlockMessage {
         i32 index;
         Vec2 position;
         Vec2 velocity;
+        i32 ownerPlayerId = -1; // Maybe just sent ownedByPlayerInstead.
+        i32 aliveFramesLeft = -1;
     };
 
     void set(i32 lastReceivedClientSequenceNumber, i32 sequenceNumber, i32 playersCount, i32 bulletsCount) {

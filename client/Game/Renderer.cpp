@@ -43,6 +43,9 @@ Renderer::Renderer()
 
 		Vao::setAttribute(6, BufferLayout(ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, size), sizeof(TexturedQuadInstanceData), false));
 		glVertexAttribDivisor(6, 1);
+
+		Vao::setAttribute(7, BufferLayout(ShaderDataType::Float, 4, offsetof(TexturedQuadInstanceData, color), sizeof(TexturedQuadInstanceData), false));
+		glVertexAttribDivisor(7, 1);
 	}
 	{
 		std::vector<std::string> paths;
@@ -54,12 +57,17 @@ Renderer::Renderer()
 		#define MAKE_SPRITE(name) \
 			{ \
 				const auto pos = nameToPos[name##Path]; \
-				name##Sprite = Sprite{ .offset = Vec2(pos.offset) / atlasTextureSize, .size = Vec2(pos.size) / atlasTextureSize }; \
+				name##Sprite = Sprite{ \
+					.offset = Vec2(pos.offset) / atlasTextureSize, \
+					.size = Vec2(pos.size) / atlasTextureSize, \
+					.aspectRatio = static_cast<float>(pos.size.y) / static_cast<float>(pos.size.x) \
+				}; \
 			}
 
 		ADD_TO_ATLAS(player, "player.png")
 		ADD_TO_ATLAS(bullet, "bullet.png")
 		ADD_TO_ATLAS(bullet2, "bullet2.png")
+		ADD_TO_ATLAS(bullet3, "bullet3.png")
 
 		auto [nameToPos, image] = generateTextureAtlas(paths);
 		atlasTexture = Texture(image);
@@ -68,6 +76,7 @@ Renderer::Renderer()
 		MAKE_SPRITE(player);
 		MAKE_SPRITE(bullet);
 		MAKE_SPRITE(bullet2);
+		MAKE_SPRITE(bullet3);
 
 		#undef MAKE_SPRITE
 		#undef ADD_TO_ATLAS
@@ -111,10 +120,10 @@ void Renderer::update() {
 		for (int i = 0; i < spritesToDraw.size(); i++) {
 			const auto& sprite = spritesToDraw[i];
 			auto& quad = texturedQuadPerInstanceData[toDraw];
-			const auto spriteAspectRatio = sprite.sprite.size.y / sprite.sprite.size.x;
-			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size * Vec2(sprite.sprite.size.x, sprite.sprite.size.x * spriteAspectRatio));
+			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size * Vec2(1.0f, sprite.sprite.aspectRatio));
 			quad.atlasOffset = sprite.sprite.offset;
 			quad.size = sprite.sprite.size;
+			quad.color = sprite.color;
 			toDraw++;
 			if (toDraw == std::size(texturedQuadPerInstanceData) || i == spritesToDraw.size() - 1) {
 				Vbo::setData(0, texturedQuadPerInstanceData, toDraw * sizeof(TexturedQuadInstanceData));
@@ -127,8 +136,8 @@ void Renderer::update() {
 
 }
 
-void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation) {
-	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation });
+void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
+	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation, color });
 }
 
 ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string fragPath) {
