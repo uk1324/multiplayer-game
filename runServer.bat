@@ -1,0 +1,1 @@
+start out/build/x64-Debug/server/server.exe

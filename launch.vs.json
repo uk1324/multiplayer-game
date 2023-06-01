@@ -1,0 +1,13 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "client.exe",
+      "currentDir": "${projectDir}",
+      "name": "client.exe"
+    }
+  ]
+}

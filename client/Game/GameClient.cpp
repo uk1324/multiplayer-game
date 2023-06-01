@@ -12,12 +12,8 @@ GameClient::GameClient()
 	u64 clientId;
 	yojimbo::random_bytes((uint8_t*)&clientId, 8);
 	client.InsecureConnect(DEFAULT_PRIVATE_KEY, clientId, yojimbo::Address("127.0.0.1", SERVER_PORT));
-	client.SetLatency(1000.0f);
-	client.SetJitter(50.0f);
-	/*client.SetLatency(1000.0f);
-	client.SetJitter(200.0f);*/
-	//client.SetPacketLoss(0.1f);
-	//playerIdToTransform[clientId] = Transform{ .pos = Vec2{ 0.0f } };
+	client.SetLatency(DEBUG_LATENCY);
+	client.SetJitter(DEBUG_JITTER);
 }
 
 GameClient::~GameClient() {
@@ -33,16 +29,22 @@ void GameClient::update(float dt) {
 		// update client
 		client.AdvanceTime(client.GetTime() + dt);
 		client.ReceivePackets();
-		
+		/*const auto cursorPos = Input::cursorPos();
+		ImGui::Text("%g %g", cursorPos.x, cursorPos.y);*/
 		if (client.IsConnected()) {
 			processMessages();
 			
 			if (joinedGame) {
-				const auto newInput = ClientInputMessage::Input{ 
+				const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
+				const auto cursorRelativeToPlayer = cursorPos - playerTransform.pos;
+				const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
+				const auto newInput = ClientInputMessage::Input{
 					.up = Input::isKeyHeld(KeyCode::W),
 					.down = Input::isKeyHeld(KeyCode::S),
 					.left = Input::isKeyHeld(KeyCode::A),
 					.right = Input::isKeyHeld(KeyCode::D),
+					.shoot = Input::isMouseButtonDown(MouseButton::LEFT),
+					.rotation = rotation
 				};
 				pastInputCommands.push_back(newInput);
 
@@ -50,7 +52,7 @@ void GameClient::update(float dt) {
 				if (oldCommandsToDiscardCount > 0) {
 					pastInputCommands.erase(pastInputCommands.begin(), pastInputCommands.begin() + oldCommandsToDiscardCount);
 				}
-				std::cout << pastInputCommands.size() << '\n';
+				//std::cout << pastInputCommands.size() << '\n';
 				
 				const auto inputMsg = static_cast<ClientInputMessage*>(client.CreateMessage(static_cast<int>(GameMessageType::CLIENT_INPUT)));
 
@@ -61,13 +63,9 @@ void GameClient::update(float dt) {
 					inputMsg->inputs[offset + i] = pastInputCommands[i];
 				}
 
-				std::cout << "sending " << inputMsg->sequenceNumber << '\n';
+				//std::cout << "sending " << inputMsg->sequenceNumber << '\n';
 				client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
 
-				/*playerTransform.predictedTranslations.push_back(PredictedTranslation{
-					.translation = newPos - playerTransform.pos,
-					.sequenceNumber = sequenceNumber
-				});*/
 				const auto newPos = applyMovementInput(playerTransform.pos, newInput, dt);
 				playerTransform.inputs.push_back(PastInput{
 					.input = newInput,
@@ -80,17 +78,22 @@ void GameClient::update(float dt) {
 		client.SendPackets();
 	}
 
-	sequenceNumber++;
 	for (auto& [_, transform] : playerIndexToTransform) {
 		transform.updateInterpolatedPosition(sequenceNumber);
 	}
-
-	for (auto& [id, transform] : playerIndexToTransform) {
-		const auto& positions = transform.positions;
-		renderer.drawSprite(renderer.bulletSprite, transform.pos, 0.1f);
+	for (auto& [_, bullet] : bullets) {
+		bullet.transform.updateInterpolatedPosition(sequenceNumber);
 	}
-	renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, 0.1f);
+
+	for (auto& [_, transform] : playerIndexToTransform) {
+		renderer.drawSprite(renderer.bulletSprite, transform.pos, 0.5f);
+	}
+	for (auto& [_, bullet] : bullets) {
+		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, 0.1f);
+	}
+	renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, 0.5f);
 	renderer.update();
+	sequenceNumber++;
 }
 
 void GameClient::processMessages() {
@@ -115,7 +118,6 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				std::cout << "client joined clientPlayerIndex = " << clientPlayerIndex << '\n';
 				joinedGame = true;
 				sequenceNumber = 0;
-				//currentFrame = msg->currentFrame;
 			}
 			break;
 		}
@@ -124,35 +126,32 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			ASSERT_NOT_REACHED();
 			break;
 
-		case GameMessageType::PLAYER_POSITION_UPDATE: { 
-			const auto msg = static_cast<PlayerPositionUpdateMessage*>(message);
-			//std::cout << "received " << msg->lastReceivedClientSequenceNumber << '\n';
+		case GameMessageType::WORLD_UPDATE: { 
+			const auto msg = static_cast<WorldUpdateMessage*>(message);
 			if (msg->sequenceNumber < newestUpdateSequenceNumber) {
 				std::cout << "out of order update message";
-					/*<< newestUpdateLastReceivedClientSequenceNumber 
-					<< " msg: " << msg->lastReceivedClientSequenceNumber << "\n";*/
+				break;
+			}
+
+			const auto playersSize = msg->playersCount * sizeof(WorldUpdateMessage::Player);
+			const auto bulletsSize = msg->bulletsCount * sizeof(WorldUpdateMessage::Bullet);
+			const auto dataSize = playersSize + bulletsSize;
+
+			if (msg->GetBlockSize() != dataSize) {
+				ASSERT_NOT_REACHED();
 				break;
 			}
 			newestUpdateSequenceNumber = msg->sequenceNumber;
 			newestUpdateLastReceivedClientSequenceNumber = msg->lastReceivedClientSequenceNumber;
 
-			const auto positionCount = msg->GetBlockSize() / sizeof(PlayerPosition);
-			if (msg->GetBlockSize() % sizeof(PlayerPosition) != 0) {
-				ASSERT_NOT_REACHED();
-				break;
-			}
-			const auto positions = reinterpret_cast<PlayerPosition*>(msg->GetBlockData());
+			const auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(msg->GetBlockData());
+			const auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(msg->GetBlockData() + playersSize);
 
-			for (int i = 0; i < positionCount; i++) {
-				const auto& position = positions[i];
-				if (position.playerIndex == clientPlayerIndex) {
-					playerTransform.pos = position.position;
-					/*std::erase_if(
-						playerTransform.predictedTranslations,
-						[&](const PredictedTranslation& prediction) { 
-							return prediction.sequenceNumber <= newestUpdateLastReceivedClientSequenceNumber; 
-						}
-					);*/
+			for (int i = 0; i < msg->playersCount; i++) {
+				const auto& player = msgPlayers[i];
+				if (player.index == clientPlayerIndex) {
+					playerTransform.pos = player.position;
+					
 					std::erase_if(
 						playerTransform.inputs,
 						[&](const PastInput& prediction) {
@@ -163,14 +162,26 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					// Maybe store the positions when the prediction is made and the compare the predicted ones with the server ones and only rollback the old state if they don't match. 
 					// https://youtu.be/zrIY0eIyqmI?t=1599
 					for (const auto& prediction : playerTransform.inputs) {
-						//playerTransform.pos += prediction.translation;
 						playerTransform.pos = applyMovementInput(playerTransform.pos, prediction.input, dt);
 					}
 				} else {
-					auto& transform = playerIndexToTransform[position.playerIndex];
-					transform.positions.push_back(InterpolationPosition{ .pos = position.position, .frameToDisplayAt = sequenceNumber + 6 });
+					auto& transform = playerIndexToTransform[player.index];
+					//transform.pos = player.position;
+					transform.positions.push_back(InterpolationPosition{ 
+						.pos = player.position, 
+						.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR 
+					});
 				}
 			}
+
+			for (int i = 0; i < msg->bulletsCount; i++) {
+				const auto& bullet = msgBullets[i];
+				bullets[bullet.index].transform.positions.push_back(InterpolationPosition{
+					.pos = bullet.position,
+					.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR
+				});
+			}
+
 			break;
 		}
 	}
@@ -183,8 +194,12 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 		int i = 0;
 		for (i = 0; i < positions.size() - 1; i++) {
 			if (positions[i].frameToDisplayAt <= sequenceNumber && positions[i + 1].frameToDisplayAt > sequenceNumber) {
-				const auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
-				if (i == 0) {
+				auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
+				t = std::clamp(t, 0.0f, 1.0f);
+				const auto start = positions[i].pos;
+				const auto end = positions[i + 1].pos;
+				pos = lerp(start, end, t);
+				/*if (i == 0) {
 					const auto start = positions[i].pos;
 					const auto end = positions[i + 1].pos;
 					pos = lerp(start, end, t);
@@ -197,13 +212,12 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 						endVel = (positions[i + 1].pos - end) / (6 * 0.1f);
 					}
 					pos = cubicHermite(start, startVel, end, endVel, t);
-				}
+				}*/
 
 			}
 		}
 
 		if (positions.size() > 3) {
-			/*transform.positions.erase(transform.positions.begin(), transform.positions.begin() + i - 1);*/
 			positions.erase(positions.begin(), positions.begin() + i - 2);
 		}
 	}

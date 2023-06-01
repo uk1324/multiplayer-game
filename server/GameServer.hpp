@@ -10,6 +10,7 @@ struct GameServer {
 	GameServer();
 	float dt;
 	void update(float dt);
+	void broadcastWorldState();
 	void processMessages();
 	void processMessage(int clientIndex, yojimbo::Message* message);
 	void processClientInputMessage(int clientIndex, ClientInputMessage& msg);
@@ -19,6 +20,7 @@ struct GameServer {
 	bool isRunning = true;
 
 	int sequenceNumber = 0;
+	int frame = 0;
 
 	struct Player {
 		Vec2 pos{ 0.0f };
@@ -33,7 +35,15 @@ struct GameServer {
 		};
 		std::queue<InputWithSequenceNumber> inputs;
 	};
+
+	struct Bullet {
+		Vec2 pos{ 0.0f };
+		Vec2 velocity{ 0.0f };
+	};
+
 	std::unordered_map<PlayerIndex, Player> players;
+	std::unordered_map<i32, Bullet> bullets;
+	int bulletIndexCounter = 0;
 
 
 	yojimbo::Server server;

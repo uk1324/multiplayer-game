@@ -28,6 +28,8 @@ include_directories(
 
 add_subdirectory(client)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
+# Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022
+# https://learn.microsoft.com/en-us/cpp/build/tasks-vs-json-schema-reference-cpp?view=msvc-170
 add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 	"dependencies/imgui/imgui.cpp"
 	"dependencies/imgui/imgui_draw.cpp"
@@ -35,7 +37,7 @@ add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 	"dependencies/imgui/imgui_tables.cpp"
 	"dependencies/imgui/imgui_widgets.cpp"
 	"dependencies/imgui/imgui_impl_opengl3.cpp"
-	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp")
+	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp" "shared/WindowsUtils.cpp")
 
 target_link_libraries(client client-lib)
 target_include_directories(client PUBLIC "/dependencies")

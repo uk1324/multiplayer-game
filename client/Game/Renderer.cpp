@@ -112,7 +112,7 @@ void Renderer::update() {
 			const auto& sprite = spritesToDraw[i];
 			auto& quad = texturedQuadPerInstanceData[toDraw];
 			const auto spriteAspectRatio = sprite.sprite.size.y / sprite.sprite.size.x;
-			quad.transform = makeTransform(sprite.pos, sprite.rotation, Vec2(sprite.sprite.size.x, sprite.sprite.size.x * spriteAspectRatio));
+			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size * Vec2(sprite.sprite.size.x, sprite.sprite.size.x * spriteAspectRatio));
 			quad.atlasOffset = sprite.sprite.offset;
 			quad.size = sprite.sprite.size;
 			toDraw++;

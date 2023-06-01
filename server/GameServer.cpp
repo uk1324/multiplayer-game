@@ -6,21 +6,17 @@ GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this) {
 
-	server.SetLatency(1000.0f);
-	server.SetJitter(50.0f);
+	server.SetLatency(DEBUG_LATENCY);
+	server.SetJitter(DEBUG_JITTER);
 	server.Start(MAX_CLIENTS);
 
 	if (!server.IsRunning()) {
-		//std::cout << "Could not start server on port " << serverPort << '\n';
 		return;
 	}
 
 	char buffer[256];
 	server.GetAddress().ToString(buffer, sizeof(buffer));
 	std::cout << "Server address is " << buffer << std::endl;
-	//char buffer[256];
-	/*server.GetAddress().ToString(buffer, sizeof(buffer));
-	std::cout << "Server started on " << buffer << '\n';*/
 }
 
 // TODO: Don't allow client to send multiple inputs per frame. Buffer the inputs and execute them on the next frame.
@@ -71,43 +67,68 @@ void GameServer::update(float dt) {
 			player.inputs.pop();
 			player.pos = applyMovementInput(player.pos, input, dt);
 			player.newestExecutedInputSequenceNumber = sequenceNumber;
-			/*std::cout << "executing " << sequenceNumber << '\n';
-			std::cout << "command buffer size" << player.inputs.size() << '\n';*/
+
+			if (input.shoot) {
+				bullets[bulletIndexCounter] = Bullet{
+					.pos = player.pos,
+					.velocity = Vec2::oriented(input.rotation) * 0.1f
+				};
+				bulletIndexCounter++;
+			}
+			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
+			
 		}
 	}
 
+	for (auto& [_, bullet] : bullets) {
+		bullet.pos += bullet.velocity * dt;
+	}
 
+	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
+		broadcastWorldState();
+	}
 
-	// ... process client inputs ...
-    // ... update game ...
-    // ... send game state to clients ..
+	server.SendPackets();
+	frame++;
+}
 
+void GameServer::broadcastWorldState() {
 	// https://github.com/networkprotocol/yojimbo/issues/93 - broadcast messages
+
 	for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
 		if (!server.IsClientConnected(clientIndex)) {
 			continue;
 		}
 
-		auto message = reinterpret_cast<PlayerPositionUpdateMessage*>(
-			server.CreateMessage(clientIndex, GameMessageType::PLAYER_POSITION_UPDATE)
-		);
-		message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber);
+		auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
 
-		//ASSERT(players.find(clientIndex) != players.end());
-		const auto positionsBlockSize = sizeof(PlayerPosition) * players.size();
-		//ASSERT(players[clientIndex].newestExecutedInputSequenceNumber >= 0);
-		const auto positions = reinterpret_cast<PlayerPosition*>(server.AllocateBlock(clientIndex, positionsBlockSize));
-		int i = 0;
+		const auto playersCount = players.size();
+		const auto bulletsCount = bullets.size();
+		message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber, playersCount, bulletsCount);
+
+		const auto playersBlockSize = sizeof(WorldUpdateMessage::Player) * playersCount;
+		const auto bulletsBlockSize = sizeof(WorldUpdateMessage::Bullet) * bulletsCount;
+		const auto blockSize = playersBlockSize + bulletsBlockSize;
+		u8* block = server.AllocateBlock(clientIndex, blockSize);
+		auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(block);
+		auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(block + playersBlockSize);
+
+		int i;
+		i = 0;
 		for (const auto& [playerIndex, player] : players) {
-			positions[i] = PlayerPosition{ .playerIndex = playerIndex, .position = player.pos };
+			msgPlayers[i] = WorldUpdateMessage::Player{ .index = playerIndex, .position = player.pos };
 			i++;
 		}
-		server.AttachBlockToMessage(clientIndex, message, reinterpret_cast<u8*>(positions), positionsBlockSize);
+		i = 0;
+		for (const auto& [bulletIndex, bullet] : bullets) {
+			msgBullets[i] = WorldUpdateMessage::Bullet{ .index = bulletIndex, .position = bullet.pos, .velocity = bullet.velocity };
+			i++;
+		}
+
+		server.AttachBlockToMessage(clientIndex, message, block, blockSize);
 		server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
 	}
 	sequenceNumber++;
-
-	server.SendPackets();
 }
 
 void GameServer::processMessages() {
@@ -154,23 +175,6 @@ void GameServer::processClientInputMessage(int clientIndex, ClientInputMessage& 
 		}
 		player.inputs.push(Player::InputWithSequenceNumber{ .input = msg.inputs[i], .sequenceNumber = sequenceNumber });
 	}
-	//msg.inputs
-	//for ()
-
-	/*if (msg.sequenceNumber <= player.newestReceivedInputSequenceNumber) {
-		return;
-	}*/
-
-	/*const auto missedInputs = msg.sequenceNumber - player.newestInputSequenceNumber - 1;
-	player.newestInputSequenceNumber = msg.sequenceNumber;*/
-
-	//player.missedInputs 
-	//std::cout << msg.left << msg.right << msg.up << msg.down << '\n';
-	//std::cout << "received " <<  msg.frame << '\n';
-	
-
-	/*playerIndexToLastReceivedInputFrameValue[clientIndex] = msg.frame;
-	transform = applyMovementInput(transform, msg.up, msg.down, msg.left, msg.right, dt);*/
 }
 
 void GameServer::onClientConnected(int clientIndex) {

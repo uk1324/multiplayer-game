@@ -1,8 +1,31 @@
 #include <chrono>
 #include <GameServer.hpp>
 #include <iostream>
+#include <shared/WindowsUtils.hpp>
+#include <shared/DebugWindowInfo.hpp>
+#include <charconv>
 
-int main() {
+void onClose() {
+	system("taskkill /IM client.exe");
+}
+
+int main(int argc, char* argv[]) {
+	std::optional<int> openedClientWindows;
+	if (argc >= 2) {
+		int value;
+		auto result = std::from_chars(argv[1], argv[1] + strlen(argv[1]) + 1, value);
+		if (result.ec == std::errc()) {
+			openedClientWindows = value;
+		}
+	}
+	if (openedClientWindows.has_value()) {
+		int screenWidth, screenHeight;
+		getPrimaryScreenSize(&screenWidth, &screenHeight);
+		const auto x = WINDOW_WIDTH * *openedClientWindows;
+		setConsolePosAndSize(x, 30, screenWidth - x, 600);
+	}
+	setOnCloseCallback(onClose);
+
 	constexpr double FRAME_TIME_CAP = 2.0;
 	auto currentTime = []() {
 		using namespace std::chrono;
@@ -15,7 +38,6 @@ int main() {
 	double accumulatedTime = 0.0;
 	const auto fps = 60;
 	const double updateTime = 1.0 / fps;
-
 	if (!InitializeYojimbo()) {
 		std::cout << "failed to initialize Yojimbo";
 		return EXIT_FAILURE;

@@ -33,8 +33,11 @@ public:
 
 		void updateInterpolatedPosition(int currentFrame);
 	};
-
+	struct Bullet {
+		InterpolatedTransform transform;
+	};
 	std::unordered_map<PlayerIndex, InterpolatedTransform> playerIndexToTransform;
+	std::unordered_map<i32, Bullet> bullets;
 
 	std::vector<ClientInputMessage::Input> pastInputCommands;
 
@@ -44,8 +47,6 @@ public:
 	i32 sequenceNumber = 0;
 	bool joinedGame = false;
 	PlayerIndex clientPlayerIndex = -1;
-
-	
 
 	yojimbo::Client client;
 	GameClientAdapter adapter;
