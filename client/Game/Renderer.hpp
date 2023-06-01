@@ -15,7 +15,7 @@ struct Renderer {
 	};
 
 	Renderer();
-	void update();
+	void update(Vec2 playerPos);
 
 	Camera camera;
 
@@ -53,6 +53,8 @@ public:
 	Sprite bullet2Sprite;
 	Sprite bullet3Sprite;
 private:
+
+	ShaderProgram* backgroundShader;
 
 	ShaderProgram& createShader(std::string_view vertPath, std::string fragPath);
 	struct ShaderEntry {

@@ -84,9 +84,12 @@ Renderer::Renderer()
 	{
 		shader = &createShader("client/Game/shader.vert", "client/Game/shader.frag");
 	}
+	{
+		backgroundShader = &createShader("client/Game/background.vert", "client/Game/background.frag");
+	}
 }
 
-void Renderer::update() {
+void Renderer::update(Vec2 playerPos) {
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
 		reloadShaders();
 	}
@@ -98,13 +101,23 @@ void Renderer::update() {
 
 	const auto aspectRatio = Window::aspectRatio();
 	camera.aspectRatio = aspectRatio;
+	camera.pos = playerPos;
 	const auto cameraTransform = camera.cameraTransform();
 	const auto screenScale{ Mat3x2::scale(Vec2{ 1.0f, aspectRatio }) };
 	auto makeTransform = [&screenScale, aspectRatio, &cameraTransform](Vec2 translation, float orientation, Vec2 scale) -> Mat3x2 {
 		return Mat3x2::rotate(orientation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ translation.x, translation.y * aspectRatio }) * cameraTransform;
 	};
 
-	//camera.moveOnWasd();
+	{
+		backgroundShader->use();
+		const auto cameraToWorld = (screenScale * cameraTransform).inversed();
+		backgroundShader->setMat3x2("cameraToWorld", cameraToWorld);
+
+		fullscreenQuadPtVao.bind();
+		fullscreenQuadPtIbo.bind();
+
+		glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
+	}
 
 	{
 		shader->use();
@@ -115,6 +128,7 @@ void Renderer::update() {
 		shader->setTexture("textureAtlas", 0);
 
 		int toDraw = 0;
+		fullscreenQuadPtVao.bind();
 		fullscreenQuadPtIbo.bind();
 		texturedQuadPerInstanceDataVbo.bind();
 		for (int i = 0; i < spritesToDraw.size(); i++) {
