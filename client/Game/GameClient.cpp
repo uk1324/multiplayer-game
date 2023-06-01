@@ -196,10 +196,12 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 			if (positions[i].frameToDisplayAt <= sequenceNumber && positions[i + 1].frameToDisplayAt > sequenceNumber) {
 				auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
 				t = std::clamp(t, 0.0f, 1.0f);
+				/*auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
+				t = std::clamp(t, 0.0f, 1.0f);
 				const auto start = positions[i].pos;
 				const auto end = positions[i + 1].pos;
-				pos = lerp(start, end, t);
-				/*if (i == 0) {
+				pos = lerp(start, end, t);*/
+				if (i == 0) {
 					const auto start = positions[i].pos;
 					const auto end = positions[i + 1].pos;
 					pos = lerp(start, end, t);
@@ -212,7 +214,7 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 						endVel = (positions[i + 1].pos - end) / (6 * 0.1f);
 					}
 					pos = cubicHermite(start, startVel, end, endVel, t);
-				}*/
+				}
 
 			}
 		}

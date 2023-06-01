@@ -49,3 +49,4 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(dependencies/glfw)
 
 add_subdirectory(server)
+add_subdirectory(shortcutTool)
