@@ -56,11 +56,21 @@ void GameServer::update(float dt) {
 		}
 	}
 
+	for (auto& [_, player] : players) {
+		player.bulletsSpawnedThisFrame = 0;
+	}
+
+	static int maxInputsSize = -1;
 	for (auto& [playerId, player] : players) {
+		
+		if (player.inputs.size() > maxInputsSize) {
+			maxInputsSize = player.inputs.size();
+			std::cout << "inputs size: " << player.inputs.size() << '\n';
+		}
 		if (player.inputs.empty()) {
 			if (!player.receivedInputThisFrame) {
 				// Maybe duplicate last frame's input
-				std::cout << sequenceNumber << " lost input\n";
+				//std::cout << sequenceNumber << " lost input\n";
 			}
 		} else {
 			const auto [input, sequenceNumber] = player.inputs.front();
@@ -73,9 +83,12 @@ void GameServer::update(float dt) {
 				bullets[bulletIndexCounter] = Bullet{
 					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
 					.velocity = direction * 1.0f,
-					.ownerPlayerId = playerId,
+					.ownerPlayerIndex = playerId,
 					.aliveFramesLeft = 100,
+					.spawnFrameClientSequenceNumber = sequenceNumber,
+					.frameSpawnIndex = player.bulletsSpawnedThisFrame
 				};
+				player.bulletsSpawnedThisFrame++;
 				bulletIndexCounter++;
 			}
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
@@ -87,13 +100,8 @@ void GameServer::update(float dt) {
 		bullet.pos += bullet.velocity * dt;
 		bullet.aliveFramesLeft--;
 	}
-
-	for (auto it = bullets.begin(); it != bullets.end();) {
-		if (it->second.aliveFramesLeft >= 0)
-			++it;
-		else
-			it = bullets.erase(it);
-	}
+	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
+	
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();
@@ -136,8 +144,10 @@ void GameServer::broadcastWorldState() {
 				.index = bulletIndex, 
 				.position = bullet.pos, 
 				.velocity = bullet.velocity,
-				.ownerPlayerId = bullet.ownerPlayerId,
-				.aliveFramesLeft = bullet.aliveFramesLeft
+				.ownerPlayerIndex = bullet.ownerPlayerIndex,
+				.aliveFramesLeft = bullet.aliveFramesLeft,
+				.spawnFrameClientSequenceNumber = bullet.spawnFrameClientSequenceNumber,
+				.frameSpawnIndex = bullet.frameSpawnIndex,
 			};
 			i++;
 		}

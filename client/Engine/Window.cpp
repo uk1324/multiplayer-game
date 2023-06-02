@@ -21,7 +21,11 @@ void mouseMoveCallback(GLFWwindow* window, double mouseX, double mouseY)
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
 	// @Hack: Assumes the button ids don't conflinct with keyboard ids.
-	Input::onKeyDown(button, false);
+	if (action == GLFW_PRESS) {
+		Input::onKeyDown(button, false);
+	} else if (action == GLFW_RELEASE) {
+		Input::onKeyUp(button);
+	}
 }
 
 void mouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset)

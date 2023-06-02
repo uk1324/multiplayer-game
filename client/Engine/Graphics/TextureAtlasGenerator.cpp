@@ -40,8 +40,6 @@ TextureAtlasResult generateTextureAtlas(const std::vector<std::string>& filePath
 
 		const auto width = texture.image.width() + PADDING_TO_PREVENT_BLEEDING;
 		const auto height = texture.image.height() + PADDING_TO_PREVENT_BLEEDING;
-		/*const auto width = texture.image.width();
-		const auto height = texture.image.height();*/
 		if (height > maxHeightInRow) {
 			maxHeightInRow = height;
 		}

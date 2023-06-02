@@ -23,8 +23,26 @@ GameClient::~GameClient() {
 #include <imgui.h>
 #include <iostream>
 
+// accelerate bullets on everyones, but the shooters side.
+// decelerate the bullets at the start on the client. (which just means they accelerate)
+// 
+
 void GameClient::update(float dt) {
+	yojimbo::NetworkInfo info;
+	client.GetNetworkInfo(info);
+	{
+		ImGui::Text("RTT %g", info.RTT);
+		ImGui::Text("packetLoss %g", info.packetLoss);
+		ImGui::Text("sentBandwidth %g", info.sentBandwidth);
+		ImGui::Text("receivedBandwidth %g", info.receivedBandwidth);
+		ImGui::Text("ackedBandwidth %g", info.ackedBandwidth);
+		ImGui::Text("numPacketsSent %d", info.numPacketsSent);
+		ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
+		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
+	}
+
 	this->dt = dt;
+	thisFrameSpawnIndexCounter = 0;
 	{
 		// update client
 		client.AdvanceTime(client.GetTime() + dt);
@@ -72,6 +90,23 @@ void GameClient::update(float dt) {
 					.sequenceNumber = sequenceNumber
 				});
 				playerTransform.pos = newPos;
+
+				if (newInput.shoot) {
+					const auto direction = Vec2::oriented(newInput.rotation);
+					const auto normalVelocity = 1.0f;
+					const auto spawnDelay = info.RTT / 1000.0f;
+					const auto synchronizationTime = 0.5f;
+					const auto velocity = (normalVelocity * (synchronizationTime - spawnDelay)) / synchronizationTime;
+					predictedBullets.push_back(PredictedBullet{
+						.elapsed = 0.0f,
+						.pos = playerTransform.pos + PLAYER_HITBOX_RADIUS * direction,
+						.velocity = direction * velocity,
+						.spawnSequenceNumber = sequenceNumber,
+						.frameSpawnIndex = thisFrameSpawnIndexCounter,
+						.displayDelay = static_cast<int>(round(spawnDelay / (1.0f / 60.0f)))
+					});
+					thisFrameSpawnIndexCounter++;
+				}
 			}
 		}
 
@@ -81,29 +116,49 @@ void GameClient::update(float dt) {
 	for (auto& [_, transform] : playerIndexToTransform) {
 		transform.updateInterpolatedPosition(sequenceNumber);
 	}
-	for (auto& [_, bullet] : bullets) {
+
+	for (auto& [_, bullet] : interpolatedBullets) {
 		bullet.transform.updateInterpolatedPosition(sequenceNumber);
 		bullet.aliveFramesLeft--;
 	}
+	std::erase_if(interpolatedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 
-	for (auto it = bullets.begin(); it != bullets.end();) {
-		if (it->second.aliveFramesLeft >= 0)
-			++it;
-		else
-			it = bullets.erase(it);
+	/*for (auto& [_, bullet] : predictedBullets) {
+		bullet.transform.pos += bullet.velocity * dt;
+		bullet.aliveFramesLeft--;
+	}
+	std::erase_if(predictedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });*/
+
+	std::erase_if(predictedBullets, [this](const PredictedBullet& bullet) { return bullet.destroyAt == sequenceNumber; });
+
+	for (auto& bullet : predictedBullets) {
+		bullet.pos += bullet.velocity * dt;
+		renderer.drawSprite(renderer.bulletSprite, bullet.pos, BULLET_HITBOX_RADIUS * 2.0f);
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
 		renderer.drawSprite(renderer.bulletSprite, transform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
 	}
-	for (auto& [_, bullet] : bullets) {
+
+	auto calculateBulletOpacity = [](int aliveFramesLeft) {
 		const auto opacityChangeFrames = 60.0f;
-		const auto opacity = 1.0f - std::clamp((opacityChangeFrames - bullet.aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
-		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+		const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
+		return opacity;
+	};
+
+	for (auto& [_, bullet] : interpolatedBullets) {
+		if (sequenceNumber >= bullet.startDisplayingAtFrame) {
+			const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
+			renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+		}
 	}
-	/*renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);*/
+
+	/*for (auto& [_, bullet] : predictedBullets) {
+		const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
+		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+	}*/
+
 	renderer.drawSprite(renderer.bulletSprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
-	//renderer.drawSprite(renderer.bullet3Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
 	renderer.update(playerTransform.pos);
 	sequenceNumber++;
 }
@@ -188,13 +243,81 @@ void GameClient::processMessage(yojimbo::Message* message) {
 
 			for (int i = 0; i < msg->bulletsCount; i++) {
 				const auto& msgBullet = msgBullets[i];
-				auto& bullet = bullets[msgBullet.index];
+				//auto& bullet = interpolatedBullets[msgBullet.index];
+
+				auto makeInterpolatedBullet = [this](const WorldUpdateMessage::Bullet& msgBullet, int displayFrame, Vec2 pos = Vec2(0.0f)) {
+					auto& bullet = interpolatedBullets[msgBullet.index];
+					bullet.transform.positions.push_back(InterpolationPosition{
+						.pos = msgBullet.position,
+						.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR,
+					});
+					bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
+					bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
+					if (displayFrame != 0) {
+						bullet.transform.positions.push_back(InterpolationPosition{ .pos = pos, .frameToDisplayAt = displayFrame });
+						bullet.startDisplayingAtFrame = displayFrame;
+					}
+						
+				};
+
+				bool update = true;
+				if (msgBullet.ownerPlayerIndex == clientPlayerIndex) {
+					for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
+						auto& bullet = *it;
+						if (bullet.destroyAt != 0)
+							continue;
+
+						if (msgBullet.frameSpawnIndex == bullet.frameSpawnIndex 
+							&& bullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber) {
+							// Could calculate the actuall frame at which they will meet, but this still might break due to jitter.
+							const auto displayAt = sequenceNumber + bullet.displayDelay + 2;
+							makeInterpolatedBullet(
+								msgBullet, 
+								displayAt,
+								bullet.pos + bullet.velocity * bullet.displayDelay * (1.0f / 60.0f)
+							);
+							bullet.destroyAt = displayAt;
+							//predictedBullets.erase(it);
+							update = false;
+							break;
+						}
+					}
+				}
+
+				if (update) {
+					makeInterpolatedBullet(msgBullet, 0);
+				}
+				/*for (const auto& bullet : predictedBullets) {
+					if (bullet.frameSpawnIndex == msgBullet.frameSpawnIndex && bullet.spawnSequenceNumber = msgBullet.frameSpawnIndex) {
+
+					}
+				}*/
+				/*for (const auto& bullet : predictedBullets) {*/
+						/*for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
+							
+						}*/
+				//		for (const auto& bullet : predictedBullets) {
+				//			if (bullet.frameSpawnIndex == msgBullet.frameSpawnIndex && bullet.spawnSequenceNumber = msgBullet.frameSpawnIndex) {
+
+				//			}
+				//		}
+				//	}
+				//	//if (bullet.spawnSequenceNumber = )
+				//}
+
+				/*const auto& msgBullet = msgBullets[i];
+				auto& bullet = interpolatedBullets[msgBullet.index];
 				bullet.transform.positions.push_back(InterpolationPosition{
 					.pos = msgBullet.position,
 					.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR,
 				});
 				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
-				bullet.ownerPlayerId = msgBullet.ownerPlayerId;
+				bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;*/
+
+				/*auto& bullet = predictedBullets[msgBullet.index];
+				bullet.transform.setAuthoritativePosition(msgBullet.position, msg->lastReceivedClientSequenceNumber);
+				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
+				bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;*/
 			}
 
 			break;
@@ -203,6 +326,13 @@ void GameClient::processMessage(yojimbo::Message* message) {
 }
 
 void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceNumber) {
+	std::sort(
+		positions.begin(),
+		positions.end(),
+		[](const InterpolationPosition& a, const InterpolationPosition& b) {
+			return a.frameToDisplayAt < b.frameToDisplayAt;
+		}
+	);
 	if (positions.size() == 1) {
 		pos = positions[0].pos;
 	} else {
@@ -224,5 +354,19 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 		if (positions.size() > 2) {
 			positions.erase(positions.begin(), positions.begin() + i - 1);
 		}
+	}
+}
+
+void GameClient::PredictedTrasform::setAuthoritativePosition(Vec2 newPos, int sequenceNumber) {
+	std::erase_if(
+		predictedTranslations,
+		[&](const PredictedTranslation& prediction) {
+			return prediction.sequenceNumber <= sequenceNumber;
+		}
+	);
+
+	pos = newPos;
+	for (const auto& prediction : predictedTranslations) {
+		pos += prediction.translation;
 	}
 }
