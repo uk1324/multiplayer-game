@@ -8,10 +8,10 @@ struct PtVertex {
 };
 
 static constexpr PtVertex fullscreenQuadVerts[]{
-	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 0.0f } },
-	{ Vec2{ 1.0f, 1.0f }, Vec2{ 1.0f, 0.0f } },
-	{ Vec2{ -1.0f, -1.0f }, Vec2{ 0.0f, 1.0f } },
-	{ Vec2{ 1.0f, -1.0f }, Vec2{ 1.0f, 1.0f } },
+	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
+	{ Vec2{ 1.0f, 1.0f }, Vec2{ 1.0f, 1.0f } },
+	{ Vec2{ -1.0f, -1.0f }, Vec2{ 0.0f, 0.0f } },
+	{ Vec2{ 1.0f, -1.0f }, Vec2{ 1.0f, 0.0f } },
 };
 
 static constexpr u32 fullscreenQuadIndices[]{
@@ -71,8 +71,10 @@ Renderer::Renderer()
 
 		auto [nameToPos, image] = generateTextureAtlas(paths);
 		atlasTexture = Texture(image);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 		const auto atlasTextureSize = Vec2(Vec2T<int>(image.width(), image.height()));
-		
+
 		MAKE_SPRITE(player);
 		MAKE_SPRITE(bullet);
 		MAKE_SPRITE(bullet2);
@@ -133,6 +135,8 @@ void Renderer::update(Vec2 playerPos) {
 		texturedQuadPerInstanceDataVbo.bind();
 		for (int i = 0; i < spritesToDraw.size(); i++) {
 			const auto& sprite = spritesToDraw[i];
+			/*auto sprite = spritesToDraw[i];
+			sprite.sprite = Sprite{ .offset = Vec2(0, 0), .size = Vec2(1, 1),.aspectRatio = 1.0f, };*/
 			auto& quad = texturedQuadPerInstanceData[toDraw];
 			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size * Vec2(1.0f, sprite.sprite.aspectRatio));
 			quad.atlasOffset = sprite.sprite.offset;

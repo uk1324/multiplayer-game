@@ -101,7 +101,9 @@ void GameClient::update(float dt) {
 		const auto opacity = 1.0f - std::clamp((opacityChangeFrames - bullet.aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
 		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 	}
-	renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
+	/*renderer.drawSprite(renderer.bullet2Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);*/
+	renderer.drawSprite(renderer.bulletSprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
+	//renderer.drawSprite(renderer.bullet3Sprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
 	renderer.update(playerTransform.pos);
 	sequenceNumber++;
 }

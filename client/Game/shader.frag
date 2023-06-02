@@ -11,6 +11,9 @@ out vec4 fragColor;
 
 void main() {
 	vec2 offset = atlasOffset;
-	offset.y = 1.0f - size.y + offset.y;
-	fragColor = texture(textureAtlas, texturePos * size + offset) * color;
+	vec2 pos = texturePos;
+	pos *= size;
+	pos += offset;
+	pos.y = 1.0 - pos.y;
+	fragColor = texture(textureAtlas, pos) * color;
 }
