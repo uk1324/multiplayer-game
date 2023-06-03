@@ -98,20 +98,7 @@ void GameServer::update(float dt) {
 			player.pos = applyMovementInput(player.pos, input, dt);
 			player.newestExecutedInputSequenceNumber = sequenceNumber;
 
-			Vec2 direction(0.0f);
-			if (input.down) {
-				direction += Vec2(0.0f, -1.0f);
-			}
-			if (input.up) {
-				direction += Vec2(0.0f, 1.0f);
-			}
-			if (input.left) {
-				direction += Vec2(-1.0f, 0.0f);
-			}
-			if (input.right) {
-				direction += Vec2(1.0f, 0.0f);
-			}
-			const auto playerDirection = direction.normalized();
+			
 			yojimbo::NetworkInfo info;
 			server.GetNetworkInfo(playerId, info);
 
@@ -119,8 +106,8 @@ void GameServer::update(float dt) {
 				const auto direction = Vec2::oriented(input.rotation);
 				std::cout << info.RTT << '\n'; // For some reason RTT is broken and is always zero so its using DEBUG_LATENCY instead.
 				bullets[bulletIndexCounter] = Bullet{
-					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction + playerDirection * (DEBUG_LATENCY / 1000.0f),
-					.velocity = direction * 0.2f,
+					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction + ((DEBUG_LATENCY) / 1000.0f + 3 * FRAME_DT) * direction,
+					.velocity = direction,
 					.ownerPlayerIndex = playerId,
 					.aliveFramesLeft = 1000,
 					.spawnFrameClientSequenceNumber = sequenceNumber,

@@ -16,6 +16,7 @@ Server side - lag compensation
 - cons: high ping players gain an advantage, because their bullets move faster for a period of time
 - pros: after the acceleration period the client side position and server side position are synced up.
 https://fish-networking.gitbook.io/docs/manual/guides/lag-compensation/projectiles
+https://www.gamedeveloper.com/programming/why-making-multiplayer-games-is-hard-lag-compensating-weapons-in-mechwarrior-online
 
 * wait for the server to spawn the bullet, but spawn in at the extrapolated client position based on RTT
 - cons: if the velocity changes are fast this might allow players to cheat
