@@ -44,6 +44,7 @@ struct GameServer {
 		int aliveFramesLeft = -1;
 		int spawnFrameClientSequenceNumber;
 		int frameSpawnIndex;
+		float catchUpTime;
 	};
 
 	std::unordered_map<PlayerIndex, Player> players;

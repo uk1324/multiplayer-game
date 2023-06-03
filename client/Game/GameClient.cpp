@@ -47,8 +47,6 @@ void GameClient::update(float dt) {
 		// update client
 		client.AdvanceTime(client.GetTime() + dt);
 		client.ReceivePackets();
-		/*const auto cursorPos = Input::cursorPos();
-		ImGui::Text("%g %g", cursorPos.x, cursorPos.y);*/
 		if (client.IsConnected()) {
 			processMessages();
 			
@@ -93,18 +91,12 @@ void GameClient::update(float dt) {
 
 				if (newInput.shoot) {
 					const auto direction = Vec2::oriented(newInput.rotation);
-					/*const auto normalVelocity = 1.0f;
-					const auto spawnDelay = info.RTT / 1000.0f;
-					const auto synchronizationTime = 0.5f;
-					const auto velocity = (normalVelocity * (synchronizationTime - spawnDelay)) / synchronizationTime;*/
-					const auto velocity = 1.0f;
 					predictedBullets.push_back(PredictedBullet{
 						.elapsed = 0.0f,
 						.pos = playerTransform.pos + PLAYER_HITBOX_RADIUS * direction,
-						.velocity = direction * velocity,
+						.velocity = direction * BULLET_SPEED,
 						.spawnSequenceNumber = sequenceNumber,
 						.frameSpawnIndex = thisFrameSpawnIndexCounter,
-						/*.displayDelay = static_cast<int>(round(spawnDelay / (1.0f / 60.0f)))*/
 					});
 					thisFrameSpawnIndexCounter++;
 				}
@@ -249,12 +241,14 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			for (int i = 0; i < msg->bulletsCount; i++) {
 				const auto& msgBullet = msgBullets[i];
 
+				/*bool make = true;
 				for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
 					if (msgBullet.spawnFrameClientSequenceNumber == it->spawnSequenceNumber && msgBullet.frameSpawnIndex == it->frameSpawnIndex) {
 						predictedBullets.erase(it);
+						make = false;
 						break;
 					}
-				}
+				}*/
 
 				auto makeInterpolatedBullet = [this](const WorldUpdateMessage::Bullet& msgBullet, int displayFrame, Vec2 pos = Vec2(0.0f)) {
 					auto& bullet = interpolatedBullets[msgBullet.index];
@@ -265,8 +259,17 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
 					bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
 				};
-
+				//if (make)
 				makeInterpolatedBullet(msgBullet, 0);
+
+				//for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
+				//	if (msgBullet.spawnFrameClientSequenceNumber == it->spawnSequenceNumber && msgBullet.frameSpawnIndex == it->frameSpawnIndex) {
+				//	/*	auto& positions = interpolatedBullets[msgBullet.index].transform.positions;
+				//		positions.insert(positions.begin(), InterpolationPosition{ .pos = it->pos, .frameToDisplayAt = sequenceNumber });*/
+				//		predictedBullets.erase(it);
+				//		break;
+				//	}
+				//}
 			}
 
 			break;
@@ -308,6 +311,7 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 			positions.erase(positions.begin(), positions.begin() + i - 1);
 		}
 	}
+	pos - positions.back().pos;
 }
 
 void GameClient::PredictedTrasform::setAuthoritativePosition(Vec2 newPos, int sequenceNumber) {

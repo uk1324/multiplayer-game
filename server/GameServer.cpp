@@ -6,7 +6,8 @@ GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this) {
 
-	server.SetLatency(DEBUG_LATENCY);
+	// Can only set latency after calling Start the network simulator doesn't exist before this.
+	server.SetLatency(300.0f);
 	server.SetJitter(DEBUG_JITTER);
 	server.Start(MAX_CLIENTS);
 
@@ -27,6 +28,7 @@ void GameServer::update(float dt) {
 		return;
 	}
 
+	
 	server.AdvanceTime(dt);
 	server.ReceivePackets();
 
@@ -106,15 +108,17 @@ void GameServer::update(float dt) {
 				const auto direction = Vec2::oriented(input.rotation);
 				std::cout << info.RTT << '\n'; // For some reason RTT is broken and is always zero so its using DEBUG_LATENCY instead.
 				bullets[bulletIndexCounter] = Bullet{
-					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction + ((DEBUG_LATENCY) / 1000.0f + 3 * FRAME_DT) * direction,
-					.velocity = direction,
+					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
+					.velocity = direction * BULLET_SPEED,
 					.ownerPlayerIndex = playerId,
 					.aliveFramesLeft = 1000,
 					.spawnFrameClientSequenceNumber = sequenceNumber,
-					.frameSpawnIndex = player.bulletsSpawnedThisFrame
+					.frameSpawnIndex = player.bulletsSpawnedThisFrame,
+					.catchUpTime = DEBUG_LATENCY / 1000.0f + FRAME_DT * 6.0f
 				};
 				player.bulletsSpawnedThisFrame++;
 				bulletIndexCounter++;
+
 			}
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
 			
@@ -122,7 +126,20 @@ void GameServer::update(float dt) {
 	}
 
 	for (auto& [_, bullet] : bullets) {
-		bullet.pos += bullet.velocity * dt;
+		float speedUp = 0.0f;
+
+		if (bullet.catchUpTime > 0.0f) {
+			float step = (bullet.catchUpTime * 0.08f);
+			bullet.catchUpTime -= step;
+
+			if (bullet.catchUpTime <= dt / 2.0f) {
+				step += bullet.catchUpTime;
+				bullet.catchUpTime = 0.0f;
+			}
+			speedUp = step;
+		}
+
+		bullet.pos += bullet.velocity * (dt + speedUp);
 		bullet.aliveFramesLeft--;
 	}
 	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
