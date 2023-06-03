@@ -1,0 +1,22 @@
+In diep.io there doesn't seem to be any client side prediction of bullets. The delay is noticable on servers like australia. To compensate for lag it seems that the game spawns the bullets at the extrapolated client position. To see the bullets spawning at the wrong positions you can move up and down while shooting left or right. This works pretty well, because the players need to decelerate before they can change direction. It wouldn't work for instantly changing velocities like in this game. 
+Another explanation might be that it does client side prediction, but that my RTT was above the maximum value, but I don't think that is the case, because then the bullet spawning shouldn't be delayed (or maybe it would idk).
+
+Client side - hiding latency using animations
+* play granade throwing (halo), move bullet back (diep.io) animation spawn only after receiving confirmation from the server
+* slowly accelerate the bullet on the client side and change it for the real bullet when their positions meet ("Bad attempt at trying to hide bullet shoot latency" commit)
+- cons: the players with lower ping have an advantage. They don't have to lead their shots.
+- pros: no way to cheat by abusing lag compensation, because there is no lag compensation.
+
+Server side - lag compensation
+* the same technique as for hitscan weapons. If the client detects a hit it sends a message with the interpolation value the server rolls back state to the time that it thinks the players saw based on RTT and check if the hit actually happened. The issue with the client doing the checking is that if the client is missing packets the players will be teleporting which would make it basically impossible to hit anyone. To fix this thechnically the server could always check if it the projectile hits based on what it thinks the players sees.
+- cons: requires storing a long history for projectile positions, rewrites the past which allows things like shooting around a corner
+- pros: if the player sees that they shot someone then they shot someone (jitter (because of the RTT calculation) or high latency (because of limited position history(unless you store the whole history, but this might allow cheating)) might break this I think)
+
+* predict spawn the projectile on the client side accelerate it on the server and all the other clients so it catches up with the owners bullet based on the owners RTT. To prevent cheating set some maximum value for the amount of catch up time so players aren't able to accelerate their bullets too much.
+- cons: high ping players gain an advantage, because their bullets move faster for a period of time
+- pros: after the acceleration period the client side position and server side position are synced up.
+https://fish-networking.gitbook.io/docs/manual/guides/lag-compensation/projectiles
+
+* wait for the server to spawn the bullet, but spawn in at the extrapolated client position based on RTT
+- cons: if the velocity changes are fast this might allow players to cheat
+- pros: even though delayed the bullets look like they are spawning at the right positions.

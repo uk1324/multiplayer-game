@@ -60,6 +60,26 @@ void GameServer::update(float dt) {
 		player.bulletsSpawnedThisFrame = 0;
 	}
 
+	for (const auto& [playerIndex, player] : players) {
+		for (const auto& [_, bullet] : bullets) {
+			if (bullet.ownerPlayerIndex == playerIndex) {
+				continue;
+			}
+
+			if (distance(player.pos, bullet.pos) < BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS) {
+				auto message = server.CreateMessage(playerIndex, GameMessageType::TEST);
+				server.SendMessage(playerIndex, GameChannel::RELIABLE, message);
+			}
+		}
+	}
+
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (server.IsClientConnected(i)) {
+			yojimbo::NetworkInfo info;
+			server.GetNetworkInfo(i, info);
+		}
+	}
+
 	static int maxInputsSize = -1;
 	for (auto& [playerId, player] : players) {
 		
@@ -78,13 +98,31 @@ void GameServer::update(float dt) {
 			player.pos = applyMovementInput(player.pos, input, dt);
 			player.newestExecutedInputSequenceNumber = sequenceNumber;
 
+			Vec2 direction(0.0f);
+			if (input.down) {
+				direction += Vec2(0.0f, -1.0f);
+			}
+			if (input.up) {
+				direction += Vec2(0.0f, 1.0f);
+			}
+			if (input.left) {
+				direction += Vec2(-1.0f, 0.0f);
+			}
+			if (input.right) {
+				direction += Vec2(1.0f, 0.0f);
+			}
+			const auto playerDirection = direction.normalized();
+			yojimbo::NetworkInfo info;
+			server.GetNetworkInfo(playerId, info);
+
 			if (input.shoot) {
 				const auto direction = Vec2::oriented(input.rotation);
+				std::cout << info.RTT << '\n'; // For some reason RTT is broken and is always zero so its using DEBUG_LATENCY instead.
 				bullets[bulletIndexCounter] = Bullet{
-					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
-					.velocity = direction * 1.0f,
+					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction + playerDirection * (DEBUG_LATENCY / 1000.0f),
+					.velocity = direction * 0.2f,
 					.ownerPlayerIndex = playerId,
-					.aliveFramesLeft = 100,
+					.aliveFramesLeft = 1000,
 					.spawnFrameClientSequenceNumber = sequenceNumber,
 					.frameSpawnIndex = player.bulletsSpawnedThisFrame
 				};
