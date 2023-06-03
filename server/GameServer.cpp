@@ -6,10 +6,11 @@ GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this) {
 
-	// Can only set latency after calling Start the network simulator doesn't exist before this.
-	server.SetLatency(300.0f);
-	server.SetJitter(DEBUG_JITTER);
 	server.Start(MAX_CLIENTS);
+
+	// Can only set fake network parameters after calling Start the network simulator doesn't exist before this.
+	server.SetLatency(DEBUG_LATENCY);
+	server.SetJitter(DEBUG_JITTER);
 
 	if (!server.IsRunning()) {
 		return;
@@ -29,7 +30,7 @@ void GameServer::update(float dt) {
 	}
 
 	
-	server.AdvanceTime(dt);
+	server.AdvanceTime(server.GetTime() + dt);
 	server.ReceivePackets();
 
 	for (auto& [_, player] : players) {
