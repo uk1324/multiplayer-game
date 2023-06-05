@@ -17,3 +17,22 @@ Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt) {
 	pos += direction.normalized() * dt;
 	return pos;
 }
+
+void updateBullet(Vec2& position, Vec2 velocity, i32& framesElapsed, f32& timeToCatchUp, i32& aliveFramesLeft) {
+	float speedUp = 0.0f;
+
+	if (timeToCatchUp > 0.0f) {
+		const auto catchUpSpeed = 0.08f;
+		speedUp = (timeToCatchUp * catchUpSpeed);
+		timeToCatchUp -= speedUp;
+
+		if (timeToCatchUp <= FRAME_DT / 2.0f) {
+			speedUp += timeToCatchUp;
+			timeToCatchUp = 0.0f;
+		}
+	}
+
+	position += velocity * (FRAME_DT + speedUp);
+	aliveFramesLeft--;
+	framesElapsed++;
+}

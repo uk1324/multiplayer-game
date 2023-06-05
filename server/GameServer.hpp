@@ -44,6 +44,7 @@ struct GameServer {
 		int aliveFramesLeft = -1;
 		int spawnFrameClientSequenceNumber;
 		int frameSpawnIndex;
+		int framesElapsed;
 		float catchUpTime;
 	};
 

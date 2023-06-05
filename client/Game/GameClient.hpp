@@ -2,6 +2,7 @@
 
 #include <Game/Renderer.hpp>
 #include <Game/GameClientAdapter.hpp>
+#include <optional>
 
 class GameClient 
 {
@@ -13,27 +14,34 @@ public:
 	void processMessages();
 	void processMessage(yojimbo::Message* message);
 
+	struct FirstUpdate {
+		int serverSequenceNumber;
+		int sequenceNumber;
+	};
+	std::optional<FirstUpdate> firstWorldUpdate;
+
 	struct PastInput {
 		ClientInputMessage::Input input;
 		int sequenceNumber;
 	};
 	struct PredictedPlayerTransform {
-		Vec2 pos;
+		Vec2 position;
 		std::vector<PastInput> inputs;
 	};
 	PredictedPlayerTransform playerTransform;
 
 	struct InterpolationPosition {
-		Vec2 pos;
+		Vec2 position;
 		int frameToDisplayAt;
 		int serverSequenceNumber;
 	};
 
 	struct InterpolatedTransform {
 		std::vector<InterpolationPosition> positions;
-		Vec2 pos;
+		Vec2 position;
 
-		void updateInterpolatedPosition(int currentFrame);
+		void updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber);
+		void interpolatePosition(int currentFrame);
 	};
 
 	struct PredictedTrasform {
@@ -43,7 +51,7 @@ public:
 		};
 
 		std::vector<PredictedTranslation> predictedTranslations;
-		Vec2 pos;
+		Vec2 position;
 
 		void setAuthoritativePosition(Vec2 newPos, int sequenceNumber);
 	};
@@ -55,14 +63,14 @@ public:
 	};
 
 	struct PredictedBullet {
-		/*PredictedTrasform transform;*/
-		float elapsed;
-		Vec2 pos;
+		Vec2 position;
 		Vec2 velocity;
 		int spawnSequenceNumber;
 		int frameSpawnIndex;
-		int displayDelay;
-		int destroyAt = 0;
+		int frameToActivateAt;
+		int framesElapsed; 
+		float timeToCatchUp;
+		int aliveFramesLeft;
 	};
 	std::vector<PredictedBullet> predictedBullets;
 
@@ -75,7 +83,7 @@ public:
 	std::vector<ClientInputMessage::Input> pastInputCommands;
 
 	int newestUpdateLastReceivedClientSequenceNumber = 0;
-	int newestUpdateSequenceNumber = 0;
+	int newestUpdateSequenceNumber = -1;
 
 	i32 sequenceNumber = 0;
 	bool joinedGame = false;

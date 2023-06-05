@@ -107,7 +107,6 @@ void GameServer::update(float dt) {
 
 			if (input.shoot) {
 				const auto direction = Vec2::oriented(input.rotation);
-				std::cout << info.RTT << '\n'; // For some reason RTT is broken and is always zero so its using DEBUG_LATENCY instead.
 				bullets[bulletIndexCounter] = Bullet{
 					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
 					.velocity = direction * BULLET_SPEED,
@@ -115,7 +114,8 @@ void GameServer::update(float dt) {
 					.aliveFramesLeft = 1000,
 					.spawnFrameClientSequenceNumber = sequenceNumber,
 					.frameSpawnIndex = player.bulletsSpawnedThisFrame,
-					.catchUpTime = DEBUG_LATENCY / 1000.0f + FRAME_DT * 6.0f
+					/*.catchUpTime = DEBUG_LATENCY / 1000.0f + FRAME_DT * 6.0f*/
+					.catchUpTime = info.RTT / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
 				};
 				player.bulletsSpawnedThisFrame++;
 				bulletIndexCounter++;
@@ -127,21 +127,7 @@ void GameServer::update(float dt) {
 	}
 
 	for (auto& [_, bullet] : bullets) {
-		float speedUp = 0.0f;
-
-		if (bullet.catchUpTime > 0.0f) {
-			float step = (bullet.catchUpTime * 0.08f);
-			bullet.catchUpTime -= step;
-
-			if (bullet.catchUpTime <= dt / 2.0f) {
-				step += bullet.catchUpTime;
-				bullet.catchUpTime = 0.0f;
-			}
-			speedUp = step;
-		}
-
-		bullet.pos += bullet.velocity * (dt + speedUp);
-		bullet.aliveFramesLeft--;
+		updateBullet(bullet.pos, bullet.velocity, bullet.framesElapsed, bullet.catchUpTime, bullet.aliveFramesLeft);
 	}
 	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 	
@@ -191,6 +177,8 @@ void GameServer::broadcastWorldState() {
 				.aliveFramesLeft = bullet.aliveFramesLeft,
 				.spawnFrameClientSequenceNumber = bullet.spawnFrameClientSequenceNumber,
 				.frameSpawnIndex = bullet.frameSpawnIndex,
+				.framesElapsed = bullet.framesElapsed,
+				.timeToCatchUp = bullet.catchUpTime,
 			};
 			i++;
 		}

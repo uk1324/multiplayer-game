@@ -15,7 +15,7 @@ GameClient::GameClient()
 	client.SetLatency(DEBUG_LATENCY);
 	client.SetJitter(DEBUG_JITTER);
 }
-
+// Speed up and the slow down again parabolic?
 GameClient::~GameClient() {
 	client.Disconnect();
 }
@@ -28,7 +28,7 @@ GameClient::~GameClient() {
 // 
 
 void GameClient::update(float dt) {
-	yojimbo::NetworkInfo info;
+	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
 	{
 		ImGui::Text("RTT %g", info.RTT);
@@ -39,8 +39,8 @@ void GameClient::update(float dt) {
 		ImGui::Text("numPacketsSent %d", info.numPacketsSent);
 		ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
 		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
-	}
-
+	}*/
+	ImGui::TextWrapped("blue bullets are spawned when the message first message with them is received and later predicted red bullets are the positions interpolated between server updates");
 	this->dt = dt;
 	thisFrameSpawnIndexCounter = 0;
 	{
@@ -52,7 +52,7 @@ void GameClient::update(float dt) {
 			
 			if (joinedGame) {
 				const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
-				const auto cursorRelativeToPlayer = cursorPos - playerTransform.pos;
+				const auto cursorRelativeToPlayer = cursorPos - playerTransform.position;
 				const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
 				const auto newInput = ClientInputMessage::Input{
 					.up = Input::isKeyHeld(KeyCode::W),
@@ -82,24 +82,24 @@ void GameClient::update(float dt) {
 				//std::cout << "sending " << inputMsg->sequenceNumber << '\n';
 				client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
 
-				const auto newPos = applyMovementInput(playerTransform.pos, newInput, dt);
+				const auto newPos = applyMovementInput(playerTransform.position, newInput, dt);
 				playerTransform.inputs.push_back(PastInput{
 					.input = newInput,
 					.sequenceNumber = sequenceNumber
 				});
-				playerTransform.pos = newPos;
+				playerTransform.position = newPos;
 
-				if (newInput.shoot) {
+				/*if (newInput.shoot) {
 					const auto direction = Vec2::oriented(newInput.rotation);
 					predictedBullets.push_back(PredictedBullet{
 						.elapsed = 0.0f,
-						.pos = playerTransform.pos + PLAYER_HITBOX_RADIUS * direction,
+						.position = playerTransform.position + PLAYER_HITBOX_RADIUS * direction,
 						.velocity = direction * BULLET_SPEED,
 						.spawnSequenceNumber = sequenceNumber,
 						.frameSpawnIndex = thisFrameSpawnIndexCounter,
 					});
 					thisFrameSpawnIndexCounter++;
-				}
+				}*/
 			}
 		}
 
@@ -107,30 +107,25 @@ void GameClient::update(float dt) {
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
-		transform.updateInterpolatedPosition(sequenceNumber);
+		transform.interpolatePosition(sequenceNumber);
 	}
 
 	for (auto& [_, bullet] : interpolatedBullets) {
-		bullet.transform.updateInterpolatedPosition(sequenceNumber);
+		bullet.transform.interpolatePosition(sequenceNumber);
 		bullet.aliveFramesLeft--;
 	}
 	std::erase_if(interpolatedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 
-	/*for (auto& [_, bullet] : predictedBullets) {
-		bullet.transform.pos += bullet.velocity * dt;
-		bullet.aliveFramesLeft--;
-	}
-	std::erase_if(predictedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });*/
-
-	std::erase_if(predictedBullets, [this](const PredictedBullet& bullet) { return bullet.destroyAt == sequenceNumber; });
-
 	for (auto& bullet : predictedBullets) {
-		bullet.pos += bullet.velocity * dt;
-		renderer.drawSprite(renderer.bulletSprite, bullet.pos, BULLET_HITBOX_RADIUS * 2.0f);
+		if (sequenceNumber <= bullet.frameToActivateAt)
+			continue;
+
+		renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
+		updateBullet(bullet.position, bullet.velocity, bullet.framesElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
-		renderer.drawSprite(renderer.bulletSprite, transform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
+		renderer.drawSprite(renderer.bulletSprite, transform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 	}
 
 	auto calculateBulletOpacity = [](int aliveFramesLeft) {
@@ -141,11 +136,11 @@ void GameClient::update(float dt) {
 
 	for (auto& [_, bullet] : interpolatedBullets) {
 		const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
-		renderer.drawSprite(renderer.bulletSprite, bullet.transform.pos, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+		renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 	}
 
-	renderer.drawSprite(renderer.bulletSprite, playerTransform.pos, PLAYER_HITBOX_RADIUS * 2.0f);
-	renderer.update(playerTransform.pos);
+	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
+	renderer.update(playerTransform.position);
 	sequenceNumber++;
 }
 
@@ -180,11 +175,20 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			break;
 
 		case GameMessageType::WORLD_UPDATE: { 
+			// when recieving update for frame x then check if the predicted bullets actually got spawned and delete them if not.
 			const auto msg = static_cast<WorldUpdateMessage*>(message);
 			if (msg->sequenceNumber < newestUpdateSequenceNumber) {
 				std::cout << "out of order update message";
 				break;
 			}
+
+			if (!firstWorldUpdate.has_value()) {
+				firstWorldUpdate = FirstUpdate{
+					.serverSequenceNumber = msg->sequenceNumber,
+					.sequenceNumber = sequenceNumber,
+				};
+			}
+			const auto& firstUpdate = *firstWorldUpdate;
 
 			const auto playersSize = msg->playersCount * sizeof(WorldUpdateMessage::Player);
 			const auto bulletsSize = msg->bulletsCount * sizeof(WorldUpdateMessage::Bullet);
@@ -201,9 +205,9 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			const auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(msg->GetBlockData() + playersSize);
 
 			for (int i = 0; i < msg->playersCount; i++) {
-				const auto& player = msgPlayers[i];
-				if (player.index == clientPlayerIndex) {
-					playerTransform.pos = player.position;
+				const auto& msgPlayer = msgPlayers[i];
+				if (msgPlayer.index == clientPlayerIndex) {
+					playerTransform.position = msgPlayer.position;
 					
 					std::erase_if(
 						playerTransform.inputs,
@@ -215,61 +219,42 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					// Maybe store the positions when the prediction is made and the compare the predicted ones with the server ones and only rollback the old state if they don't match. 
 					// https://youtu.be/zrIY0eIyqmI?t=1599
 					for (const auto& prediction : playerTransform.inputs) {
-						playerTransform.pos = applyMovementInput(playerTransform.pos, prediction.input, dt);
+						playerTransform.position = applyMovementInput(playerTransform.position, prediction.input, dt);
 					}
 				} else {
-					auto& transform = playerIndexToTransform[player.index];
-					if (transform.positions.size() == 0) {
-						transform.positions.push_back(InterpolationPosition{
-							.pos = player.position,
-							.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR,
-							.serverSequenceNumber = msg->sequenceNumber
-						});
-					} else {
-						const auto delay = (msg->sequenceNumber - transform.positions.back().serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR;
-						transform.positions.push_back(InterpolationPosition{ 
-							.pos = player.position, 
-							.frameToDisplayAt = sequenceNumber + delay,
-							.serverSequenceNumber = msg->sequenceNumber
-						});
-					}
-
-					
+					auto& transform = playerIndexToTransform[msgPlayer.index];
+					transform.updatePositions(firstUpdate, msgPlayer.position, sequenceNumber, msg->sequenceNumber);
 				}
 			}
 
 			for (int i = 0; i < msg->bulletsCount; i++) {
 				const auto& msgBullet = msgBullets[i];
 
-				/*bool make = true;
-				for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
-					if (msgBullet.spawnFrameClientSequenceNumber == it->spawnSequenceNumber && msgBullet.frameSpawnIndex == it->frameSpawnIndex) {
-						predictedBullets.erase(it);
-						make = false;
-						break;
-					}
-				}*/
-
-				auto makeInterpolatedBullet = [this](const WorldUpdateMessage::Bullet& msgBullet, int displayFrame, Vec2 pos = Vec2(0.0f)) {
-					auto& bullet = interpolatedBullets[msgBullet.index];
-					bullet.transform.positions.push_back(InterpolationPosition{
-						.pos = msgBullet.position,
-						.frameToDisplayAt = sequenceNumber + SERVER_UPDATE_SEND_RATE_DIVISOR,
+				auto& bullet = interpolatedBullets[msgBullet.index];
+				const auto spawn = bullet.transform.positions.size() == 0;
+				bullet.transform.updatePositions(firstUpdate, msgBullet.position, sequenceNumber, msg->sequenceNumber);
+				if (spawn) {
+					const auto& p = bullet.transform.positions.back();
+					
+					predictedBullets.push_back(PredictedBullet{
+						.position = p.position,
+						.velocity = msgBullet.velocity,
+						// The prediction also has to be delayed to be in synch with the players the client sees
+						.frameToActivateAt = p.frameToDisplayAt,
+						.framesElapsed = msgBullet.framesElapsed,
+						.timeToCatchUp = msgBullet.timeToCatchUp,
+						.aliveFramesLeft = msgBullet.aliveFramesLeft,
 					});
-					bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
-					bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
-				};
-				//if (make)
-				makeInterpolatedBullet(msgBullet, 0);
+					// If the bullet should have already been activated forward the prediction in time.
+					auto& bullet = predictedBullets.back();
+					while (bullet.frameToActivateAt < sequenceNumber) { // Should this be < or <= ?
+						updateBullet(bullet.position, bullet.velocity, bullet.framesElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
+						bullet.frameToActivateAt++;
+					}
 
-				//for (auto it = predictedBullets.begin(); it != predictedBullets.end(); ++it) {
-				//	if (msgBullet.spawnFrameClientSequenceNumber == it->spawnSequenceNumber && msgBullet.frameSpawnIndex == it->frameSpawnIndex) {
-				//	/*	auto& positions = interpolatedBullets[msgBullet.index].transform.positions;
-				//		positions.insert(positions.begin(), InterpolationPosition{ .pos = it->pos, .frameToDisplayAt = sequenceNumber });*/
-				//		predictedBullets.erase(it);
-				//		break;
-				//	}
-				//}
+				}
+				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
+				bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
 			}
 
 			break;
@@ -281,7 +266,19 @@ void GameClient::processMessage(yojimbo::Message* message) {
 	}
 }
 
-void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceNumber) {
+void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {
+	const auto displayDelay = 6;
+	positions.push_back(InterpolationPosition{
+		.position = newPosition,
+		.frameToDisplayAt = 
+			firstUpdate.sequenceNumber +  
+			(serverSequenceNumber - firstUpdate.serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR + 
+			displayDelay,
+		.serverSequenceNumber = serverSequenceNumber
+	});
+}
+
+void GameClient::InterpolatedTransform::interpolatePosition(int sequenceNumber) {
 	std::sort(
 		positions.begin(),
 		positions.end(),
@@ -290,17 +287,22 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 		}
 	);
 	if (positions.size() == 1) {
-		pos = positions[0].pos;
+		position = positions[0].position;
 	} else {
 		int i = 0;
 		for (i = 0; i < positions.size() - 1; i++) {
 			if (positions[i].frameToDisplayAt <= sequenceNumber && positions[i + 1].frameToDisplayAt > sequenceNumber) {
-				auto t = static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 6.0f;
+				auto t = 
+					static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 
+					static_cast<float>(positions[i + 1].frameToDisplayAt - positions[i].frameToDisplayAt);
 				t = std::clamp(t, 0.0f, 1.0f);
+				if (t == 1.0) {
+					std::cout << "lost";
+				}
 
-				const auto start = positions[i].pos;
-				const auto end = positions[i + 1].pos;
-				pos = lerp(start, end, t);
+				const auto start = positions[i].position;
+				const auto end = positions[i + 1].position;
+				position = lerp(start, end, t);
 				// Can't use hermite interpolation because it overshoots, which makes it look like it's rubber banding.
 				// TODO: The overhsooting might not happen if I store more frames, but this would also add more latency. But I don't think that would actually fix that.
 				// https://gdcvault.com/play/1024597/Replicating-Chaos-Vehicle-Replication-in
@@ -311,7 +313,6 @@ void GameClient::InterpolatedTransform::updateInterpolatedPosition(int sequenceN
 			positions.erase(positions.begin(), positions.begin() + i - 1);
 		}
 	}
-	pos - positions.back().pos;
 }
 
 void GameClient::PredictedTrasform::setAuthoritativePosition(Vec2 newPos, int sequenceNumber) {
@@ -322,8 +323,8 @@ void GameClient::PredictedTrasform::setAuthoritativePosition(Vec2 newPos, int se
 		}
 	);
 
-	pos = newPos;
+	position = newPos;
 	for (const auto& prediction : predictedTranslations) {
-		pos += prediction.translation;
+		position += prediction.translation;
 	}
 }

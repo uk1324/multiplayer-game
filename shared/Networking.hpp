@@ -32,12 +32,8 @@ static constexpr int FPS = 60;
 static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
 static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
-static constexpr float DEBUG_LATENCY = 300.0f;
-//static constexpr float DEBUG_JITTER = 200.0f;
-//static constexpr float DEBUG_LATENCY = 200.0f;
-static constexpr float DEBUG_JITTER = 0.0f;
-//static constexpr float DEBUG_LATENCY = 0.0f;
-//static constexpr float DEBUG_JITTER = 0.0f;
+static constexpr float DEBUG_LATENCY = 150.0f;
+static constexpr float DEBUG_JITTER = 100.0f;
 
 namespace GameMessageType {
     enum GameMessageType {
@@ -72,7 +68,7 @@ struct ClientInputMessage : public yojimbo::Message {
         bool up = false, down = false, left = false, right = false, shoot = false;
         float rotation = 0.0f;
     };
-    static constexpr int INPUTS_COUNT = 4;
+    static constexpr int INPUTS_COUNT = 15;
     Input inputs[INPUTS_COUNT];
 
     template <typename Stream>
@@ -111,6 +107,8 @@ struct WorldUpdateMessage : public yojimbo::BlockMessage {
         i32 aliveFramesLeft = -1;
         i32 spawnFrameClientSequenceNumber;
         i32 frameSpawnIndex;
+        i32 framesElapsed;
+        float timeToCatchUp;
     };
 
     void set(i32 lastReceivedClientSequenceNumber, i32 sequenceNumber, i32 playersCount, i32 bulletsCount) {
