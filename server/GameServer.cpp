@@ -28,7 +28,6 @@ void GameServer::update(float dt) {
 		isRunning = false;
 		return;
 	}
-
 	
 	server.AdvanceTime(server.GetTime() + dt);
 	server.ReceivePackets();
@@ -127,7 +126,7 @@ void GameServer::update(float dt) {
 	}
 
 	for (auto& [_, bullet] : bullets) {
-		updateBullet(bullet.pos, bullet.velocity, bullet.framesElapsed, bullet.catchUpTime, bullet.aliveFramesLeft);
+		updateBullet(bullet.pos, bullet.velocity, bullet.timeElapsed, bullet.catchUpTime, bullet.aliveFramesLeft);
 	}
 	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 	
@@ -177,7 +176,7 @@ void GameServer::broadcastWorldState() {
 				.aliveFramesLeft = bullet.aliveFramesLeft,
 				.spawnFrameClientSequenceNumber = bullet.spawnFrameClientSequenceNumber,
 				.frameSpawnIndex = bullet.frameSpawnIndex,
-				.framesElapsed = bullet.framesElapsed,
+				.timeElapsed = bullet.timeElapsed,
 				.timeToCatchUp = bullet.catchUpTime,
 			};
 			i++;

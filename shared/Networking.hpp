@@ -34,6 +34,7 @@ static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
 static constexpr float DEBUG_LATENCY = 150.0f;
 static constexpr float DEBUG_JITTER = 100.0f;
+//static constexpr float DEBUG_JITTER = 0.0f;
 
 namespace GameMessageType {
     enum GameMessageType {
@@ -107,7 +108,7 @@ struct WorldUpdateMessage : public yojimbo::BlockMessage {
         i32 aliveFramesLeft = -1;
         i32 spawnFrameClientSequenceNumber;
         i32 frameSpawnIndex;
-        i32 framesElapsed;
+        float timeElapsed;
         float timeToCatchUp;
     };
 

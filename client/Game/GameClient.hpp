@@ -68,9 +68,11 @@ public:
 		int spawnSequenceNumber;
 		int frameSpawnIndex;
 		int frameToActivateAt;
-		int framesElapsed; 
+		float timeElapsed; 
 		float timeToCatchUp;
 		int aliveFramesLeft;
+		float timeToSynchornize;
+		int testLink = -1;
 	};
 	std::vector<PredictedBullet> predictedBullets;
 

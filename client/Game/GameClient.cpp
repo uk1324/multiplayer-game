@@ -27,6 +27,8 @@ GameClient::~GameClient() {
 // decelerate the bullets at the start on the client. (which just means they accelerate)
 // 
 
+static bool applyInstantPositionCorrection = true;
+
 void GameClient::update(float dt) {
 	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
@@ -40,7 +42,19 @@ void GameClient::update(float dt) {
 		ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
 		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 	}*/
-	ImGui::TextWrapped("blue bullets are spawned when the message first message with them is received and later predicted red bullets are the positions interpolated between server updates");
+
+	ImGui::Checkbox("apply instant position correction", &applyInstantPositionCorrection);
+	ImGui::TextWrapped("first the blue client side prediction is spawned then when the server update is received then the red server version is spawned and if enabled the blue bullets position is corrected to removed desnych");
+
+	for (auto& bullet : predictedBullets) {
+		if (bullet.testLink > 0) {
+			ImGui::Text("prediction elapsed: %.2g", bullet.timeElapsed);
+			ImGui::Text("server elapsed: %.2g", predictedBullets[bullet.testLink].timeElapsed);
+			ImGui::Text("actual desynch %.2g", predictedBullets[bullet.testLink].timeElapsed - bullet.timeElapsed);
+			ImGui::Text("calculated desynch: %.2g", bullet.timeToSynchornize);
+		}
+	}
+
 	this->dt = dt;
 	thisFrameSpawnIndexCounter = 0;
 	{
@@ -89,17 +103,19 @@ void GameClient::update(float dt) {
 				});
 				playerTransform.position = newPos;
 
-				/*if (newInput.shoot) {
+				if (newInput.shoot) {
 					const auto direction = Vec2::oriented(newInput.rotation);
 					predictedBullets.push_back(PredictedBullet{
-						.elapsed = 0.0f,
 						.position = playerTransform.position + PLAYER_HITBOX_RADIUS * direction,
 						.velocity = direction * BULLET_SPEED,
 						.spawnSequenceNumber = sequenceNumber,
 						.frameSpawnIndex = thisFrameSpawnIndexCounter,
+						.frameToActivateAt = -1,
+						.timeToCatchUp = 0.0f,
+						.timeToSynchornize = -1.0f
 					});
 					thisFrameSpawnIndexCounter++;
-				}*/
+				}
 			}
 		}
 
@@ -120,8 +136,12 @@ void GameClient::update(float dt) {
 		if (sequenceNumber <= bullet.frameToActivateAt)
 			continue;
 
-		renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
-		updateBullet(bullet.position, bullet.velocity, bullet.framesElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
+		if (bullet.timeToSynchornize) {
+			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
+		} else {
+			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+		}
+		updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
@@ -134,10 +154,10 @@ void GameClient::update(float dt) {
 		return opacity;
 	};
 
-	for (auto& [_, bullet] : interpolatedBullets) {
-		const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
-		renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
-	}
+	//for (auto& [_, bullet] : interpolatedBullets) {
+	//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
+	//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+	//}
 
 	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 	renderer.update(playerTransform.position);
@@ -233,6 +253,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				auto& bullet = interpolatedBullets[msgBullet.index];
 				const auto spawn = bullet.transform.positions.size() == 0;
 				bullet.transform.updatePositions(firstUpdate, msgBullet.position, sequenceNumber, msg->sequenceNumber);
+
 				if (spawn) {
 					const auto& p = bullet.transform.positions.back();
 					
@@ -241,15 +262,36 @@ void GameClient::processMessage(yojimbo::Message* message) {
 						.velocity = msgBullet.velocity,
 						// The prediction also has to be delayed to be in synch with the players the client sees
 						.frameToActivateAt = p.frameToDisplayAt,
-						.framesElapsed = msgBullet.framesElapsed,
+						.timeElapsed = msgBullet.timeElapsed,
 						.timeToCatchUp = msgBullet.timeToCatchUp,
 						.aliveFramesLeft = msgBullet.aliveFramesLeft,
+						.timeToSynchornize = 0.0f
 					});
 					// If the bullet should have already been activated forward the prediction in time.
 					auto& bullet = predictedBullets.back();
 					while (bullet.frameToActivateAt < sequenceNumber) { // Should this be < or <= ?
-						updateBullet(bullet.position, bullet.velocity, bullet.framesElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
+						updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
 						bullet.frameToActivateAt++;
+					}
+
+					for (auto& spawnPredictedBullet : predictedBullets) {
+						if (spawnPredictedBullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber 
+							&& spawnPredictedBullet.frameSpawnIndex == msgBullet.frameSpawnIndex) {
+
+							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber + 1) * FRAME_DT;
+							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
+							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
+							spawnPredictedBullet.timeToSynchornize = timeDysnych;
+							spawnPredictedBullet.testLink = predictedBullets.size() - 1;
+							if (applyInstantPositionCorrection) {
+								spawnPredictedBullet.position -= spawnPredictedBullet.velocity * timeDysnych;
+							}
+							/*const auto framesBeforePredictionDisplayed = bullet.frameToActivateAt - sequenceNumber;
+							ASSERT(framesBeforePredictionDisplayed >= 0);
+							const auto bulletCurrentElapsedFrames = msgBullet.framesElapsed - framesBeforePredictionDisplayed;
+							const auto framesToSynchornize = spawnPredictedBullet.framesElapsed - bulletCurrentElapsedFrames;
+							spawnPredictedBullet.timeToSynchornize = framesToSynchornize;*/
+						}
 					}
 
 				}
