@@ -72,6 +72,7 @@ public:
 		float timeToCatchUp;
 		int aliveFramesLeft;
 		float timeToSynchornize;
+		float tSynchronizaztion = 0.0f;
 		int testLink = -1;
 	};
 	std::vector<PredictedBullet> predictedBullets;

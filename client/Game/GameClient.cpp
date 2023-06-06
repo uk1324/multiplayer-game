@@ -29,7 +29,9 @@ GameClient::~GameClient() {
 
 static bool applyInstantPositionCorrection = true;
 
+bool showServerVersion = false;
 void GameClient::update(float dt) {
+	ImGui::Checkbox("show server version", &showServerVersion);
 	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
 	{
@@ -42,9 +44,6 @@ void GameClient::update(float dt) {
 		ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
 		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 	}*/
-
-	ImGui::Checkbox("apply instant position correction", &applyInstantPositionCorrection);
-	ImGui::TextWrapped("first the blue client side prediction is spawned then when the server update is received then the red server version is spawned and if enabled the blue bullets position is corrected to removed desnych");
 
 	for (auto& bullet : predictedBullets) {
 		if (bullet.testLink > 0) {
@@ -112,7 +111,8 @@ void GameClient::update(float dt) {
 						.frameSpawnIndex = thisFrameSpawnIndexCounter,
 						.frameToActivateAt = -1,
 						.timeToCatchUp = 0.0f,
-						.timeToSynchornize = -1.0f
+						.timeToSynchornize = 0.0f,
+						.tSynchronizaztion = 1.0f
 					});
 					thisFrameSpawnIndexCounter++;
 				}
@@ -136,12 +136,111 @@ void GameClient::update(float dt) {
 		if (sequenceNumber <= bullet.frameToActivateAt)
 			continue;
 
-		if (bullet.timeToSynchornize) {
+		/*if (bullet.timeToSynchornize) {
+			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
+		} else {
+		}*/
+		renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+		/*if (bullet.timeToSynchornize) {
 			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
 		} else {
 			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+		}*/
+		auto dt = FRAME_DT;
+		if (bullet.timeToSynchornize < 0.0f) {
+			bullet.timeToSynchornize = -bullet.timeToSynchornize;
 		}
-		updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
+
+		// integration test.
+		const auto n = 100;
+		auto s = 1.0f / n;
+		float in = 0.0f;
+		float max = 1.5;
+		const auto scale = 4.0f / max;
+		s *= scale;
+		for (int i = 0; i < n; i++) {
+			float t = i / static_cast<float>(n);
+			t -= 0.5f;
+			t *= scale;
+			in += max * exp(-PI<float> * pow(max * t, 2.0f)) * s;
+		}
+		// Maybe use convultions of sin(ax)/ax
+		// Squshing points of a straight line (heat pde)
+		// Interpolating between functions.
+
+		//static f32 n = 0.0f;
+		static float sum = 0.0f;
+		if (bullet.tSynchronizaztion < 1.0f) {
+			/*const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>);*/
+			/*dt -= FRAME_DT / 2.0f;
+			bullet.timeSynchornized += FRAME_DT / 2.0f;*/
+			//const auto max = 1.0f / 3.0f
+
+
+			/*const auto max = 1.0f / sqrt(PI<float>) * bullet.timeToSynchornize;
+			const auto maxNormalize = max / (FRAME_DT / 2.0f);
+			const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>) * maxNormalize;
+			const auto t = bullet.timeSynchornized / bullet.timeToSynchornize;
+			const auto x = (t - 0.5f) * normalize * 2.0f;
+			const auto value = normalize * exp(-pow(x * maxNormalize, 2.0f));
+			const auto k = value / bullet.timeToSynchornize;
+			n += k;
+			dt -= value;
+			bullet.timeSynchornized += value;*/
+
+			//const auto max = 2.0f / sqrt(PI<float>) * bullet.timeToSynchornize;
+			//const auto maxNormalize = max / (FRAME_DT / 2.0f);
+			//const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>) * maxNormalize;
+			/*const auto max = (FRAME_DT * 20.0f) / bullet.timeToSynchornize;*/
+			//const auto max = 2000.0f;
+			//const auto t = bullet.timeSynchornized / bullet.timeToSynchornize; // from 0 to 1
+
+			//auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
+			//const auto scale = 4.0f / max;
+			//x *= scale;
+			//const auto value = max * (1.0f / cosh(max * x)) / 2.6;
+
+			
+
+			//{
+			//	auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
+			//	const auto scale = 4.0f;
+			//	x *= scale;
+			//	const auto value = (1.0f / cosh(x)) / 2.6;
+
+			//	float step = 0.01;
+			//	bullet.tSynchronizaztion += step;
+			//	sum += value * step * 4.0f;
+			//	dt -= value * step * 4.0f * bullet.timeToSynchornize;
+			//}
+
+			//x *= 2.0f / max; // from -2 * (1 / max) to 2 * (1 / max)
+			//const auto value = max * exp(-PI<float> * pow(max * x, 2.0f));
+			/*const auto value = max * (1.0f / cosh(max * x)) / 2.6;*/
+			//n += value;
+			/*auto s = 0.01f;
+			s *= 4.0f / max;*/
+
+			{
+				auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
+				const auto scale = 4.0f / max;
+				x *= scale;
+				const auto value = max * (1.0f / cosh(max * x)) / 2.6;
+
+				float step = 0.01;
+				bullet.tSynchronizaztion += step;
+				sum += value * step * scale;
+				dt -= value * step * scale * bullet.timeToSynchornize;
+			}
+
+			/*const auto value = normalize * exp(-pow(x * maxNormalize, 2.0f));
+			const auto k = value / bullet.timeToSynchornize;*/
+			/*n += k;
+			dt -= value;
+			bullet.timeSynchornized += value;*/
+		}
+
+		updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
 	}
 
 	for (auto& [_, transform] : playerIndexToTransform) {
@@ -265,12 +364,13 @@ void GameClient::processMessage(yojimbo::Message* message) {
 						.timeElapsed = msgBullet.timeElapsed,
 						.timeToCatchUp = msgBullet.timeToCatchUp,
 						.aliveFramesLeft = msgBullet.aliveFramesLeft,
-						.timeToSynchornize = 0.0f
+						.timeToSynchornize = 0.0f,
+						.tSynchronizaztion = 1.0f
 					});
 					// If the bullet should have already been activated forward the prediction in time.
 					auto& bullet = predictedBullets.back();
 					while (bullet.frameToActivateAt < sequenceNumber) { // Should this be < or <= ?
-						updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft);
+						updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, FRAME_DT);
 						bullet.frameToActivateAt++;
 					}
 
@@ -282,10 +382,11 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
 							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
 							spawnPredictedBullet.timeToSynchornize = timeDysnych;
-							spawnPredictedBullet.testLink = predictedBullets.size() - 1;
+							spawnPredictedBullet.tSynchronizaztion = 0.0f;
+							/*spawnPredictedBullet.testLink = predictedBullets.size() - 1;
 							if (applyInstantPositionCorrection) {
 								spawnPredictedBullet.position -= spawnPredictedBullet.velocity * timeDysnych;
-							}
+							}*/
 							/*const auto framesBeforePredictionDisplayed = bullet.frameToActivateAt - sequenceNumber;
 							ASSERT(framesBeforePredictionDisplayed >= 0);
 							const auto bulletCurrentElapsedFrames = msgBullet.framesElapsed - framesBeforePredictionDisplayed;
@@ -293,6 +394,8 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							spawnPredictedBullet.timeToSynchornize = framesToSynchornize;*/
 						}
 					}
+					if (!showServerVersion)
+						predictedBullets.pop_back();
 
 				}
 				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;

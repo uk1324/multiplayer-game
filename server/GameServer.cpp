@@ -126,7 +126,7 @@ void GameServer::update(float dt) {
 	}
 
 	for (auto& [_, bullet] : bullets) {
-		updateBullet(bullet.pos, bullet.velocity, bullet.timeElapsed, bullet.catchUpTime, bullet.aliveFramesLeft);
+		updateBullet(bullet.pos, bullet.velocity, bullet.timeElapsed, bullet.catchUpTime, bullet.aliveFramesLeft, FRAME_DT);
 	}
 	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 	

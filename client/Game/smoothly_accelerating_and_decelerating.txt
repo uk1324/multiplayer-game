@@ -1,0 +1,39 @@
+To chage the velocity of an object with a path that can be specified as a f(t) you can add or subtract a value from the t. If the function takes a dt then you can subtract or add the value from dt.
+h(t) - modification value
+For the the movement to be smooth and not discontinous the derivatives of the movement have to be continous. One way to do it could be to add 2 smooth functions because derivatives are linear. Because I want to first accelerate and then decelerate in some finite amout of time it means that the function should start at zero go up and the decelerate back to zero. A lot of probability density functions look like that.
+
+One nice parameter to be able to control is the maximum value the function takes. If the maximum is bigger than the frame time then the object will start moving backwards. It also wouldn't look good most of the time if the object stopped.
+
+If the goal is to speed up to catch up some other object whose movement is using the same f(t) then you can calculate the time difference between them. If you are using some function g(t) to vary the speed then you also need to know the sum of all the values g(t) takes in the interval of speed up.
+
+If you want to use a function for speed up for example g(x) = e^(-x^2) then it isn't possible to change the maximum while preserving area without making the function wider or thinner. For example to change the maximum m of g(x) and make the area 1 you make it m * g(sqrt(pi) * m * x) (increasing the inside makes the function thinner and increasing the value outside makes the function taller). When you make the maximum smaller then function gets wider. Because it gets wider if you want to take long steps, but when you take longer steps the value you are adding at each step when integrating also gets bigger.
+
+{
+	const auto n = 100;
+	float integral = 0.0f;
+	float max = 1.5;
+
+	auto step = 1.0f / n;
+	// Decreasing max increases scale.
+	const auto scale = 4.0f / max;
+	// Need to take bigger steps to cover the bigger region
+	step *= scale;
+	for (int i = 0; i < n; i++) {
+		float t = i / static_cast<float>(n);
+		t -= 0.5f;
+		// The region covered needs to be bigger.
+		t *= scale;
+
+		// The max in the pow cancels out with the max in the scale. You are essentially not chaning anything by scaling each step.
+		// The max before exp cancels out with the max in step which is multiplied by scale.
+		integral += max * exp(-PI<float> * pow(max * t, 2.0f)) * step;
+	}
+	// integral ~= 1
+}
+
+Because of this if you want the maximum to be lower you need to takes smaller steps which means it takes more time.
+
+
+Symmetric or non symmetric?
+
+Instead of using the same function with changed input and scaling you could instead start with a line and smooth if (eg. heat quation, convolution of sin(ax) / ax (https://www.youtube.com/watch?v=851U557j6HE&t=181s)). Or maybe interpolate between functions (when using lerp the maximum should changne linearly).
