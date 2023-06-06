@@ -45,14 +45,14 @@ void GameClient::update(float dt) {
 		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 	}*/
 
-	for (auto& bullet : predictedBullets) {
+	/*for (auto& bullet : predictedBullets) {
 		if (bullet.testLink > 0) {
 			ImGui::Text("prediction elapsed: %.2g", bullet.timeElapsed);
 			ImGui::Text("server elapsed: %.2g", predictedBullets[bullet.testLink].timeElapsed);
 			ImGui::Text("actual desynch %.2g", predictedBullets[bullet.testLink].timeElapsed - bullet.timeElapsed);
 			ImGui::Text("calculated desynch: %.2g", bullet.timeToSynchornize);
 		}
-	}
+	}*/
 
 	this->dt = dt;
 	thisFrameSpawnIndexCounter = 0;
@@ -164,80 +164,38 @@ void GameClient::update(float dt) {
 			t *= scale;
 			in += max * exp(-PI<float> * pow(max * t, 2.0f)) * s;
 		}
-		// Maybe use convultions of sin(ax)/ax
-		// Squshing points of a straight line (heat pde)
-		// Interpolating between functions.
 
 		//static f32 n = 0.0f;
 		static float sum = 0.0f;
+		static float maximum;
+		ImGui::Text("expected max: %g", FRAME_DT / 8.0f);
+		ImGui::Text("calculated max: %g", maximum);
 		if (bullet.tSynchronizaztion < 1.0f) {
-			/*const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>);*/
-			/*dt -= FRAME_DT / 2.0f;
-			bullet.timeSynchornized += FRAME_DT / 2.0f;*/
-			//const auto max = 1.0f / 3.0f
 
+			auto x = (bullet.tSynchronizaztion - 0.5f); // from -0.5 to 0.5
+			// Most of the values are concentrated in the interval -2 to 2
+			const auto scale = 4.0f;
+			x *= scale; // from -2 to 2
 
-			/*const auto max = 1.0f / sqrt(PI<float>) * bullet.timeToSynchornize;
-			const auto maxNormalize = max / (FRAME_DT / 2.0f);
-			const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>) * maxNormalize;
-			const auto t = bullet.timeSynchornized / bullet.timeToSynchornize;
-			const auto x = (t - 0.5f) * normalize * 2.0f;
-			const auto value = normalize * exp(-pow(x * maxNormalize, 2.0f));
-			const auto k = value / bullet.timeToSynchornize;
-			n += k;
-			dt -= value;
-			bullet.timeSynchornized += value;*/
+			const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
+			const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
 
-			//const auto max = 2.0f / sqrt(PI<float>) * bullet.timeToSynchornize;
-			//const auto maxNormalize = max / (FRAME_DT / 2.0f);
-			//const auto normalize = bullet.timeToSynchornize / sqrt(PI<float>) * maxNormalize;
-			/*const auto max = (FRAME_DT * 20.0f) / bullet.timeToSynchornize;*/
-			//const auto max = 2000.0f;
-			//const auto t = bullet.timeSynchornized / bullet.timeToSynchornize; // from 0 to 1
+			const auto max = FRAME_DT / 8.0f;
+			// max = normalDistMax * functionStep * bullet.timeToSynchronize
+			// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
+			// functionStep = timeStep * scale
+			// timeStep = functionStep / scale
+			const auto timeStep = max / (normalDistributionMax * bullet.timeToSynchornize) / scale;
 
-			//auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
-			//const auto scale = 4.0f / max;
-			//x *= scale;
-			//const auto value = max * (1.0f / cosh(max * x)) / 2.6;
+			bullet.tSynchronizaztion += timeStep;
+			const auto functionStep = timeStep * scale;
+			sum += value * functionStep;
+			dt -= value * functionStep * bullet.timeToSynchornize;
 
-			
-
-			//{
-			//	auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
-			//	const auto scale = 4.0f;
-			//	x *= scale;
-			//	const auto value = (1.0f / cosh(x)) / 2.6;
-
-			//	float step = 0.01;
-			//	bullet.tSynchronizaztion += step;
-			//	sum += value * step * 4.0f;
-			//	dt -= value * step * 4.0f * bullet.timeToSynchornize;
-			//}
-
-			//x *= 2.0f / max; // from -2 * (1 / max) to 2 * (1 / max)
-			//const auto value = max * exp(-PI<float> * pow(max * x, 2.0f));
-			/*const auto value = max * (1.0f / cosh(max * x)) / 2.6;*/
-			//n += value;
-			/*auto s = 0.01f;
-			s *= 4.0f / max;*/
-
-			{
-				auto x = (bullet.tSynchronizaztion - 0.5f); // from -1 to 1
-				const auto scale = 4.0f / max;
-				x *= scale;
-				const auto value = max * (1.0f / cosh(max * x)) / 2.6;
-
-				float step = 0.01;
-				bullet.tSynchronizaztion += step;
-				sum += value * step * scale;
-				dt -= value * step * scale * bullet.timeToSynchornize;
+			auto val = value * functionStep * bullet.timeToSynchornize;
+			if (val > maximum) {
+				maximum = val;
 			}
-
-			/*const auto value = normalize * exp(-pow(x * maxNormalize, 2.0f));
-			const auto k = value / bullet.timeToSynchornize;*/
-			/*n += k;
-			dt -= value;
-			bullet.timeSynchornized += value;*/
 		}
 
 		updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
