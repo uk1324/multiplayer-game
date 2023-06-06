@@ -21,6 +21,10 @@ GameServer::GameServer()
 	std::cout << "Server address is " << buffer << std::endl;
 }
 
+GameServer::~GameServer() {
+	server.Stop();
+}
+
 // TODO: Don't allow client to send multiple inputs per frame. Buffer the inputs and execute them on the next frame.
 void GameServer::update(float dt) {
 	this->dt = dt;

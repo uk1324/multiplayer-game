@@ -32,9 +32,12 @@ BOOL WINAPI ctrlHandler(DWORD fdwCtrlType) {
     }
 }
 
+#include <cstdlib>
+
 void setOnCloseCallback(void (*function)()) {
     onCloseCallback = function;
     SetConsoleCtrlHandler(ctrlHandler, true);
+	atexit(function);
 }
 
 void getPrimaryScreenSize(int* x, int* y) {

@@ -331,12 +331,14 @@ void GameClient::processMessage(yojimbo::Message* message) {
 						updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, FRAME_DT);
 						bullet.frameToActivateAt++;
 					}
-
+					yojimbo::NetworkInfo info;
+					client.GetNetworkInfo(info);
+					bullet.position += bullet.velocity * (info.RTT / 1000.0f);
 					for (auto& spawnPredictedBullet : predictedBullets) {
 						if (spawnPredictedBullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber 
 							&& spawnPredictedBullet.frameSpawnIndex == msgBullet.frameSpawnIndex) {
 
-							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber + 1) * FRAME_DT;
+							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - 6 - sequenceNumber + 1) * FRAME_DT;
 							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
 							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
 							spawnPredictedBullet.timeToSynchornize = timeDysnych;
@@ -350,10 +352,11 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							const auto bulletCurrentElapsedFrames = msgBullet.framesElapsed - framesBeforePredictionDisplayed;
 							const auto framesToSynchornize = spawnPredictedBullet.framesElapsed - bulletCurrentElapsedFrames;
 							spawnPredictedBullet.timeToSynchornize = framesToSynchornize;*/
+							//if (!showServerVersion)
+							predictedBullets.pop_back();
 						}
 					}
-					if (!showServerVersion)
-						predictedBullets.pop_back();
+					
 
 				}
 				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;

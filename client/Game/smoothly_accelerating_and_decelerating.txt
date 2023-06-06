@@ -37,3 +37,5 @@ Because of this if you want the maximum to be lower you need to takes smaller st
 Symmetric or non symmetric?
 
 Instead of using the same function with changed input and scaling you could instead start with a line and smooth if (eg. heat quation, convolution of sin(ax) / ax (https://www.youtube.com/watch?v=851U557j6HE&t=181s)). Or maybe interpolate between functions (when using lerp the maximum should changne linearly).
+Bell shaped functions
+Bump functions - https://en.wikipedia.org/wiki/Bump_function.

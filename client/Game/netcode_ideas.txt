@@ -1,0 +1,16 @@
+When receiving an update forward the state of the object forward in time by RTT (try to synchronize based on first update time). And predict the other players actions. This should make the player see the world like the server sees it. The issue is that bullets won't might not spawn at the players positions but ahead of them.
+
+k, so Maiden & Spell's netcode is a bit weird
+If you have a high ping between you and your opponent, it'll basically spawn your opponent's attacks a little bit ahead of where they "should" be
+So if your ping is 100ms, then you get a signal that your opponent did an attack, you'll say, "he probably actually did the attack 50ms ago" and basically the bullets will spawn 50ms faster than they would otherwise, in a place 50ms out from where they "should" spawn
+(it doesn't actually just half your ping, the two clients are actually sending each other their game time back and forth to calculate how much moves should be rolled back)
+However, it only does this up to 150ms.  Otherwise, when your ping was really high, bullets would begin appearing waaaay to far out, and instantly spawning
+If your ping is really high (>300ms-ish), you might do an attack, and it's going to get to the opponent more than 150ms after you actually pressed the button
+If this is the case, since your opponent is only going to roll back the attack 150ms, your client actually slows down the attack on your screen
+so it looks a bit like your attack comes out really slowly
+By doing this, both clients' screens look roughly the same, despite having a high ping
+but, you can turn off the effect where your attacks come out slowly.  Turning this Attack Delay to 0 basically means that, when looking at your attacks, you feel as if there's no lag at all, and there's no slowdown
+However, your attacks on your screen are going to be slightly further along their trajectory than they are on your opponent's screen
+So you'll see places where your opponent looks like they get hit, but they don't, more often
+But, all of this only happens when your ping is super high, above 300ms or so.  Below 300ms ping, the setting doesn't really do anything
+Hope that makes sense

@@ -8,6 +8,7 @@
 
 struct GameServer {
 	GameServer();
+	~GameServer();
 	float dt;
 	void update(float dt);
 	void broadcastWorldState();

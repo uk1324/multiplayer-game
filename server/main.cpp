@@ -5,6 +5,9 @@
 #include <shared/DebugWindowInfo.hpp>
 #include <charconv>
 
+#include <raylib/raylib.h>
+#include <shared/Gameplay.hpp>
+
 void onClose() {
 	system("taskkill /IM client.exe");
 }
@@ -22,9 +25,21 @@ int main(int argc, char* argv[]) {
 		int screenWidth, screenHeight;
 		getPrimaryScreenSize(&screenWidth, &screenHeight);
 		const auto x = WINDOW_WIDTH * *openedClientWindows;
-		setConsolePosAndSize(x, 30, screenWidth - x, 600);
+		const auto sizeX = screenWidth - x;
+		const auto sizeY = WINDOW_HEIGHT;
+
+		InitWindow(sizeX, sizeY, "server");
+		SetWindowPosition(x, 30);
+
+		setConsolePosAndSize(x, 30 + WINDOW_HEIGHT + 30, sizeX, sizeY);
+	} else {
+		InitWindow(800, 600, "server");
 	}
 	setOnCloseCallback(onClose);
+
+	const auto windowWidth = GetScreenWidth();
+	const auto windowHeight = GetScreenHeight();
+
 
 	constexpr double FRAME_TIME_CAP = 2.0;
 	auto currentTime = []() {
@@ -46,7 +61,25 @@ int main(int argc, char* argv[]) {
 
 	GameServer server;
 
-	while (server.isRunning)
+	auto vector2 = [](Vec2 pos) {
+		return Vector2{ .x = pos.x, .y = pos.y };
+	};
+
+	auto convertPos = [&](Vec2 pos) {
+		pos.y = -pos.y;
+		return vector2(pos);
+	};
+
+	Camera2D camera{
+		.offset = Vector2{ 0.0f, 0.0f },
+		.target = 0.0f,
+		.rotation = 0.0f,
+		.zoom = 500.0f,
+	};
+	camera.offset.x += windowWidth / 2;
+	camera.offset.y += windowHeight / 2;
+
+	while (server.isRunning && !WindowShouldClose())
 	{
 		frameStartTime = currentTime();
 		frameTime = frameStartTime - lastFrameStartTime;
@@ -61,10 +94,28 @@ int main(int argc, char* argv[]) {
 		{
 			server.update(updateTime);
 			accumulatedTime -= updateTime;
+
+			BeginDrawing();
+			BeginMode2D(camera);
+
+			ClearBackground(BLACK);
+
+			for (const auto& [_, player] : server.players) {
+				DrawCircleV(convertPos(player.pos), PLAYER_HITBOX_RADIUS, BLUE);
+			}
+
+			for (const auto& [_, bullet] : server.bullets) {
+				DrawCircleV(convertPos(bullet.pos), BULLET_HITBOX_RADIUS, BLUE);
+			}
+
+			EndMode2D();
+			EndDrawing();
 		}
 	}
+	CloseWindow();
 
-	ShutdownYojimbo();
+	// Raylib causes yojimbo to leak memory for some reason. If this is commented out the leak check doesn't happen.
+	//ShutdownYojimbo();
 
 	return EXIT_SUCCESS;
 }

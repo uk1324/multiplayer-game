@@ -32,8 +32,9 @@ static constexpr int FPS = 60;
 static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
 static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
-static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_JITTER = 200.0f;
+static constexpr float DEBUG_LATENCY = 500.0f;
+//static constexpr float DEBUG_JITTER = 200.0f;
+ static constexpr float DEBUG_JITTER = 0.0f;
  //static constexpr float DEBUG_JITTER = 50.0f;
 //static constexpr float DEBUG_JITTER = 0.0f;
 
