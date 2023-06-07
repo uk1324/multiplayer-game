@@ -27,11 +27,9 @@ GameClient::~GameClient() {
 // decelerate the bullets at the start on the client. (which just means they accelerate)
 // 
 
-static bool applyInstantPositionCorrection = true;
-
-bool showServerVersion = false;
 void GameClient::update(float dt) {
-	ImGui::Checkbox("show server version", &showServerVersion);
+	ImGui::Text("The bullets created by the client are predict spawned and later slowed down to make them synced up with the players. So when you hit someone on your screen it should also hit the player on the server. The bullets created by the other players are accelerated to compensate for RTT time, because the player receives the update RTT/2 time after it happened and it takes RTT/2 time for the input to arrive on the server. The client tries to predict the future so they when the dodge the bullets on their screen the bullets should also be dodged on the server later. So the player's bullets and other player's positions are in the past, but other player's bullets are in the future");
+
 	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
 	{
@@ -318,7 +316,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 						.position = p.position,
 						.velocity = msgBullet.velocity,
 						// The prediction also has to be delayed to be in synch with the players the client sees
-						.frameToActivateAt = p.frameToDisplayAt,
+						.frameToActivateAt = p.frameToDisplayAt - 6,
 						.timeElapsed = msgBullet.timeElapsed,
 						.timeToCatchUp = msgBullet.timeToCatchUp,
 						.aliveFramesLeft = msgBullet.aliveFramesLeft,
@@ -333,16 +331,28 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					}
 					yojimbo::NetworkInfo info;
 					client.GetNetworkInfo(info);
-					bullet.position += bullet.velocity * (info.RTT / 1000.0f);
+					//bullet.position += bullet.velocity * (info.RTT / 1000.0f);
+					bullet.timeToCatchUp += (info.RTT / 1000.0f);
 					for (auto& spawnPredictedBullet : predictedBullets) {
 						if (spawnPredictedBullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber 
 							&& spawnPredictedBullet.frameSpawnIndex == msgBullet.frameSpawnIndex) {
+							bullet.frameToActivateAt += 6;
+							bullet.timeToCatchUp -= (info.RTT / 1000.0f);
 
-							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - 6 - sequenceNumber + 1) * FRAME_DT;
+							/*const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt + 6 - sequenceNumber + 1) * FRAME_DT;*/
+							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber) * FRAME_DT; 
+							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
+							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
+							//spawnPredictedBullet.position += timeDysnych * spawnPredictedBullet.velocity;
+							spawnPredictedBullet.timeToSynchornize = timeDysnych;
+							spawnPredictedBullet.tSynchronizaztion = 0.0f;
+
+							/*const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - 6 - sequenceNumber + 1) * FRAME_DT;
 							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
 							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
 							spawnPredictedBullet.timeToSynchornize = timeDysnych;
-							spawnPredictedBullet.tSynchronizaztion = 0.0f;
+							spawnPredictedBullet.tSynchronizaztion = 0.0f;*/
+
 							/*spawnPredictedBullet.testLink = predictedBullets.size() - 1;
 							if (applyInstantPositionCorrection) {
 								spawnPredictedBullet.position -= spawnPredictedBullet.velocity * timeDysnych;
@@ -353,7 +363,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							const auto framesToSynchornize = spawnPredictedBullet.framesElapsed - bulletCurrentElapsedFrames;
 							spawnPredictedBullet.timeToSynchornize = framesToSynchornize;*/
 							//if (!showServerVersion)
-							predictedBullets.pop_back();
+							//predictedBullets.pop_back();
 						}
 					}
 					

@@ -118,7 +118,7 @@ void GameServer::update(float dt) {
 					.spawnFrameClientSequenceNumber = sequenceNumber,
 					.frameSpawnIndex = player.bulletsSpawnedThisFrame,
 					/*.catchUpTime = DEBUG_LATENCY / 1000.0f + FRAME_DT * 6.0f*/
-					.catchUpTime = info.RTT / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
+					.catchUpTime = info.RTT / 2.0f / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
 				};
 				player.bulletsSpawnedThisFrame++;
 				bulletIndexCounter++;

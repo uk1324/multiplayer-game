@@ -96,9 +96,9 @@ int main(int argc, char* argv[]) {
 			accumulatedTime -= updateTime;
 
 			BeginDrawing();
-			BeginMode2D(camera);
-
 			ClearBackground(BLACK);
+
+			BeginMode2D(camera);
 
 			for (const auto& [_, player] : server.players) {
 				DrawCircleV(convertPos(player.pos), PLAYER_HITBOX_RADIUS, BLUE);
