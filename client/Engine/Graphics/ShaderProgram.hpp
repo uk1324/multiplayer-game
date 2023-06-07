@@ -10,6 +10,7 @@
 class ShaderProgram
 {
 public:
+	// TODO: Api that does crash when the shader doesn't load to use in reloading.
 	ShaderProgram();
 	ShaderProgram(std::string_view vertexPath, std::string_view fragmentPath);
 	ShaderProgram(std::string_view vertexPath, std::string_view geometryPath, std::string_view fragmentPath);

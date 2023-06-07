@@ -167,6 +167,6 @@ void main() {
 		a = 1.0 - t;
 	}
 
-	vec3 color = vec3(0.506, 0.204, 0.255) * max(0.5, octave01(p * 2.0, 3));
+	vec3 color = vec3(0.506, 0.204, 0.255) * max(0.5, octave01(p * 4.0, 3));
 	fragColor = mix(vec4(color, 0.0), vec4(color, 1.0), a) * d;
 }

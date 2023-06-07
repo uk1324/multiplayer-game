@@ -3,6 +3,7 @@
 #include <Engine/Input/Input.hpp>
 #include <shared/Math/utils.hpp>
 #include <imgui/imgui.h>
+#include <iostream>
 
 struct PtVertex {
 	Vec2 pos, texturePos;
@@ -101,6 +102,20 @@ void Renderer::update(Vec2 playerPos) {
 		reloadShaders();
 	}
 
+	for (auto& shader : shaders) {
+		const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
+		const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
+		if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
+			continue;
+		}
+		shader.program = ShaderProgram(shader.vertPath, shader.fragPath);
+		shader.vertPathLastWriteTime = vertLastWriteTime;
+		shader.fragPathLastWriteTime = fragLastWriteTime;
+		std::cout << "reloaded shader\n"
+			<< "vert: " << shader.vertPath << '\n'
+			<< "frag: " << shader.fragPath << '\n';
+	}
+
 	glViewport(0, 0, Window::size().x, Window::size().y);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -189,7 +204,12 @@ void Renderer::playDeathAnimation(Vec2 position) {
 }
 
 ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string_view fragPath) {
-	shaders.push_back(ShaderEntry{ .vertPath = vertPath, .fragPath = fragPath, .program = ShaderProgram(vertPath, fragPath) });
+	shaders.push_back(ShaderEntry{ 
+		.vertPath = vertPath, 
+		.fragPath = fragPath, 
+		.program = ShaderProgram(vertPath, fragPath) 
+	});
+	shaders.back().updateLastWriteTimes();
 	return shaders.back().program;
 }
 
@@ -197,4 +217,9 @@ void Renderer::reloadShaders() {
 	for (auto& entry : shaders) {
 		entry.program = ShaderProgram(entry.vertPath, entry.fragPath);
 	}
+}
+
+void Renderer::ShaderEntry::updateLastWriteTimes() {
+	fragPathLastWriteTime = std::filesystem::last_write_time(fragPath);
+	vertPathLastWriteTime = std::filesystem::last_write_time(vertPath);
 }

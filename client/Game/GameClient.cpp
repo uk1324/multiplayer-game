@@ -202,10 +202,10 @@ void GameClient::update(float dt) {
 	}
 	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 
-	/*playerTransform.position = Vec2(0.0f);
+	playerTransform.position = Vec2(0.0f);
 	if (Input::isKeyDown(KeyCode::L)) {
 		renderer.playDeathAnimation(Vec2(0.0f));
-	}*/
+	}
 
 	auto calculateBulletOpacity = [](int aliveFramesLeft) {
 		const auto opacityChangeFrames = 60.0f;

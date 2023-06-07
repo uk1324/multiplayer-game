@@ -7,6 +7,7 @@
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <Game/Camera.hpp>
 #include <shared/Math/Vec4.hpp>
+#include <filesystem>
 
 struct Renderer {
 	struct Sprite {
@@ -67,8 +68,12 @@ private:
 	ShaderProgram& createShader(std::string_view vertPath, std::string_view fragPath);
 	struct ShaderEntry {
 		std::string_view vertPath;
+		std::filesystem::file_time_type vertPathLastWriteTime;
 		std::string_view fragPath;
+		std::filesystem::file_time_type fragPathLastWriteTime;
 		ShaderProgram program;
+
+		void updateLastWriteTimes();
 	};
 	std::list<ShaderEntry> shaders;
 	void reloadShaders();
