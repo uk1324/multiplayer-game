@@ -43,6 +43,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other) noexcept
 	glDeleteProgram(m_handle);
 	m_handle = other.m_handle;
 	other.m_handle = NULL;
+	m_cachedUniformLocations = other.m_cachedUniformLocations;
 	return *this;
 }
 

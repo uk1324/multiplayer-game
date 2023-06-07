@@ -14,7 +14,8 @@ Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt) {
 	if (input.right) {
 		direction += Vec2(1.0f, 0.0f);
 	}
-	pos += direction.normalized() * dt;
+	const auto velocity = input.shift ? PLAYER_SHIFT_SPEED : PLAYER_SPEED;
+	pos += direction.normalized() * dt * velocity;
 	return pos;
 }
 

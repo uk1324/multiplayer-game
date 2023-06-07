@@ -36,6 +36,12 @@ struct GameServer {
 			int sequenceNumber = 0;
 		};
 		std::queue<InputWithSequenceNumber> inputs;
+		float shootCooldown = 0.0f;
+		int deaths;
+		int kills;
+		int isAlive = true;
+
+		LeaderboardUpdateMessage::Entry leaderboardEntry(int playerIndex) const;
 	};
 
 	struct Bullet {

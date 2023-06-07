@@ -2,6 +2,7 @@
 #include <Engine/Window.hpp>
 #include <Engine/Input/Input.hpp>
 #include <shared/Math/utils.hpp>
+#include <imgui/imgui.h>
 
 struct PtVertex {
 	Vec2 pos, texturePos;
@@ -23,7 +24,7 @@ Renderer::Renderer()
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
 	, atlasTexture(Texture::null()) {
-	fullscreenQuadPtVao.bind();
+	spriteVao.bind();
 	{
 		fullscreenQuadPtVbo.bind();
 		Vao::setAttribute(0, BufferLayout(ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex), false));
@@ -84,11 +85,15 @@ Renderer::Renderer()
 		#undef ADD_TO_ATLAS
 	}	
 	{
-		shader = &createShader("client/Game/shader.vert", "client/Game/shader.frag");
+		spriteShader = &createShader("client/Game/shader.vert", "client/Game/shader.frag");
 	}
 	{
 		backgroundShader = &createShader("client/Game/background.vert", "client/Game/background.frag");
 	}
+	{
+		deathAnimationShader = &createShader("client/Game/quadShader.vert", "client/Game/deathAnimationShader.frag");
+	}
+	camera.zoom /= 3.0f;
 }
 
 void Renderer::update(Vec2 playerPos) {
@@ -115,24 +120,24 @@ void Renderer::update(Vec2 playerPos) {
 		const auto cameraToWorld = (screenScale * cameraTransform).inversed();
 		backgroundShader->setMat3x2("cameraToWorld", cameraToWorld);
 
-		fullscreenQuadPtVao.bind();
+		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
 
 		glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 	}
 
 	{
-		shader->use();
+		spriteShader->use();
 		glActiveTexture(GL_TEXTURE0);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		atlasTexture.bind();
-		shader->setTexture("textureAtlas", 0);
+		spriteShader->setTexture("textureAtlas", 0);
 
 		int toDraw = 0;
-		fullscreenQuadPtVao.bind();
+		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
-		texturedQuadPerInstanceDataVbo.bind();
+		//texturedQuadPerInstanceDataVbo.bind();
 		for (int i = 0; i < spritesToDraw.size(); i++) {
 			const auto& sprite = spritesToDraw[i];
 			/*auto sprite = spritesToDraw[i];
@@ -152,13 +157,38 @@ void Renderer::update(Vec2 playerPos) {
 		spritesToDraw.clear();
 	}
 
+	for (auto& animation : deathAnimations) {
+		animation.t += 0.025f;
+	}
+	std::erase_if(deathAnimations, [](const DeathAnimation& animation) { return animation.t >= 1.0f; });
+
+	ImGui::Text("%d", deathAnimations.size());
+
+	{
+		spriteVao.bind();
+		deathAnimationShader->use();
+		fullscreenQuadPtIbo.bind();
+		for (auto& animation : deathAnimations) {
+			ImGui::SliderFloat("t", &animation.t, 0.0f, 0.9999f);
+			const auto transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f });
+			deathAnimationShader->setMat3x2("transform", transform);
+			deathAnimationShader->setFloat("time", animation.t);
+			glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
+		}
+	}
 }
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
 	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation, color });
 }
 
-ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string fragPath) {
+void Renderer::playDeathAnimation(Vec2 position) {
+	deathAnimations.push_back(DeathAnimation{
+		.position = position
+	});
+}
+
+ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string_view fragPath) {
 	shaders.push_back(ShaderEntry{ .vertPath = vertPath, .fragPath = fragPath, .program = ShaderProgram(vertPath, fragPath) });
 	return shaders.back().program;
 }

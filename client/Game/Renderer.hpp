@@ -20,7 +20,7 @@ struct Renderer {
 	Camera camera;
 
 private:
-	Vao fullscreenQuadPtVao;
+	Vao spriteVao;
 	Vbo fullscreenQuadPtVbo;
 	Ibo fullscreenQuadPtIbo;
 
@@ -33,7 +33,7 @@ private:
 	Vbo texturedQuadPerInstanceDataVbo;
 	TexturedQuadInstanceData texturedQuadPerInstanceData[100];
 
-	ShaderProgram* shader;
+	ShaderProgram* spriteShader;
 
 	Texture atlasTexture;
 
@@ -47,16 +47,24 @@ private:
 	std::vector<SpriteToDraw> spritesToDraw;
 public:
 	void drawSprite(Sprite sprite, Vec2 pos, float size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));
-
 	Sprite playerSprite;
 	Sprite bulletSprite;
 	Sprite bullet2Sprite;
 	Sprite bullet3Sprite;
+
+	void playDeathAnimation(Vec2 position);
 private:
 
 	ShaderProgram* backgroundShader;
 
-	ShaderProgram& createShader(std::string_view vertPath, std::string fragPath);
+	struct DeathAnimation {
+		Vec2 position;
+		float t = 0.0f;
+	};
+	std::vector<DeathAnimation> deathAnimations;
+	ShaderProgram* deathAnimationShader;
+
+	ShaderProgram& createShader(std::string_view vertPath, std::string_view fragPath);
 	struct ShaderEntry {
 		std::string_view vertPath;
 		std::string_view fragPath;

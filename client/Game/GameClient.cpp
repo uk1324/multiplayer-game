@@ -23,34 +23,24 @@ GameClient::~GameClient() {
 #include <imgui.h>
 #include <iostream>
 
+void display(const yojimbo::NetworkInfo& info) {
+	ImGui::Text("RTT %g", info.RTT);
+	ImGui::Text("packetLoss %g", info.packetLoss);
+	ImGui::Text("sentBandwidth %g", info.sentBandwidth);
+	ImGui::Text("receivedBandwidth %g", info.receivedBandwidth);
+	ImGui::Text("ackedBandwidth %g", info.ackedBandwidth);
+	ImGui::Text("numPacketsSent %d", info.numPacketsSent);
+	ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
+	ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
+}
+
 // accelerate bullets on everyones, but the shooters side.
 // decelerate the bullets at the start on the client. (which just means they accelerate)
 // 
 
 void GameClient::update(float dt) {
-	ImGui::Text("The bullets created by the client are predict spawned and later slowed down to make them synced up with the players. So when you hit someone on your screen it should also hit the player on the server. The bullets created by the other players are accelerated to compensate for RTT time, because the player receives the update RTT/2 time after it happened and it takes RTT/2 time for the input to arrive on the server. The client tries to predict the future so they when the dodge the bullets on their screen the bullets should also be dodged on the server later. So the player's bullets and other player's positions are in the past, but other player's bullets are in the future");
+	//ImGui::Text("The bullets created by the client are predict spawned and later slowed down to make them synced up with the players. So when you hit someone on your screen it should also hit the player on the server. The bullets created by the other players are accelerated to compensate for RTT time, because the player receives the update RTT/2 time after it happened and it takes RTT/2 time for the input to arrive on the server. The client tries to predict the future so they when the dodge the bullets on their screen the bullets should also be dodged on the server later. So the player's bullets and other player's positions are in the past, but other player's bullets are in the future");
 
-	/*yojimbo::NetworkInfo info;
-	client.GetNetworkInfo(info);
-	{
-		ImGui::Text("RTT %g", info.RTT);
-		ImGui::Text("packetLoss %g", info.packetLoss);
-		ImGui::Text("sentBandwidth %g", info.sentBandwidth);
-		ImGui::Text("receivedBandwidth %g", info.receivedBandwidth);
-		ImGui::Text("ackedBandwidth %g", info.ackedBandwidth);
-		ImGui::Text("numPacketsSent %d", info.numPacketsSent);
-		ImGui::Text("numPacketsReceived %d", info.numPacketsReceived);
-		ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
-	}*/
-
-	/*for (auto& bullet : predictedBullets) {
-		if (bullet.testLink > 0) {
-			ImGui::Text("prediction elapsed: %.2g", bullet.timeElapsed);
-			ImGui::Text("server elapsed: %.2g", predictedBullets[bullet.testLink].timeElapsed);
-			ImGui::Text("actual desynch %.2g", predictedBullets[bullet.testLink].timeElapsed - bullet.timeElapsed);
-			ImGui::Text("calculated desynch: %.2g", bullet.timeToSynchornize);
-		}
-	}*/
 
 	this->dt = dt;
 	thisFrameSpawnIndexCounter = 0;
@@ -70,7 +60,9 @@ void GameClient::update(float dt) {
 					.down = Input::isKeyHeld(KeyCode::S),
 					.left = Input::isKeyHeld(KeyCode::A),
 					.right = Input::isKeyHeld(KeyCode::D),
-					.shoot = Input::isMouseButtonDown(MouseButton::LEFT),
+					/*.shoot = Input::isMouseButtonDown(MouseButton::LEFT),*/
+					.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
+					.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
 					.rotation = rotation
 				};
 				pastInputCommands.push_back(newInput);
@@ -100,19 +92,25 @@ void GameClient::update(float dt) {
 				});
 				playerTransform.position = newPos;
 
-				if (newInput.shoot) {
-					const auto direction = Vec2::oriented(newInput.rotation);
-					predictedBullets.push_back(PredictedBullet{
-						.position = playerTransform.position + PLAYER_HITBOX_RADIUS * direction,
-						.velocity = direction * BULLET_SPEED,
-						.spawnSequenceNumber = sequenceNumber,
-						.frameSpawnIndex = thisFrameSpawnIndexCounter,
-						.frameToActivateAt = -1,
-						.timeToCatchUp = 0.0f,
-						.timeToSynchornize = 0.0f,
-						.tSynchronizaztion = 1.0f
-					});
-					thisFrameSpawnIndexCounter++;
+				shootCooldown -= dt;
+				shootCooldown = std::max(0.0f, shootCooldown);
+				if (newInput.shoot && shootCooldown == 0.0f) {
+					shootCooldown = SHOOT_COOLDOWN;
+					auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
+						const auto direction = velocity.normalized();
+						predictedBullets.push_back(PredictedBullet{
+							.position = pos + PLAYER_HITBOX_RADIUS * direction,
+							.velocity = velocity,
+							.spawnSequenceNumber = sequenceNumber,
+							.frameSpawnIndex = thisFrameSpawnIndexCounter,
+							.frameToActivateAt = -1,
+							.timeToCatchUp = 0.0f,
+							.timeToSynchornize = 0.0f,
+							.tSynchronizaztion = 1.0f
+						});
+						thisFrameSpawnIndexCounter++;
+					};
+					spawnTripleBullet(playerTransform.position, newInput.rotation, BULLET_SPEED, spawnBullet);
 				}
 			}
 		}
@@ -202,6 +200,12 @@ void GameClient::update(float dt) {
 	for (auto& [_, transform] : playerIndexToTransform) {
 		renderer.drawSprite(renderer.bulletSprite, transform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 	}
+	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
+
+	/*playerTransform.position = Vec2(0.0f);
+	if (Input::isKeyDown(KeyCode::L)) {
+		renderer.playDeathAnimation(Vec2(0.0f));
+	}*/
 
 	auto calculateBulletOpacity = [](int aliveFramesLeft) {
 		const auto opacityChangeFrames = 60.0f;
@@ -214,7 +218,6 @@ void GameClient::update(float dt) {
 	//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 	//}
 
-	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 	renderer.update(playerTransform.position);
 	sequenceNumber++;
 }
@@ -339,31 +342,13 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							bullet.frameToActivateAt += 6;
 							bullet.timeToCatchUp -= (info.RTT / 1000.0f);
 
-							/*const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt + 6 - sequenceNumber + 1) * FRAME_DT;*/
 							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber) * FRAME_DT; 
 							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
 							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
-							//spawnPredictedBullet.position += timeDysnych * spawnPredictedBullet.velocity;
 							spawnPredictedBullet.timeToSynchornize = timeDysnych;
 							spawnPredictedBullet.tSynchronizaztion = 0.0f;
-
-							/*const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - 6 - sequenceNumber + 1) * FRAME_DT;
-							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
-							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
-							spawnPredictedBullet.timeToSynchornize = timeDysnych;
-							spawnPredictedBullet.tSynchronizaztion = 0.0f;*/
-
-							/*spawnPredictedBullet.testLink = predictedBullets.size() - 1;
-							if (applyInstantPositionCorrection) {
-								spawnPredictedBullet.position -= spawnPredictedBullet.velocity * timeDysnych;
-							}*/
-							/*const auto framesBeforePredictionDisplayed = bullet.frameToActivateAt - sequenceNumber;
-							ASSERT(framesBeforePredictionDisplayed >= 0);
-							const auto bulletCurrentElapsedFrames = msgBullet.framesElapsed - framesBeforePredictionDisplayed;
-							const auto framesToSynchornize = spawnPredictedBullet.framesElapsed - bulletCurrentElapsedFrames;
-							spawnPredictedBullet.timeToSynchornize = framesToSynchornize;*/
-							//if (!showServerVersion)
-							//predictedBullets.pop_back();
+							
+							predictedBullets.pop_back();
 						}
 					}
 					
@@ -373,6 +358,28 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
 			}
 
+			break;
+		}
+ 
+		case GameMessageType::LEADERBOARD_UPDATE: {
+			const auto update = static_cast<LeaderboardUpdateMessage*>(message);
+			if (update->GetBlockSize() != update->entryCount * sizeof(LeaderboardUpdateMessage::Entry)) {
+				break;
+			}
+			const auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(update->GetBlockData());
+			for (i32 i = 0; i < update->entryCount; i++) {
+				const auto entry = entries[i];
+
+				if (playerIdToLeaderboardEntry[entry.playerIndex].deaths != entry.deaths) {
+					renderer.playDeathAnimation(playerIndexToTransform[entry.playerIndex].position);
+					playerIndexToTransform.erase(entry.playerIndex);
+				}
+
+				playerIdToLeaderboardEntry[entry.playerIndex] = {
+					.kills = entry.kills,
+					.deaths = entry.deaths,
+				};
+			}
 			break;
 		}
 

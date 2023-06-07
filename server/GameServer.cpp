@@ -66,16 +66,41 @@ void GameServer::update(float dt) {
 		player.bulletsSpawnedThisFrame = 0;
 	}
 
-	for (const auto& [playerIndex, player] : players) {
-		for (const auto& [_, bullet] : bullets) {
+	for (auto& [playerIndex, player] : players) {
+		if (!player.isAlive)
+			continue;
+
+		for (const auto& [bulletIndex, bullet] : bullets) {
 			if (bullet.ownerPlayerIndex == playerIndex) {
 				continue;
 			}
 
-			if (distance(player.pos, bullet.pos) < BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS) {
-				auto message = server.CreateMessage(playerIndex, GameMessageType::TEST);
-				server.SendMessage(playerIndex, GameChannel::RELIABLE, message);
+			if (distance(player.pos, bullet.pos) > BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS) {
+				continue;
 			}
+
+			// TODO: Send a message with all the updates at the end of the frame. It isn't very likely that multiple kills happen in one frame.
+			for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
+				if (!server.IsClientConnected(clientIndex))
+					continue;
+				auto update = static_cast<LeaderboardUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::LEADERBOARD_UPDATE));
+				update->entryCount = 2;
+				const auto blockSize = update->entryCount * sizeof(LeaderboardUpdateMessage::Entry);
+				auto block = server.AllocateBlock(clientIndex, blockSize);
+				auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(block);
+				auto& killer = players[bullet.ownerPlayerIndex];
+				killer.kills++;
+				entries[0] = killer.leaderboardEntry(bullet.ownerPlayerIndex);
+				auto& killed = player;
+				killed.deaths++;
+				entries[1] = killed.leaderboardEntry(playerIndex);
+
+				server.AttachBlockToMessage(clientIndex, update, block, blockSize);
+
+				server.SendMessage(clientIndex, GameChannel::RELIABLE, update);
+			}
+			bullets.erase(bulletIndex);
+			break;
 		}
 	}
 
@@ -86,13 +111,20 @@ void GameServer::update(float dt) {
 		}
 	}
 
+	for (auto& [_, player] : players) {
+		if (!player.isAlive) {
+			player.inputs = {};
+		}
+	}
+
 	static int maxInputsSize = -1;
 	for (auto& [playerId, player] : players) {
 		
-		if (player.inputs.size() > maxInputsSize) {
+		/*if (player.inputs.size() > maxInputsSize) {
 			maxInputsSize = player.inputs.size();
 			std::cout << "inputs size: " << player.inputs.size() << '\n';
-		}
+		}*/
+
 		if (player.inputs.empty()) {
 			if (!player.receivedInputThisFrame) {
 				// Maybe duplicate last frame's input
@@ -107,22 +139,26 @@ void GameServer::update(float dt) {
 			
 			yojimbo::NetworkInfo info;
 			server.GetNetworkInfo(playerId, info);
-
-			if (input.shoot) {
+			// Cooldowns might get desynchronized
+			player.shootCooldown -= dt;
+			player.shootCooldown = std::max(0.0f, player.shootCooldown);
+			if (input.shoot && player.shootCooldown == 0.0f) {
+				player.shootCooldown = SHOOT_COOLDOWN;
 				const auto direction = Vec2::oriented(input.rotation);
-				bullets[bulletIndexCounter] = Bullet{
-					.pos = player.pos + PLAYER_HITBOX_RADIUS * direction,
-					.velocity = direction * BULLET_SPEED,
-					.ownerPlayerIndex = playerId,
-					.aliveFramesLeft = 1000,
-					.spawnFrameClientSequenceNumber = sequenceNumber,
-					.frameSpawnIndex = player.bulletsSpawnedThisFrame,
-					/*.catchUpTime = DEBUG_LATENCY / 1000.0f + FRAME_DT * 6.0f*/
-					.catchUpTime = info.RTT / 2.0f / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
+				auto spawnBullet = [&](Vec2 position, Vec2 velocity) {
+					bullets[bulletIndexCounter] = Bullet{
+						.pos = position + PLAYER_HITBOX_RADIUS * direction,
+						.velocity = velocity,
+						.ownerPlayerIndex = playerId,
+						.aliveFramesLeft = 1000,
+						.spawnFrameClientSequenceNumber = sequenceNumber,
+						.frameSpawnIndex = player.bulletsSpawnedThisFrame,
+						.catchUpTime = info.RTT / 2.0f / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
+					};
+					player.bulletsSpawnedThisFrame++;
+					bulletIndexCounter++;
 				};
-				player.bulletsSpawnedThisFrame++;
-				bulletIndexCounter++;
-
+				spawnTripleBullet(player.pos, input.rotation, BULLET_SPEED, spawnBullet);
 			}
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
 			
@@ -249,4 +285,12 @@ void GameServer::onClientConnected(int clientIndex) {
 
 void GameServer::onClientDisconnected(int clientIndex) {
 	std::cout << "client disconnected " << clientIndex << '\n';
+}
+
+LeaderboardUpdateMessage::Entry GameServer::Player::leaderboardEntry(i32 playerIndex) const {
+	return LeaderboardUpdateMessage::Entry{
+		.playerIndex = playerIndex,
+		.deaths = deaths,
+		.kills = kills,
+	};
 }

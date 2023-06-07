@@ -71,16 +71,16 @@ static auto setIfAlreadyExists(std::unordered_map<int, bool>& map, int key, bool
 		it->second = value;
 }
 
-static auto isMouseButton(u8 vkCode) -> bool {
+static auto isMouseButton(u16 vkCode) -> bool {
 	const auto code = static_cast<MouseButton>(vkCode);
 	return code == MouseButton::LEFT || code == MouseButton::RIGHT || code == MouseButton::MIDDLE;
 }
 
-static auto isKeyboardKey(u8 vkCode) -> bool {
+static auto isKeyboardKey(u16 vkCode) -> bool {
 	return !isMouseButton(vkCode);
 }
 
-auto Input::onKeyDown(u8 virtualKeyCode, bool autoRepeat) -> void {
+auto Input::onKeyDown(u16 virtualKeyCode, bool autoRepeat) -> void {
 	if (virtualKeyCode >= VIRTUAL_KEY_COUNT)
 		return;
 
@@ -104,7 +104,7 @@ auto Input::onKeyDown(u8 virtualKeyCode, bool autoRepeat) -> void {
 	}
 }
 
-auto Input::onKeyUp(u8 virtualKeyCode) -> void {
+auto Input::onKeyUp(u16 virtualKeyCode) -> void {
 	if (virtualKeyCode >= VIRTUAL_KEY_COUNT)
 		return;
 

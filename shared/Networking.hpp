@@ -33,14 +33,15 @@ static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
 static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
 //static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_LATENCY = 500.0f;
-static constexpr float DEBUG_JITTER = 0.0f;
+static constexpr float DEBUG_LATENCY = 150.0f;
+static constexpr float DEBUG_JITTER = 25.0f;
 
 namespace GameMessageType {
     enum GameMessageType {
         JOIN,
         CLIENT_INPUT,
         WORLD_UPDATE,
+        LEADERBOARD_UPDATE,
         TEST,
         COUNT
     };
@@ -66,7 +67,7 @@ public:
 struct ClientInputMessage : public yojimbo::Message {
     i32 sequenceNumber;
     struct Input {
-        bool up = false, down = false, left = false, right = false, shoot = false;
+        bool up = false, down = false, left = false, right = false, shoot = false, shift = false;
         float rotation = 0.0f;
     };
     static constexpr int INPUTS_COUNT = 15;
@@ -81,6 +82,7 @@ struct ClientInputMessage : public yojimbo::Message {
             serialize_bool(stream, inputs[i].right);
             serialize_bool(stream, inputs[i].down);
             serialize_bool(stream, inputs[i].shoot);
+            serialize_bool(stream, inputs[i].shift);
             serialize_float(stream, inputs[i].rotation);
         }
         return true;
@@ -131,6 +133,23 @@ struct WorldUpdateMessage : public yojimbo::BlockMessage {
     YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
 };
 
+struct LeaderboardUpdateMessage : public yojimbo::BlockMessage {
+    struct Entry {
+        int playerIndex = -1;
+        int deaths = -1;
+        int kills = -1;
+    };
+    int entryCount;
+
+    template <typename Stream>
+    bool Serialize(Stream& stream) {
+        serialize_int(stream, entryCount, 1, INT_MAX);
+        return true;
+    }
+
+    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+};
+
 struct TestMessage : public yojimbo::Message {
     template <typename Stream>
     bool Serialize(Stream& stream) {
@@ -144,5 +163,6 @@ YOJIMBO_MESSAGE_FACTORY_START(GameMessageFactory, static_cast<int>(GameMessageTy
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::JOIN, JoinMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::CLIENT_INPUT, ClientInputMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::WORLD_UPDATE, WorldUpdateMessage);
+YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::LEADERBOARD_UPDATE, LeaderboardUpdateMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::TEST, TestMessage);
 YOJIMBO_MESSAGE_FACTORY_FINISH();

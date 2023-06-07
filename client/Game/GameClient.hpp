@@ -28,7 +28,9 @@ public:
 		Vec2 position;
 		std::vector<PastInput> inputs;
 	};
+
 	PredictedPlayerTransform playerTransform;
+	float shootCooldown = 0.0f;
 
 	struct InterpolationPosition {
 		Vec2 position;
@@ -75,6 +77,13 @@ public:
 		float tSynchronizaztion = 0.0f;
 		int testLink = -1;
 	};
+
+	struct LeaderboardEntry {
+		int kills;
+		int deaths;
+	};
+	std::unordered_map<i32, LeaderboardEntry> playerIdToLeaderboardEntry;
+
 	std::vector<PredictedBullet> predictedBullets;
 
 	int thisFrameSpawnIndexCounter = 0;

@@ -44,8 +44,8 @@ public:
 
 	static bool ignoreImGuiWantCapture;
 
-	static auto onKeyDown(u8 virtualKeyCode, bool autoRepeat) -> void;
-	static auto onKeyUp(u8 virtualKeyCode) -> void;
+	static auto onKeyDown(u16 virtualKeyCode, bool autoRepeat) -> void;
+	static auto onKeyUp(u16 virtualKeyCode) -> void;
 	static auto onMouseMove(Vec2 mousePos) -> void;
 	static auto onMouseScroll(float scroll) -> void;
 private:
