@@ -7,7 +7,7 @@
 template<typename T>
 struct Vec4T {
 	constexpr Vec4T();
-	constexpr Vec4T(const T& v);
+	explicit constexpr Vec4T(const T& v);
 	constexpr Vec4T(const T& x, const T& y, const T& z, const T& w = 1);
 
 	T x, y, z, w;

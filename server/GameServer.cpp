@@ -14,8 +14,7 @@ void broadcastMessage(
 		if (!server.IsClientConnected(clientIndex)) {
 			continue;
 		}
-			
-
+		// A different message needs to be allocated for every client, because if it is reliable then if it isn't acked it needs to be resent. Another option would be to use ref counted allocations I guess.
 		auto message = reinterpret_cast<MessageType*>(server.CreateMessage(clientIndex, type));
 		init(*message);
 		if (block != nullptr) {
@@ -126,37 +125,6 @@ void GameServer::update(float dt) {
 					sizeof(entries)
 				);
 
-				/*bool logged = false;
-				for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
-					if (!server.IsClientConnected(clientIndex))
-						continue;
-					auto update = static_cast<LeaderboardUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::LEADERBOARD_UPDATE));
-					update->entryCount = 2;
-					const auto blockSize = update->entryCount * sizeof(LeaderboardUpdateMessage::Entry);
-					auto block = server.AllocateBlock(clientIndex, blockSize);
-					auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(block);
-					auto& killer = players[bullet.ownerPlayerIndex];
-					killer.kills++;
-					entries[0] = killer.leaderboardEntry(bullet.ownerPlayerIndex);
-					auto& killed = player;
-					killed.deaths++;
-					killed.isAlive = false;
-					entries[1] = killed.leaderboardEntry(playerIndex);
-
-					if (!logged) {
-						logged = true;
-						std::cout << "{\nleaderboard update\n";
-						for (int i = 0; i < update->entryCount; i++) {
-							const auto entry = entries[i];
-							std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
-						}
-						std::cout << "}\n";
-					}
-
-					server.AttachBlockToMessage(clientIndex, update, block, blockSize);
-
-					server.SendMessage(clientIndex, GameChannel::RELIABLE, update);
-				}*/
 				bullets.erase(bulletIndex);
 				break;
 			}
@@ -380,14 +348,22 @@ void GameServer::processSpawnRequestMessage(int clientIndex, SpawnRequestMessage
 
 	// TODO: Add respawn cooldown.
 	player.isAlive = true;
-	for (int clientI = 0; clientI < MAX_CLIENTS; clientI++) {
+	broadcastMessage<SpawnMessage>(
+		server,
+		GameChannel::RELIABLE,
+		GameMessageType::SPAWN_PLAYER,
+		[&](SpawnMessage& message) {
+			message.playerIndex = clientIndex;
+		}
+	);
+	/*for (int clientI = 0; clientI < MAX_CLIENTS; clientI++) {
 		if (!server.IsClientConnected(clientI))
 			continue;
 
 		auto message = static_cast<SpawnMessage*>(server.CreateMessage(clientI, GameMessageType::SPAWN_PLAYER));
 		message->playerIndex = clientIndex;
 		server.SendMessage(clientI, GameChannel::RELIABLE, message);
-	}
+	}*/
 }
 
 void GameServer::onClientConnected(int clientIndex) {

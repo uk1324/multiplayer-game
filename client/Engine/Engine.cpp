@@ -42,7 +42,7 @@ bool Engine::run(int fps)
 				ImGui_ImplGlfw_NewFrame();
 				ImGui::NewFrame();
 
-				game.update(Time::deltaTime());
+				game.update();
 				if (Input::isKeyDown(KeyCode::R)) {
 					return false;
 				}

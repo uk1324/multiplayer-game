@@ -9,8 +9,7 @@ class GameClient
 public:
 	GameClient();
 	~GameClient();
-	float dt;
-	void update(float dt);
+	void update();
 	void processMessages();
 	void processMessage(yojimbo::Message* message);
 
@@ -28,10 +27,6 @@ public:
 		Vec2 position;
 		std::vector<PastInput> inputs;
 	};
-
-	PredictedPlayerTransform playerTransform;
-	float shootCooldown = 0.0f;
-	bool isAlive = true;
 
 	struct InterpolationPosition {
 		Vec2 position;
@@ -80,10 +75,23 @@ public:
 	};
 
 	struct LeaderboardEntry {
-		int kills;
-		int deaths;
+		int kills = 0;
+		int deaths = 0;
 	};
-	std::unordered_map<i32, LeaderboardEntry> playerIdToLeaderboardEntry;
+
+	PredictedPlayerTransform playerTransform;
+	float shootCooldown = 0.0f;
+	bool isAlive = true;
+
+	struct Player {
+		LeaderboardEntry leaderboard;
+		bool isRendered = true;
+		Vec2 position;
+	};
+
+	std::unordered_map<int, Player> players;
+	//std::unordered_map<i32, LeaderboardEntry> playerIdToLeaderboardEntry;
+
 
 	std::vector<PredictedBullet> predictedBullets;
 
@@ -99,6 +107,8 @@ public:
 	int newestUpdateSequenceNumber = -1;
 
 	i32 sequenceNumber = 0;
+
+	// Maybe istead of these 2 use a std::optional
 	bool joinedGame = false;
 	PlayerIndex clientPlayerIndex = -1;
 

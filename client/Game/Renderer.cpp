@@ -158,7 +158,7 @@ void Renderer::update(Vec2 playerPos) {
 			/*auto sprite = spritesToDraw[i];
 			sprite.sprite = Sprite{ .offset = Vec2(0, 0), .size = Vec2(1, 1),.aspectRatio = 1.0f, };*/
 			auto& quad = texturedQuadPerInstanceData[toDraw];
-			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size * Vec2(1.0f, sprite.sprite.aspectRatio));
+			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size);
 			quad.atlasOffset = sprite.sprite.offset;
 			quad.size = sprite.sprite.size;
 			quad.color = sprite.color;
@@ -172,12 +172,44 @@ void Renderer::update(Vec2 playerPos) {
 		spritesToDraw.clear();
 	}
 
-	for (auto& animation : deathAnimations) {
-		animation.t += 0.025f;
-	}
-	std::erase_if(deathAnimations, [](const DeathAnimation& animation) { return animation.t >= 1.0f; });
-
 	ImGui::Text("%d", deathAnimations.size());
+
+#define ANIMATION_UPDATE(animations, amount) \
+	do { \
+		for (auto& animation : animations) { \
+			animation.t += amount; \
+		} \
+		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
+	} while (false)
+
+#define ANIMATION_UPDATE_DEBUG(animations, amount) \
+	do { \
+		static auto updateAnimations = true; \
+		static auto speed = amount; \
+		ImGui::Checkbox("update", &updateAnimations); \
+		ImGui::SliderFloat("speed", &speed, 0.0f, 1.0f); \
+		int i = 0; \
+		for (auto& animation : animations) { \
+			if (updateAnimations) animation.t += speed; \
+			ImGui::PushID(i); \
+			ImGui::SliderFloat("t", &animation.t, 0.0f, 1.0f); \
+			ImGui::PopID(); \
+			i++; \
+		} \
+		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
+	} while (false)
+
+#define ANIMATION_DEFULAT_SPAWN(animations, defaultAnimation) \
+	do { \
+		if (ImGui::Button("spawn")) { \
+			animations.push_back(defaultAnimation); \
+		} \
+	} while (false)
+
+	ANIMATION_UPDATE(deathAnimations, 0.025f);
+
+	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
+	ANIMATION_UPDATE(spawnAnimations, 0.02f);
 
 	{
 		spriteVao.bind();
@@ -194,12 +226,17 @@ void Renderer::update(Vec2 playerPos) {
 }
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
+	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, sprite.scaledSize(size), rotation, color});
+}
+
+void Renderer::drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation, Vec4 color) {
 	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation, color });
 }
 
-void Renderer::playDeathAnimation(Vec2 position) {
+void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 	deathAnimations.push_back(DeathAnimation{
-		.position = position
+		.position = position,
+		.playerIndex = playerIndex
 	});
 }
 
@@ -222,4 +259,8 @@ void Renderer::reloadShaders() {
 void Renderer::ShaderEntry::updateLastWriteTimes() {
 	fragPathLastWriteTime = std::filesystem::last_write_time(fragPath);
 	vertPathLastWriteTime = std::filesystem::last_write_time(vertPath);
+}
+
+Vec2 Renderer::Sprite::scaledSize(float scale) const {
+	return scale * Vec2(1.0f, aspectRatio);
 }

@@ -6,6 +6,16 @@
 #include <shared/Networking.hpp>
 #include <shared/Utils/Types.hpp>
 #include <shared/Gameplay.hpp>
+#include <Utils/RefOptional.hpp>
+
+template<typename Key, typename Value>
+std::optional<Value&> map_get(std::unordered_map<Key, Value>& map, const Key& key) {
+	const auto it = map.find(key);
+	if (it == map.end()) {
+		return std::nullopt;
+	}
+	return it->second;
+}
 
 GameClient::GameClient()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0) {
@@ -38,195 +48,198 @@ void display(const yojimbo::NetworkInfo& info) {
 // decelerate the bullets at the start on the client. (which just means they accelerate)
 // 
 
-void GameClient::update(float dt) {
-	//ImGui::Text("The bullets created by the client are predict spawned and later slowed down to make them synced up with the players. So when you hit someone on your screen it should also hit the player on the server. The bullets created by the other players are accelerated to compensate for RTT time, because the player receives the update RTT/2 time after it happened and it takes RTT/2 time for the input to arrive on the server. The client tries to predict the future so they when the dodge the bullets on their screen the bullets should also be dodged on the server later. So the player's bullets and other player's positions are in the past, but other player's bullets are in the future");
-	
-	this->dt = dt;
+void GameClient::update() {
 	thisFrameSpawnIndexCounter = 0;
-	{
-		// update client
-		client.AdvanceTime(client.GetTime() + dt);
-		client.ReceivePackets();
-		if (client.IsConnected()) {
-			processMessages();
-			
-			if (joinedGame && !isAlive) {
-				if (Input::isKeyDown(KeyCode::SPACE)) {
-					const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
-					client.SendMessage(GameChannel::RELIABLE, message);
-				}
-			}
 
-			if (joinedGame && isAlive) {
-				const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
-				const auto cursorRelativeToPlayer = cursorPos - playerTransform.position;
-				const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
-				const auto newInput = ClientInputMessage::Input{
-					.up = Input::isKeyHeld(KeyCode::W),
-					.down = Input::isKeyHeld(KeyCode::S),
-					.left = Input::isKeyHeld(KeyCode::A),
-					.right = Input::isKeyHeld(KeyCode::D),
-					/*.shoot = Input::isMouseButtonDown(MouseButton::LEFT),*/
-					.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
-					.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
-					.rotation = rotation
-				};
-				pastInputCommands.push_back(newInput);
+	auto processInput = [this]() {
+		const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
+		const auto cursorRelativeToPlayer = cursorPos - playerTransform.position;
+		const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
+		const auto newInput = ClientInputMessage::Input{
+			.up = Input::isKeyHeld(KeyCode::W),
+			.down = Input::isKeyHeld(KeyCode::S),
+			.left = Input::isKeyHeld(KeyCode::A),
+			.right = Input::isKeyHeld(KeyCode::D),
+			/*.shoot = Input::isMouseButtonDown(MouseButton::LEFT),*/
+			.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
+			.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
+			.rotation = rotation
+		};
+		pastInputCommands.push_back(newInput);
 
-				const auto oldCommandsToDiscardCount = static_cast<int>(pastInputCommands.size()) - ClientInputMessage::INPUTS_COUNT;
-				if (oldCommandsToDiscardCount > 0) {
-					pastInputCommands.erase(pastInputCommands.begin(), pastInputCommands.begin() + oldCommandsToDiscardCount);
-				}
-				//std::cout << pastInputCommands.size() << '\n';
-				
-				const auto inputMsg = static_cast<ClientInputMessage*>(client.CreateMessage(static_cast<int>(GameMessageType::CLIENT_INPUT)));
+		const auto oldCommandsToDiscardCount = static_cast<int>(pastInputCommands.size()) - ClientInputMessage::INPUTS_COUNT;
+		if (oldCommandsToDiscardCount > 0) {
+			pastInputCommands.erase(pastInputCommands.begin(), pastInputCommands.begin() + oldCommandsToDiscardCount);
+		}
+		//std::cout << pastInputCommands.size() << '\n';
 
-				inputMsg->sequenceNumber = sequenceNumber;
+		const auto inputMsg = static_cast<ClientInputMessage*>(client.CreateMessage(static_cast<int>(GameMessageType::CLIENT_INPUT)));
 
-				int offset = ClientInputMessage::INPUTS_COUNT - static_cast<int>(pastInputCommands.size());
-				for (int i = 0; i < pastInputCommands.size(); i++) {
-					inputMsg->inputs[offset + i] = pastInputCommands[i];
-				}
+		inputMsg->sequenceNumber = sequenceNumber;
 
-				//std::cout << "sending " << inputMsg->sequenceNumber << '\n';
-				client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
+		int offset = ClientInputMessage::INPUTS_COUNT - static_cast<int>(pastInputCommands.size());
+		for (int i = 0; i < pastInputCommands.size(); i++) {
+			inputMsg->inputs[offset + i] = pastInputCommands[i];
+		}
 
-				const auto newPos = applyMovementInput(playerTransform.position, newInput, dt);
-				playerTransform.inputs.push_back(PastInput{
-					.input = newInput,
-					.sequenceNumber = sequenceNumber
+		//std::cout << "sending " << inputMsg->sequenceNumber << '\n';
+		client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
+
+		const auto newPos = applyMovementInput(playerTransform.position, newInput, FRAME_DT);
+		playerTransform.inputs.push_back(PastInput{
+			.input = newInput,
+			.sequenceNumber = sequenceNumber
+		});
+		playerTransform.position = newPos;
+
+		shootCooldown -= FRAME_DT;
+		shootCooldown = std::max(0.0f, shootCooldown);
+		if (newInput.shoot && shootCooldown == 0.0f) {
+			shootCooldown = SHOOT_COOLDOWN;
+			auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
+				const auto direction = velocity.normalized();
+				predictedBullets.push_back(PredictedBullet{
+					.position = pos + PLAYER_HITBOX_RADIUS * direction,
+					.velocity = velocity,
+					.spawnSequenceNumber = sequenceNumber,
+					.frameSpawnIndex = thisFrameSpawnIndexCounter,
+					.frameToActivateAt = -1,
+					.timeToCatchUp = 0.0f,
+					.timeToSynchornize = 0.0f,
+					.tSynchronizaztion = 1.0f
 				});
-				playerTransform.position = newPos;
-
-				shootCooldown -= dt;
-				shootCooldown = std::max(0.0f, shootCooldown);
-				if (newInput.shoot && shootCooldown == 0.0f) {
-					shootCooldown = SHOOT_COOLDOWN;
-					auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
-						const auto direction = velocity.normalized();
-						predictedBullets.push_back(PredictedBullet{
-							.position = pos + PLAYER_HITBOX_RADIUS * direction,
-							.velocity = velocity,
-							.spawnSequenceNumber = sequenceNumber,
-							.frameSpawnIndex = thisFrameSpawnIndexCounter,
-							.frameToActivateAt = -1,
-							.timeToCatchUp = 0.0f,
-							.timeToSynchornize = 0.0f,
-							.tSynchronizaztion = 1.0f
-						});
-						thisFrameSpawnIndexCounter++;
-					};
-					spawnTripleBullet(playerTransform.position, newInput.rotation, BULLET_SPEED, spawnBullet);
-				}
-			}
+				thisFrameSpawnIndexCounter++;
+			};
+			spawnTripleBullet(playerTransform.position, newInput.rotation, BULLET_SPEED, spawnBullet);
 		}
-
-		client.SendPackets();
-	}
-
-	for (auto& [_, transform] : playerIndexToTransform) {
-		transform.interpolatePosition(sequenceNumber);
-	}
-
-	for (auto& [_, bullet] : interpolatedBullets) {
-		bullet.transform.interpolatePosition(sequenceNumber);
-		bullet.aliveFramesLeft--;
-	}
-	std::erase_if(interpolatedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
-
-	for (auto& bullet : predictedBullets) {
-		if (sequenceNumber <= bullet.frameToActivateAt)
-			continue;
-
-		/*if (bullet.timeToSynchornize) {
-			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
-		} else {
-		}*/
-		renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
-		/*if (bullet.timeToSynchornize) {
-			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(0.5f, 1.0f, 1.0f));
-		} else {
-			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
-		}*/
-		auto dt = FRAME_DT;
-		if (bullet.timeToSynchornize < 0.0f) {
-			bullet.timeToSynchornize = -bullet.timeToSynchornize;
-		}
-
-		// integration test.
-		const auto n = 100;
-		auto s = 1.0f / n;
-		float in = 0.0f;
-		float max = 1.5;
-		const auto scale = 4.0f / max;
-		s *= scale;
-		for (int i = 0; i < n; i++) {
-			float t = i / static_cast<float>(n);
-			t -= 0.5f;
-			t *= scale;
-			in += max * exp(-PI<float> * pow(max * t, 2.0f)) * s;
-		}
-
-		//static f32 n = 0.0f;
-		static float sum = 0.0f;
-		static float maximum;
-		ImGui::Text("expected max: %g", FRAME_DT / 8.0f);
-		ImGui::Text("calculated max: %g", maximum);
-		if (bullet.tSynchronizaztion < 1.0f) {
-
-			auto x = (bullet.tSynchronizaztion - 0.5f); // from -0.5 to 0.5
-			// Most of the values are concentrated in the interval -2 to 2
-			const auto scale = 4.0f;
-			x *= scale; // from -2 to 2
-
-			const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
-			const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
-
-			const auto max = FRAME_DT / 8.0f;
-			// max = normalDistMax * functionStep * bullet.timeToSynchronize
-			// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
-			// functionStep = timeStep * scale
-			// timeStep = functionStep / scale
-			const auto timeStep = max / (normalDistributionMax * bullet.timeToSynchornize) / scale;
-
-			bullet.tSynchronizaztion += timeStep;
-			const auto functionStep = timeStep * scale;
-			sum += value * functionStep;
-			dt -= value * functionStep * bullet.timeToSynchornize;
-
-			auto val = value * functionStep * bullet.timeToSynchornize;
-			if (val > maximum) {
-				maximum = val;
-			}
-		}
-
-		updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
-	}
-
-	for (auto& [_, transform] : playerIndexToTransform) {
-		renderer.drawSprite(renderer.bulletSprite, transform.position, PLAYER_HITBOX_RADIUS * 2.0f);
-	}
-	if (isAlive) {
-		renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
-	}
-
-	/*playerTransform.position = Vec2(0.0f);
-	if (Input::isKeyDown(KeyCode::L)) {
-		renderer.playDeathAnimation(Vec2(0.0f));
-	}*/
-
-	auto calculateBulletOpacity = [](int aliveFramesLeft) {
-		const auto opacityChangeFrames = 60.0f;
-		const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
-		return opacity;
 	};
 
-	//for (auto& [_, bullet] : interpolatedBullets) {
-	//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
-	//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
-	//}
+	auto updateBullets = [this]() {
+		for (auto& bullet : predictedBullets) {
+			if (sequenceNumber <= bullet.frameToActivateAt)
+				continue;
 
-	renderer.update(playerTransform.position);
+			auto dt = FRAME_DT;
+			if (bullet.timeToSynchornize < 0.0f) {
+				bullet.timeToSynchornize = -bullet.timeToSynchornize;
+			}
+
+			if (bullet.tSynchronizaztion < 1.0f) {
+
+				auto x = (bullet.tSynchronizaztion - 0.5f); // from -0.5 to 0.5
+				// Most of the values are concentrated in the interval -2 to 2
+				const auto scale = 4.0f;
+				x *= scale; // from -2 to 2
+
+				const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
+				const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
+
+				const auto max = FRAME_DT / 8.0f;
+				// max = normalDistMax * functionStep * bullet.timeToSynchronize
+				// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
+				// functionStep = timeStep * scale
+				// timeStep = functionStep / scale
+				const auto timeStep = max / (normalDistributionMax * bullet.timeToSynchornize) / scale;
+
+				bullet.tSynchronizaztion += timeStep;
+				const auto functionStep = timeStep * scale;
+				dt -= value * functionStep * bullet.timeToSynchornize;
+			}
+
+			updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
+		}
+	};
+
+	auto render = [this]() {
+		for (auto& bullet : predictedBullets) {
+			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+		}
+
+		for (const auto& animation : renderer.deathAnimations) {
+			if (animation.t >= 0.5) {
+				players[animation.playerIndex].isRendered = false;
+			}
+		}
+
+		for (const auto& animation : renderer.spawnAnimations) {
+			players[animation.playerIndex].isRendered = true;
+		}
+
+		for (const auto& [playerIndex, player] : players) {
+			if (!player.isRendered)
+				continue;
+
+			const auto& sprite = renderer.bulletSprite;
+			Vec2 size = sprite.scaledSize(PLAYER_HITBOX_RADIUS * 2.0f);
+			Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+			for (const auto& animation : renderer.spawnAnimations) {
+				if (playerIndex == animation.playerIndex) {
+					auto t = animation.t;
+					const auto l0 = 0.5f;
+					if (animation.t < l0) {
+						t /= l0;
+						size.y *= lerp(3.0f, 1.0f, t);
+						size.x *= lerp(0.0f, 1.0f, t); // Identity function lol
+						color.w = t;
+					}
+					break;
+				}
+			}	
+			renderer.drawSprite(sprite, player.position, size, 0.0f, color);
+		}
+
+		auto calculateBulletOpacity = [](int aliveFramesLeft) {
+			const auto opacityChangeFrames = 60.0f;
+			const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
+			return opacity;
+		};
+
+		//for (auto& [_, bullet] : interpolatedBullets) {
+		//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
+		//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
+		//}
+
+		renderer.update(playerTransform.position);
+	};
+
+	client.AdvanceTime(client.GetTime() + FRAME_DT);
+	client.ReceivePackets();
+	if (client.IsConnected()) {
+		processMessages();
+			
+		if (joinedGame && !isAlive) {
+			if (Input::isKeyDown(KeyCode::SPACE)) {
+				const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
+				client.SendMessage(GameChannel::RELIABLE, message);
+			}
+		}
+
+		if (joinedGame && isAlive) {
+			processInput();
+		}
+	}
+
+	// Debug
+	{
+		for (auto& [_, bullet] : interpolatedBullets) {
+			bullet.transform.interpolatePosition(sequenceNumber);
+			bullet.aliveFramesLeft--;
+		}
+		std::erase_if(interpolatedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
+	}
+
+	for (auto& [index, transform] : playerIndexToTransform) {
+		transform.interpolatePosition(sequenceNumber);
+		players[index].position = transform.position;
+	}
+	players[clientPlayerIndex].position = playerTransform.position;
+
+	updateBullets();
+
+	client.SendPackets();
+
+	render();
+	
 	sequenceNumber++;
 }
 
@@ -251,6 +264,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				clientPlayerIndex = msg->clientPlayerIndex;
 				std::cout << "client joined clientPlayerIndex = " << clientPlayerIndex << '\n';
 				joinedGame = true;
+				players.insert({ clientPlayerIndex, Player{} });
 				sequenceNumber = 0;
 			}
 			break;
@@ -305,7 +319,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					// Maybe store the positions when the prediction is made and the compare the predicted ones with the server ones and only rollback the old state if they don't match. 
 					// https://youtu.be/zrIY0eIyqmI?t=1599
 					for (const auto& prediction : playerTransform.inputs) {
-						playerTransform.position = applyMovementInput(playerTransform.position, prediction.input, dt);
+						playerTransform.position = applyMovementInput(playerTransform.position, prediction.input, FRAME_DT);
 					}
 				} else {
 					auto& transform = playerIndexToTransform[msgPlayer.index];
@@ -376,32 +390,34 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 			const auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(update->GetBlockData());
 
-			std::cout << "{\nleaderboard update\n";
-			for (int i = 0; i < update->entryCount; i++) {
-				const auto entry = entries[i];
-				std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
-			}
-			std::cout << "}\n";
+			//std::cout << "{\nleaderboard update\n";
+			//for (int i = 0; i < update->entryCount; i++) {
+			//	const auto entry = entries[i];
+			//	std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
+			//}
+			//std::cout << "}\n";
 
-			for (const auto& [playerIndex, entry] : playerIdToLeaderboardEntry) {
-				std::cout << playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
-			}
+			//for (const auto& [playerIndex, entry] : playerIdToLeaderboardEntry) {
+			//	std::cout << playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
+			//}
 			for (i32 i = 0; i < update->entryCount; i++) {
 				const auto entry = entries[i];
 
-				if (playerIdToLeaderboardEntry[entry.playerIndex].deaths != entry.deaths) {
-					std::cout << "died: " << entry.playerIndex << '\n';
+				auto player = map_get(players, entry.playerIndex);
+				if (!player.has_value()) {
+					CHECK_NOT_REACHED();
+					continue;
+				}
+				
+				if (const auto died = player->leaderboard.deaths != entry.deaths) {
+					//std::cout << "died: " << entry.playerIndex << '\n';
+					renderer.playDeathAnimation(player->position, entry.playerIndex);
 					if (entry.playerIndex == clientPlayerIndex) {
 						isAlive = false;
-						renderer.playDeathAnimation(playerTransform.position);
-					} else {
-						renderer.playDeathAnimation(playerIndexToTransform[entry.playerIndex].position);
-						playerIndexToTransform.erase(entry.playerIndex);
 					}
-					
 				}
 
-				playerIdToLeaderboardEntry[entry.playerIndex] = {
+				player->leaderboard = {
 					.kills = entry.kills,
 					.deaths = entry.deaths,
 				};
@@ -412,12 +428,12 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		case GameMessageType::SPAWN_PLAYER: {
 			const auto& spawn = *reinterpret_cast<SpawnMessage*>(message);
 			std::cout << "spawn player: " << spawn.playerIndex << '\n';
+			renderer.spawnAnimations.push_back(Renderer::SpawnAnimation{ .playerIndex = spawn.playerIndex });
 			if (clientPlayerIndex == spawn.playerIndex) {
 				isAlive = true;
 			}
 			break;
 		}
-			
 
 		case GameMessageType::TEST:
 			std::cout << "hit\n";
