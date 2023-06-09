@@ -1,17 +1,20 @@
 #pragma once
 
 #include <Game/Renderer.hpp>
-#include <Game/GameClientAdapter.hpp>
 #include <optional>
+#include <shared/Networking.hpp>
 
 class GameClient 
 {
 public:
-	GameClient();
+	GameClient(yojimbo::Client& client, Renderer& renderer);
 	~GameClient();
 	void update();
-	void processMessages();
 	void processMessage(yojimbo::Message* message);
+
+	void onJoin(int playerIndex);
+	bool joinedGame();
+	void disconnect();
 
 	struct FirstUpdate {
 		int serverSequenceNumber;
@@ -108,12 +111,9 @@ public:
 
 	i32 sequenceNumber = 0;
 
-	// Maybe istead of these 2 use a std::optional
-	bool joinedGame = false;
 	PlayerIndex clientPlayerIndex = -1;
 
-	yojimbo::Client client;
-	GameClientAdapter adapter;
+	yojimbo::Client& client;
 
-	Renderer renderer;
+	Renderer& renderer;
 };

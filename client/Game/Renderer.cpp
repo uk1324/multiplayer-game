@@ -97,7 +97,7 @@ Renderer::Renderer()
 	camera.zoom /= 3.0f;
 }
 
-void Renderer::update(Vec2 playerPos) {
+void Renderer::update() {
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
 		reloadShaders();
 	}
@@ -123,7 +123,6 @@ void Renderer::update(Vec2 playerPos) {
 
 	const auto aspectRatio = Window::aspectRatio();
 	camera.aspectRatio = aspectRatio;
-	camera.pos = playerPos;
 	const auto cameraTransform = camera.cameraTransform();
 	const auto screenScale{ Mat3x2::scale(Vec2{ 1.0f, aspectRatio }) };
 	auto makeTransform = [&screenScale, aspectRatio, &cameraTransform](Vec2 translation, float orientation, Vec2 scale) -> Mat3x2 {
@@ -172,8 +171,6 @@ void Renderer::update(Vec2 playerPos) {
 		spritesToDraw.clear();
 	}
 
-	ImGui::Text("%d", deathAnimations.size());
-
 #define ANIMATION_UPDATE(animations, amount) \
 	do { \
 		for (auto& animation : animations) { \
@@ -216,7 +213,6 @@ void Renderer::update(Vec2 playerPos) {
 		deathAnimationShader->use();
 		fullscreenQuadPtIbo.bind();
 		for (auto& animation : deathAnimations) {
-			ImGui::SliderFloat("t", &animation.t, 0.0f, 0.9999f);
 			const auto transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f });
 			deathAnimationShader->setMat3x2("transform", transform);
 			deathAnimationShader->setFloat("time", animation.t);

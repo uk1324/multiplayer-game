@@ -17,15 +17,11 @@ std::optional<Value&> map_get(std::unordered_map<Key, Value>& map, const Key& ke
 	return it->second;
 }
 
-GameClient::GameClient()
-	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0) {
-	u64 clientId;
-	yojimbo::random_bytes((uint8_t*)&clientId, 8);
-	client.InsecureConnect(DEFAULT_PRIVATE_KEY, clientId, yojimbo::Address("127.0.0.1", SERVER_PORT));
-	client.SetLatency(DEBUG_LATENCY);
-	client.SetJitter(DEBUG_JITTER);
+GameClient::GameClient(yojimbo::Client& client, Renderer& renderer)
+	: client(client)
+	, renderer(renderer) {
+
 }
-// Speed up and the slow down again parabolic?
 GameClient::~GameClient() {
 	client.Disconnect();
 }
@@ -44,12 +40,20 @@ void display(const yojimbo::NetworkInfo& info) {
 	ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 }
 
-// accelerate bullets on everyones, but the shooters side.
-// decelerate the bullets at the start on the client. (which just means they accelerate)
-// 
-
 void GameClient::update() {
-	thisFrameSpawnIndexCounter = 0;
+	if (!client.IsConnected()) {
+		CHECK_NOT_REACHED();
+		return;
+	}
+	if (clientPlayerIndex == -1) {
+		CHECK_NOT_REACHED();
+		return;
+	}
+
+	if (Input::isKeyDown(KeyCode::ESCAPE)) {
+		disconnect();
+		return;
+	}
 
 	auto processInput = [this]() {
 		const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
@@ -60,7 +64,6 @@ void GameClient::update() {
 			.down = Input::isKeyHeld(KeyCode::S),
 			.left = Input::isKeyHeld(KeyCode::A),
 			.right = Input::isKeyHeld(KeyCode::D),
-			/*.shoot = Input::isMouseButtonDown(MouseButton::LEFT),*/
 			.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
 			.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
 			.rotation = rotation
@@ -94,6 +97,8 @@ void GameClient::update() {
 
 		shootCooldown -= FRAME_DT;
 		shootCooldown = std::max(0.0f, shootCooldown);
+
+		thisFrameSpawnIndexCounter = 0;
 		if (newInput.shoot && shootCooldown == 0.0f) {
 			shootCooldown = SHOOT_COOLDOWN;
 			auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
@@ -198,24 +203,16 @@ void GameClient::update() {
 		//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
 		//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 		//}
-
-		renderer.update(playerTransform.position);
+		renderer.camera.pos = playerTransform.position;
+		
 	};
 
-	client.AdvanceTime(client.GetTime() + FRAME_DT);
-	client.ReceivePackets();
-	if (client.IsConnected()) {
-		processMessages();
-			
-		if (joinedGame && !isAlive) {
-			if (Input::isKeyDown(KeyCode::SPACE)) {
-				const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
-				client.SendMessage(GameChannel::RELIABLE, message);
-			}
-		}
-
-		if (joinedGame && isAlive) {
-			processInput();
+	if (isAlive) {
+		processInput();
+	} else {
+		if (Input::isKeyDown(KeyCode::SPACE)) {
+			const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
+			client.SendMessage(GameChannel::RELIABLE, message);
 		}
 	}
 
@@ -236,39 +233,14 @@ void GameClient::update() {
 
 	updateBullets();
 
-	client.SendPackets();
-
 	render();
 	
 	sequenceNumber++;
 }
 
-void GameClient::processMessages() {
-	for (int i = 0; i < connectionConfig.numChannels; i++) {
-		yojimbo::Message* message = client.ReceiveMessage(i);
-		while (message != nullptr) {
-			processMessage(message);
-			client.ReleaseMessage(message);
-			message = client.ReceiveMessage(i);
-		}
-	}
-}
-
 void GameClient::processMessage(yojimbo::Message* message) {
 	switch (message->GetType()) {
-		case GameMessageType::JOIN: {
-			if (joinedGame) {
-				ASSERT_NOT_REACHED();
-			} else {
-				const auto msg = static_cast<JoinMessage*>(message);
-				clientPlayerIndex = msg->clientPlayerIndex;
-				std::cout << "client joined clientPlayerIndex = " << clientPlayerIndex << '\n';
-				joinedGame = true;
-				players.insert({ clientPlayerIndex, Player{} });
-				sequenceNumber = 0;
-			}
-			break;
-		}
+		
 
 		case GameMessageType::CLIENT_INPUT:
 			ASSERT_NOT_REACHED();
@@ -439,6 +411,21 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			std::cout << "hit\n";
 			break;
 	}
+}
+
+void GameClient::onJoin(int playerIndex) {
+	clientPlayerIndex = playerIndex;
+	players.insert({ clientPlayerIndex, GameClient::Player{} });
+	sequenceNumber = 0;
+}
+
+bool GameClient::joinedGame() {
+	return clientPlayerIndex != -1;
+}
+
+void GameClient::disconnect() {
+	client.Disconnect();
+	clientPlayerIndex = -1;
 }
 
 void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {

@@ -6,7 +6,7 @@
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
-#include <Game/GameClient.hpp>
+#include <Game/MainLoop.hpp>
 
 bool Engine::run(int fps)
 {
@@ -19,7 +19,7 @@ bool Engine::run(int fps)
 	double accumulatedTime = 0.0;
 	const double updateTime = 1.0 / fps;
 
-	GameClient game;
+	MainLoop game;
 
 	while (Window::shouldClose() == false)
 	{

@@ -18,7 +18,7 @@ struct Renderer {
 	};
 
 	Renderer();
-	void update(Vec2 playerPos);
+	void update();
 
 	Camera camera;
 
