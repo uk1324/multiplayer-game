@@ -2,6 +2,31 @@
 #include <iostream>
 #include <shared/Gameplay.hpp>
 
+template<typename MessageType, typename InitCallable>
+void broadcastMessage(
+	yojimbo::Server& server,
+	GameChannel::GameChannel channel,
+	GameMessageType::GameMessageType type,
+	InitCallable init,
+	const void* block = nullptr,
+	usize blockByteSize = 0) {
+	for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
+		if (!server.IsClientConnected(clientIndex)) {
+			continue;
+		}
+			
+
+		auto message = reinterpret_cast<MessageType*>(server.CreateMessage(clientIndex, type));
+		init(*message);
+		if (block != nullptr) {
+			const auto msgBlock = server.AllocateBlock(clientIndex, blockByteSize);
+			std::memcpy(msgBlock, block, blockByteSize);
+			server.AttachBlockToMessage(clientIndex, message, msgBlock, blockByteSize);
+		}
+		server.SendMessage(clientIndex, channel, message);
+	}
+}
+
 GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this) {
@@ -32,7 +57,6 @@ void GameServer::update(float dt) {
 		isRunning = false;
 		return;
 	}
-	
 	server.AdvanceTime(server.GetTime() + dt);
 	server.ReceivePackets();
 
@@ -41,7 +65,7 @@ void GameServer::update(float dt) {
 	}
 	processMessages();
 
-	for (auto& [playerIndex, player] : players) {
+	/*for (auto& [playerIndex, player] : players) {
 		if (player.receivedInputThisFrame) {
 			player.framesWithoutInputReceived = 0;
 		} else {
@@ -51,126 +75,163 @@ void GameServer::update(float dt) {
 		if (player.framesWithoutInputReceived > 1000) {
 			server.DisconnectClient(playerIndex);
 		}
-	}
+	}*/
 
-	for (auto& [_, player] : players) {
-		auto copy = player.inputs;
-		int previous = -1;
-		while (!copy.empty()) {
-			ASSERT(copy.front().sequenceNumber > previous);
-			copy.pop();
+	auto assertInputsOrdered = [this]() {
+		for (auto& [_, player] : players) {
+			auto copy = player.inputs;
+			int previous = -1;
+			while (!copy.empty()) {
+				ASSERT(copy.front().sequenceNumber > previous);
+				copy.pop();
+			}
 		}
-	}
+	};
 
-	for (auto& [_, player] : players) {
-		player.bulletsSpawnedThisFrame = 0;
-	}
-
-	for (auto& [playerIndex, player] : players) {
-		if (!player.isAlive)
-			continue;
-
-		for (const auto& [bulletIndex, bullet] : bullets) {
-			if (bullet.ownerPlayerIndex == playerIndex) {
+	auto checkCollisions = [this]() {
+		for (auto& [playerIndex, player] : players) {
+			if (!player.isAlive)
 				continue;
-			}
 
-			if (distance(player.pos, bullet.pos) > BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS) {
-				continue;
-			}
-
-			// TODO: Send a message with all the updates at the end of the frame. It isn't very likely that multiple kills happen in one frame.
-			for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
-				if (!server.IsClientConnected(clientIndex))
+			for (const auto& [bulletIndex, bullet] : bullets) {
+				if (bullet.ownerPlayerIndex == playerIndex) {
 					continue;
-				auto update = static_cast<LeaderboardUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::LEADERBOARD_UPDATE));
-				update->entryCount = 2;
-				const auto blockSize = update->entryCount * sizeof(LeaderboardUpdateMessage::Entry);
-				auto block = server.AllocateBlock(clientIndex, blockSize);
-				auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(block);
+				}
+
+				if (distance(player.pos, bullet.pos) > BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS) {
+					continue;
+				}
+
+				// TODO: Send a message with all the updates at the end of the frame. It isn't very likely that multiple kills happen in one frame.
+
 				auto& killer = players[bullet.ownerPlayerIndex];
 				killer.kills++;
-				entries[0] = killer.leaderboardEntry(bullet.ownerPlayerIndex);
 				auto& killed = player;
 				killed.deaths++;
-				entries[1] = killed.leaderboardEntry(playerIndex);
+				killed.isAlive = false;
 
-				server.AttachBlockToMessage(clientIndex, update, block, blockSize);
-
-				server.SendMessage(clientIndex, GameChannel::RELIABLE, update);
-			}
-			bullets.erase(bulletIndex);
-			break;
-		}
-	}
-
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		if (server.IsClientConnected(i)) {
-			yojimbo::NetworkInfo info;
-			server.GetNetworkInfo(i, info);
-		}
-	}
-
-	for (auto& [_, player] : players) {
-		if (!player.isAlive) {
-			player.inputs = {};
-		}
-	}
-
-	static int maxInputsSize = -1;
-	for (auto& [playerId, player] : players) {
-		
-		/*if (player.inputs.size() > maxInputsSize) {
-			maxInputsSize = player.inputs.size();
-			std::cout << "inputs size: " << player.inputs.size() << '\n';
-		}*/
-
-		if (player.inputs.empty()) {
-			if (!player.receivedInputThisFrame) {
-				// Maybe duplicate last frame's input
-				//std::cout << sequenceNumber << " lost input\n";
-			}
-		} else {
-			const auto [input, sequenceNumber] = player.inputs.front();
-			player.inputs.pop();
-			player.pos = applyMovementInput(player.pos, input, dt);
-			player.newestExecutedInputSequenceNumber = sequenceNumber;
-
-			
-			yojimbo::NetworkInfo info;
-			server.GetNetworkInfo(playerId, info);
-			// Cooldowns might get desynchronized
-			player.shootCooldown -= dt;
-			player.shootCooldown = std::max(0.0f, player.shootCooldown);
-			if (input.shoot && player.shootCooldown == 0.0f) {
-				player.shootCooldown = SHOOT_COOLDOWN;
-				const auto direction = Vec2::oriented(input.rotation);
-				auto spawnBullet = [&](Vec2 position, Vec2 velocity) {
-					bullets[bulletIndexCounter] = Bullet{
-						.pos = position + PLAYER_HITBOX_RADIUS * direction,
-						.velocity = velocity,
-						.ownerPlayerIndex = playerId,
-						.aliveFramesLeft = 1000,
-						.spawnFrameClientSequenceNumber = sequenceNumber,
-						.frameSpawnIndex = player.bulletsSpawnedThisFrame,
-						.catchUpTime = info.RTT / 2.0f / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
-					};
-					player.bulletsSpawnedThisFrame++;
-					bulletIndexCounter++;
+				const auto entryCount = 2;
+				LeaderboardUpdateMessage::Entry entries[entryCount]{
+					killer.leaderboardEntry(bullet.ownerPlayerIndex),
+					killed.leaderboardEntry(playerIndex)
 				};
-				spawnTripleBullet(player.pos, input.rotation, BULLET_SPEED, spawnBullet);
+				broadcastMessage<LeaderboardUpdateMessage>(
+					server,
+					GameChannel::RELIABLE,
+					GameMessageType::LEADERBOARD_UPDATE,
+					[&](LeaderboardUpdateMessage& message) {
+						message.entryCount = entryCount;
+					},
+					&entries,
+					sizeof(entries)
+				);
+
+				/*bool logged = false;
+				for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
+					if (!server.IsClientConnected(clientIndex))
+						continue;
+					auto update = static_cast<LeaderboardUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::LEADERBOARD_UPDATE));
+					update->entryCount = 2;
+					const auto blockSize = update->entryCount * sizeof(LeaderboardUpdateMessage::Entry);
+					auto block = server.AllocateBlock(clientIndex, blockSize);
+					auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(block);
+					auto& killer = players[bullet.ownerPlayerIndex];
+					killer.kills++;
+					entries[0] = killer.leaderboardEntry(bullet.ownerPlayerIndex);
+					auto& killed = player;
+					killed.deaths++;
+					killed.isAlive = false;
+					entries[1] = killed.leaderboardEntry(playerIndex);
+
+					if (!logged) {
+						logged = true;
+						std::cout << "{\nleaderboard update\n";
+						for (int i = 0; i < update->entryCount; i++) {
+							const auto entry = entries[i];
+							std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
+						}
+						std::cout << "}\n";
+					}
+
+					server.AttachBlockToMessage(clientIndex, update, block, blockSize);
+
+					server.SendMessage(clientIndex, GameChannel::RELIABLE, update);
+				}*/
+				bullets.erase(bulletIndex);
+				break;
 			}
-			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
-			
 		}
-	}
+	};
+
+	auto processInputs = [this, dt]() {
+		for (auto& [_, player] : players) {
+			if (!player.isAlive) {
+				player.inputs = {};
+			}
+		}
+
+		for (auto& [_, player] : players) {
+			player.bulletsSpawnedThisFrame = 0;
+		}
+
+		static int maxInputsSize = -1;
+		for (auto& [playerId, player] : players) {
+
+			/*if (player.inputs.size() > maxInputsSize) {
+				maxInputsSize = player.inputs.size();
+				std::cout << "inputs size: " << player.inputs.size() << '\n';
+			}*/
+
+			if (player.inputs.empty()) {
+				if (!player.receivedInputThisFrame) {
+					// Maybe duplicate last frame's input
+					//std::cout << sequenceNumber << " lost input\n";
+				}
+			} else {
+				const auto [input, sequenceNumber] = player.inputs.front();
+				player.inputs.pop();
+				player.pos = applyMovementInput(player.pos, input, dt);
+				player.newestExecutedInputSequenceNumber = sequenceNumber;
+
+
+				yojimbo::NetworkInfo info;
+				server.GetNetworkInfo(playerId, info);
+				// Cooldowns might get desynchronized
+				player.shootCooldown -= dt;
+				player.shootCooldown = std::max(0.0f, player.shootCooldown);
+				if (input.shoot && player.shootCooldown == 0.0f) {
+					player.shootCooldown = SHOOT_COOLDOWN;
+					const auto direction = Vec2::oriented(input.rotation);
+					auto spawnBullet = [&](Vec2 position, Vec2 velocity) {
+						bullets[bulletIndexCounter] = Bullet{
+							.pos = position + PLAYER_HITBOX_RADIUS * direction,
+							.velocity = velocity,
+							.ownerPlayerIndex = playerId,
+							.aliveFramesLeft = 1000,
+							.spawnFrameClientSequenceNumber = sequenceNumber,
+							.frameSpawnIndex = player.bulletsSpawnedThisFrame,
+							.catchUpTime = info.RTT / 2.0f / 1000.0f + FRAME_DT * SERVER_UPDATE_SEND_RATE_DIVISOR
+						};
+						player.bulletsSpawnedThisFrame++;
+						bulletIndexCounter++;
+					};
+					spawnTripleBullet(player.pos, input.rotation, BULLET_SPEED, spawnBullet);
+				}
+				// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
+
+			}
+		}
+	};
+
+	assertInputsOrdered();
+	checkCollisions();
+	processInputs();
 
 	for (auto& [_, bullet] : bullets) {
 		updateBullet(bullet.pos, bullet.velocity, bullet.timeElapsed, bullet.catchUpTime, bullet.aliveFramesLeft, FRAME_DT);
 	}
 	std::erase_if(bullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
 	
-
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();
 	}
@@ -189,22 +250,42 @@ void GameServer::broadcastWorldState() {
 
 		auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
 
-		const auto playersCount = players.size();
-		const auto bulletsCount = bullets.size();
-		message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber, playersCount, bulletsCount);
+		auto shouldSendPlayer = [](const Player& player) {
+			return player.isAlive;
+		};
 
-		const auto playersBlockSize = sizeof(WorldUpdateMessage::Player) * playersCount;
+		auto playersToSend = 0;
+		for (const auto& [_, player] : players) {
+			if (shouldSendPlayer(player)) {
+				playersToSend++;
+			}
+		}
+		const auto bulletsCount = bullets.size();
+
+		if (playersToSend == 0 && bulletsCount == 0) {
+			continue;
+		}
+
+		message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber, playersToSend, bulletsCount);
+		
+		const auto playersBlockSize = sizeof(WorldUpdateMessage::Player) * playersToSend;
 		const auto bulletsBlockSize = sizeof(WorldUpdateMessage::Bullet) * bulletsCount;
 		const auto blockSize = playersBlockSize + bulletsBlockSize;
 		u8* block = server.AllocateBlock(clientIndex, blockSize);
-		auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(block);
+		
 		auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(block + playersBlockSize);
 
 		int i;
-		i = 0;
-		for (const auto& [playerIndex, player] : players) {
-			msgPlayers[i] = WorldUpdateMessage::Player{ .index = playerIndex, .position = player.pos };
-			i++;
+		if (playersToSend > 0) {
+			auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(block);
+			i = 0;
+			for (const auto& [playerIndex, player] : players) {
+				if (!shouldSendPlayer(player))
+					continue;
+
+				msgPlayers[i] = WorldUpdateMessage::Player{ .index = playerIndex, .position = player.pos };
+				i++;
+			}
 		}
 		i = 0;
 		for (const auto& [bulletIndex, bullet] : bullets) {
@@ -250,12 +331,22 @@ void GameServer::processMessage(int clientIndex, yojimbo::Message* message) {
 	case GameMessageType::CLIENT_INPUT:
 		processClientInputMessage(clientIndex, *static_cast<ClientInputMessage*>(message));
 		break;
+
+	case GameMessageType::SPAWN_REQUEST:
+		processSpawnRequestMessage(clientIndex, *static_cast<SpawnRequestMessage*>(message));
+		break;
+
+	default:
+		break;
 	}
 }
 
 void GameServer::processClientInputMessage(int clientIndex, ClientInputMessage& msg) {
 	//std::cout << msg.inputs[3].left << msg.inputs[3].right << msg.inputs[3].up << msg.inputs[3].down << '\n';
 	auto& player = players[clientIndex];
+	if (!player.isAlive)
+		return;
+
 	const auto inputsInMessage = static_cast<int>(std::size(msg.inputs));
 	const auto newInputs = std::min(msg.sequenceNumber - player.newestReceivedInputSequenceNumber, inputsInMessage);
 	if (newInputs <= 0) {
@@ -271,6 +362,31 @@ void GameServer::processClientInputMessage(int clientIndex, ClientInputMessage& 
 			continue;
 		}
 		player.inputs.push(Player::InputWithSequenceNumber{ .input = msg.inputs[i], .sequenceNumber = sequenceNumber });
+	}
+}
+
+void GameServer::processSpawnRequestMessage(int clientIndex, SpawnRequestMessage& msg) {
+	const auto it = players.find(clientIndex);
+	if (it == players.end()) {
+		ASSERT_NOT_REACHED();
+		return;
+	}
+
+	auto& player = it->second;
+	if (player.isAlive) {
+		ASSERT_NOT_REACHED();
+		return;
+	}
+
+	// TODO: Add respawn cooldown.
+	player.isAlive = true;
+	for (int clientI = 0; clientI < MAX_CLIENTS; clientI++) {
+		if (!server.IsClientConnected(clientI))
+			continue;
+
+		auto message = static_cast<SpawnMessage*>(server.CreateMessage(clientI, GameMessageType::SPAWN_PLAYER));
+		message->playerIndex = clientIndex;
+		server.SendMessage(clientI, GameChannel::RELIABLE, message);
 	}
 }
 

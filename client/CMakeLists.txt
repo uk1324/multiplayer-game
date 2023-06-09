@@ -1,3 +1,10 @@
+# https://stackoverflow.com/questions/55190247/how-do-i-do-edit-and-continue-builds-with-cmake-projects-in-visual-studio-2019
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  set(CMAKE_CXX_FLAGS_DEBUG "/ZI")
+  set(CMAKE_SHARED_LINKER_FLAGS "/SAFESEH:NO")
+  set(CMAKE_EXE_LINKER_FLAGS "/SAFESEH:NO")
+endif()
+
 add_library(
 	client-lib 
 	"${PROJECT_SOURCE_DIR}/dependencies/glad/src/glad.c"

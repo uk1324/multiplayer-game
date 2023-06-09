@@ -40,8 +40,7 @@ void display(const yojimbo::NetworkInfo& info) {
 
 void GameClient::update(float dt) {
 	//ImGui::Text("The bullets created by the client are predict spawned and later slowed down to make them synced up with the players. So when you hit someone on your screen it should also hit the player on the server. The bullets created by the other players are accelerated to compensate for RTT time, because the player receives the update RTT/2 time after it happened and it takes RTT/2 time for the input to arrive on the server. The client tries to predict the future so they when the dodge the bullets on their screen the bullets should also be dodged on the server later. So the player's bullets and other player's positions are in the past, but other player's bullets are in the future");
-
-
+	
 	this->dt = dt;
 	thisFrameSpawnIndexCounter = 0;
 	{
@@ -51,7 +50,14 @@ void GameClient::update(float dt) {
 		if (client.IsConnected()) {
 			processMessages();
 			
-			if (joinedGame) {
+			if (joinedGame && !isAlive) {
+				if (Input::isKeyDown(KeyCode::SPACE)) {
+					const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
+					client.SendMessage(GameChannel::RELIABLE, message);
+				}
+			}
+
+			if (joinedGame && isAlive) {
 				const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
 				const auto cursorRelativeToPlayer = cursorPos - playerTransform.position;
 				const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
@@ -200,12 +206,14 @@ void GameClient::update(float dt) {
 	for (auto& [_, transform] : playerIndexToTransform) {
 		renderer.drawSprite(renderer.bulletSprite, transform.position, PLAYER_HITBOX_RADIUS * 2.0f);
 	}
-	renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
+	if (isAlive) {
+		renderer.drawSprite(renderer.bulletSprite, playerTransform.position, PLAYER_HITBOX_RADIUS * 2.0f);
+	}
 
-	playerTransform.position = Vec2(0.0f);
+	/*playerTransform.position = Vec2(0.0f);
 	if (Input::isKeyDown(KeyCode::L)) {
 		renderer.playDeathAnimation(Vec2(0.0f));
-	}
+	}*/
 
 	auto calculateBulletOpacity = [](int aliveFramesLeft) {
 		const auto opacityChangeFrames = 60.0f;
@@ -367,12 +375,30 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				break;
 			}
 			const auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(update->GetBlockData());
+
+			std::cout << "{\nleaderboard update\n";
+			for (int i = 0; i < update->entryCount; i++) {
+				const auto entry = entries[i];
+				std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
+			}
+			std::cout << "}\n";
+
+			for (const auto& [playerIndex, entry] : playerIdToLeaderboardEntry) {
+				std::cout << playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
+			}
 			for (i32 i = 0; i < update->entryCount; i++) {
 				const auto entry = entries[i];
 
 				if (playerIdToLeaderboardEntry[entry.playerIndex].deaths != entry.deaths) {
-					renderer.playDeathAnimation(playerIndexToTransform[entry.playerIndex].position);
-					playerIndexToTransform.erase(entry.playerIndex);
+					std::cout << "died: " << entry.playerIndex << '\n';
+					if (entry.playerIndex == clientPlayerIndex) {
+						isAlive = false;
+						renderer.playDeathAnimation(playerTransform.position);
+					} else {
+						renderer.playDeathAnimation(playerIndexToTransform[entry.playerIndex].position);
+						playerIndexToTransform.erase(entry.playerIndex);
+					}
+					
 				}
 
 				playerIdToLeaderboardEntry[entry.playerIndex] = {
@@ -382,6 +408,16 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 			break;
 		}
+
+		case GameMessageType::SPAWN_PLAYER: {
+			const auto& spawn = *reinterpret_cast<SpawnMessage*>(message);
+			std::cout << "spawn player: " << spawn.playerIndex << '\n';
+			if (clientPlayerIndex == spawn.playerIndex) {
+				isAlive = true;
+			}
+			break;
+		}
+			
 
 		case GameMessageType::TEST:
 			std::cout << "hit\n";

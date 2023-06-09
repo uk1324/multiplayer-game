@@ -15,6 +15,7 @@ struct GameServer {
 	void processMessages();
 	void processMessage(int clientIndex, yojimbo::Message* message);
 	void processClientInputMessage(int clientIndex, ClientInputMessage& msg);
+	void processSpawnRequestMessage(int clientIndex, SpawnRequestMessage& msg);
 	void onClientConnected(int clientIndex);
 	void onClientDisconnected(int clientIndex);
 

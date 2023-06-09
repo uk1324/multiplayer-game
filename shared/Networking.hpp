@@ -42,6 +42,8 @@ namespace GameMessageType {
         CLIENT_INPUT,
         WORLD_UPDATE,
         LEADERBOARD_UPDATE,
+        SPAWN_REQUEST,
+        SPAWN_PLAYER,
         TEST,
         COUNT
     };
@@ -138,12 +140,33 @@ struct LeaderboardUpdateMessage : public yojimbo::BlockMessage {
         int playerIndex = -1;
         int deaths = -1;
         int kills = -1;
+
+        friend std::ostream& operator<<(std::ostream& os, const Entry& entry);
     };
     int entryCount;
 
     template <typename Stream>
     bool Serialize(Stream& stream) {
         serialize_int(stream, entryCount, 1, INT_MAX);
+        return true;
+    }
+
+    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+};
+
+struct SpawnRequestMessage : public yojimbo::Message {
+    template <typename Stream>
+    bool Serialize(Stream& stream) {
+        return true;
+    }
+    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+};
+
+struct SpawnMessage : public yojimbo::Message {
+    i32 playerIndex;
+    template <typename Stream>
+    bool Serialize(Stream& stream) {
+        serialize_int(stream, playerIndex, 0, MAX_CLIENTS);
         return true;
     }
 
@@ -164,5 +187,7 @@ YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::JOIN, JoinMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::CLIENT_INPUT, ClientInputMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::WORLD_UPDATE, WorldUpdateMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::LEADERBOARD_UPDATE, LeaderboardUpdateMessage);
+YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_REQUEST, SpawnRequestMessage);
+YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_PLAYER, SpawnMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::TEST, TestMessage);
 YOJIMBO_MESSAGE_FACTORY_FINISH();

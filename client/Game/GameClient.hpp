@@ -31,6 +31,7 @@ public:
 
 	PredictedPlayerTransform playerTransform;
 	float shootCooldown = 0.0f;
+	bool isAlive = true;
 
 	struct InterpolationPosition {
 		Vec2 position;
