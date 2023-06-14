@@ -26,6 +26,32 @@ include_directories(
 	"."
 )
 
+file(GLOB DATA_FILES ${PROJECT_SOURCE_DIR}/client/*.data)
+
+set_property(
+  DIRECTORY 
+  APPEND 
+  PROPERTY CMAKE_CONFIGURE_DEPENDS 
+  ${DATA_FILES}
+)
+# "generated/cmake.txt"
+
+set(GENERATED_PATH ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+include("generated/cmake.txt")
+
+execute_process(
+	COMMAND generateCmakeDependencyList.bat
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# https://cmake.org/cmake/help/latest/command/add_custom_command.html
+add_custom_command(
+	OUTPUT ${GENERATED_FILES}
+	COMMAND runCodeGenTool.bat
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	DEPENDS ${DEPENDENCIES_FILES}
+)
+
 add_subdirectory(client)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022
@@ -37,7 +63,9 @@ add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 	"dependencies/imgui/imgui_tables.cpp"
 	"dependencies/imgui/imgui_widgets.cpp"
 	"dependencies/imgui/imgui_impl_opengl3.cpp"
-	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp" "shared/WindowsUtils.cpp")
+	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp" "shared/WindowsUtils.cpp" "dependencies/imgui/imgui_demo.cpp" 
+	${GENERATED_FILES}
+)
 
 target_link_libraries(client client-lib)
 target_include_directories(client PUBLIC "/dependencies")

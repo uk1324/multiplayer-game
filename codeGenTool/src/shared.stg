@@ -1,0 +1,5 @@
+fieldAccess(value, fieldName) ::= "<value>.<fieldName>"
+arrayAccess(value, index) ::= "<value>[<index>]"
+jsonAccess(value, name) ::= "<value>.at(\"<name>\")"
+
+includePaths(includePaths) ::= "<includePaths : { path | #include <if(path.isRelative)>\"<path.path>\"<else>\<<path.path>><endif> }; separator=\"\n\">"

@@ -1,0 +1,110 @@
+import "shared.stg"
+
+dataFile(hppPath, dataFile) ::= <<
+#include "<hppPath>"
+<includePaths(dataFile.cppIncludePaths)>
+
+<dataFile.declarations : { declaration | <declaration(declaration)> } >
+>>
+
+declaration(declaration) ::= <%
+<if(declaration.isStruct)>
+    <struct(declaration)>
+<elseif(declaration.isEnum)>
+    <enum(declaration)>
+<else>
+    error
+<endif>
+%>
+
+struct(struct) ::= <<
+<if(struct.isGui)>
+void gui(<struct.name>& value) {
+    using namespace Gui;
+    ImGui::PushID(&value);
+
+    <struct.fields : { field | <gui(field.dataType, fieldAccess("value", field.name), field.displayName)>} >
+    ImGui::PopID();
+}
+<endif>
+
+<if(struct.isJson)>
+Json::Value toJson(const <struct.name>& value) {
+    auto json = Json::Value::emptyObject();
+
+    <struct.fields : { field | <toJson(field.dataType, field.name)>} >
+    return json;
+}
+
+template\<\>
+<struct.name> fromJson\<<struct.name>\>(const Json::Value& json) {
+    return <struct.name> {
+        <struct.fields : { field
+            | .<field.name> = <if(field.hasDefaultValue)>!json.contains("<field.name>") ? <field.defaultValue> : <endif><fromJson(field.dataType, jsonAccess("json", field.name))>};
+            separator=",\n"
+        >
+    };
+}
+<endif>
+>>
+
+gui(dataType, name, displayedName) ::= <<
+<\\>
+<if(dataType.isFloat)><\\>
+inputFloat("<displayedName>", <name>);
+<elseif(dataType.isRangedFloat)><\\>
+sliderFloat("<displayedName>", <name>, <dataType.min>, <dataType.max>);
+<elseif(dataType.isBool)><\\>
+checkbox("<displayedName>", <name>);
+<elseif(dataType.isColor)><\\>
+inputColor("<displayedName>", <name>);
+<elseif(dataType.isVec2)><\\>
+inputVec2("<displayedName>", <name>);
+<elseif(dataType.isVec3)><\\>
+inputVec3("<displayedName>", <name>);
+<elseif(dataType.isIdentifier)><\\>
+if (node("<displayedName>")) {
+    gui(<name>);
+    nodeEnd();
+}
+<else><\\>
+/* <name> */
+<endif>
+>>
+
+toJson(dataType, name) ::= <<
+<if(dataType.isFloat || dataType.isRangedFloat || dataType.isBool)><\\>
+json["<name>"] = Json::Value(value.<name>);
+<else><\\>
+json["<name>"] = toJson(value.<name>);
+<endif>
+>>
+
+fromJson(dataType, name) ::= <<
+<if(dataType.isFloat || dataType.isRangedFloat)><\\>
+<name>.number()<\\>
+<elseif(dataType.isI32)><\\>
+<name>.intNumber()<\\>
+<elseif(dataType.isBool)><\\>
+<name>.boolean()<\\>
+<else><\\>
+fromJson\<<dataType.name>\>(<name>)<\\>
+<endif>
+>>
+
+enum(enum) ::= <<
+<if(enum.isToStr)>
+const char* toStr(<enum.name> value) {
+    switch (value) {
+        <enum.definitions : { definition | case <enum.name>::<definition.name>: return "<definition.name>"; }; separator="\n">
+    }
+}
+<if(enum.isImGuiCombo)>
+void combo(<enum.name>* value) {
+    switch (value) {
+        <enum.definitions : { definition | case <enum.name>::<definition.name>: return "<definition.name>"; }; separator="\n">
+    }
+}
+<endif>
+<endif>
+>>

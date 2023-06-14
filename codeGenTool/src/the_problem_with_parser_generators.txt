@@ -1,0 +1,90 @@
+The issue with parser generators is their output. Parsers like antlr4 output a parse tree which then has to again be parsed to some other format like an ast, which can create a desynchronization of code between the parser and the code that generates the AST. Sometimes the code that generates the AST might be almost as long as the code for a hand written parser. Another issue with antlr4 is that if you use an editor you can only return a single type which forces you to either create multiple visitors or to have a single bottom type and do a lot of casting between types. This can be partially fixed by allowing the user to create the types that are outputted by the parser.
+For example a class declaration
+'class' name = IDENTIFIER {
+    declarations = classDeclaration*
+}
+OUTPUT = ClassDeclarationStmt(/* Maybe some implicit position argument */, name, declarations)
+The above method would work for some cases, but would require modifying the parser generator to add new functionality. For example if you wanted to split the classDeclarations into fieldDeclarations and functionDeclarations then with the above syntax this wouldn't be possible. You would need to create some common class for classDeclarations and inherit from it. If you then wanted to change it into the version with the separated types you would need to also need to change all the types in the ast that contain this new classStmt type. This limitation makes parser generators uncomfortable to use.
+
+The advantages of parser generators are that they it's easy to write the specification for them. And that they prevent coding mistakes from happening.
+
+It is possible to make "recursive descent" parsers more declarative similarly to formal grammar specifications. This could be done for example using macros that can preform common functionality for example something like this '{' *something '}' where '*' means zero or more.
+This could be written like this in a hand written parser.
+expect('{');
+// The !isAtEnd check is required, because the check shouldn't return an error at eof, because this would create errors with the wrong position, errors should only happen on expects or manually. Could write special function for this, because in this case returning an error on eof probably would work.
+while (!check('}') && !isAtEnd) {
+    // something
+}
+expect('}');
+The something part could be passed as an argument to the macro.
+ZERO_OR_MORE('{', '}', {
+    // something
+})
+
+Common mistakes when writing a parser include infinite loops which could be fixed by using a macro.
+
+Another cool thing that parser generators do is that they automatically generate the position in the source of a node automatically. Here are some ideas on how this might be implemented in a hand written parser.
+Macros for creating functions
+PARSER_FUNC(numberStmt)
+    // PARSER_FUNC would place some variable here storing the start location.
+    // ...
+    return CREATE_NODE(...) // this would automatically pass the location from start to here.
+}
+
+Because the location is always at the start of the function and the end is at the return (this might not always be true (maybe you want to skip some characters like a semicolon)) maybe make a macro that calls some function before the call and some function after a parser call and somehow passes the value to the created type
+PARSER_CALL(numberStmt(...))
+would expand to
+auto start = start();
+auto x = numberStmt(...)
+x.location = calculateLocation.
+
+
+// Could make the enum just an integer and use characters directly instead of enums. Or maybe have a function that changes chars into tokens
+
+Other issues with hand written parsers:
+- most of the time they use the runtime call stack which can overflow.
+- more difficult to do look ahead and complex parser rules (this probably shouldn't be an issue often)
+
+Lexers are in general don't have the same problems as parsers, but there still might be issues with more complicated constructs or wanting to store some data inside the token. For example validating utf-8 and the passing the calculated length into the token, might not be supported by some lexers. Or macros or complicated string types (interpolation, different encodings etc.).
+If there is no option to store anything inside a token then you need to reparse things in the parser again, which creates a desynchronization. For example extracting the string from a string literal.
+
+Callback in API are sometimes good for example an error reporting system, because it allows you to decide if you want to allocate the message or not. Or bad for example visitors.
+
+How to handle loops like this
+
+while (!isAtEnd()) {
+    if (!isDigit(peek())) {
+        return Optional.of(makeToken(TokenType.INT));
+    }
+    eat();
+}
+// cannot put make token at the end here because it would be triggerd by isAtEnd();
+
+How to handle optionals. The attributes are optional. This could be implemented like this where attributes are created even if it is not known if things match. Bring out the common part which is the struct into a seperate function and pass an empty list in the case of no attributes or the parsed attributes in the other
+
+List<StructAttribute> attributes;
+if (match(TokenType.DOUBLE_LEFT_BRACKET)) {
+    // abc
+    expect(TokenType.DOUBLE_RIGHT_BRACKET);
+}
+// This is actually wrong, because it doesn't require the struct identifier after the attributes. It is also difficult to parse because it the type of attributes depends on the keyword after them "struct" or "enum"
+
+if (matchIdentifier("struct")) {
+    expect(TokenType.IDENTIFIER);
+    var structName = previousToken.text;
+
+    List<DeclarationInStruct> declarations = new ArrayList<>();
+
+    expect(TokenType.LEFT_BRACE);
+    while (!isAtEnd && !check(TokenType.RIGHT_BRACE)) {
+        declarations.add(declarationInStruct());
+    }
+    expect(TokenType.RIGHT_BRACE);
+
+}
+
+Maybe generate readable code that just validates that the syntax is correct. And the allow the user to insert code into the code that would generate the actual structure. This approach would require the program to remember the program locations maybe by saving them based on the location in the parse tree idk.
+This approach might be difficult to implement well, because some more complicated syntax might not be translatable easily into redable source code.
+For example if you want to place attributes of an object before it. Then you would need to know if these attributes are for the enum or struct.
+A simple way to do this might be to just check if the keyword after ]] is struct or enum, but a normal generated parser would probably detect it using the names of the attributes.
+Which would also make it difficult to use by the user.

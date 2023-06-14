@@ -16,7 +16,7 @@ namespace Json
 		using StringType = std::string;
 		using ArrayType = std::vector<Value>;
 		using IntType = int;
-		using FloatType = double;
+		using FloatType = float;
 		// Some implementations of std::map can cause errors because of recursive types.
 		// TODO: Fix this.
 		using MapType = std::unordered_map<StringType, Value>;

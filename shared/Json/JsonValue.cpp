@@ -1,4 +1,4 @@
-#include <Json/JsonValue.hpp>
+#include "JsonValue.hpp"
 #include <shared/Utils/Assertions.hpp>
 
 Json::Value::Value()
@@ -346,7 +346,7 @@ Json::Value::StringType& Json::Value::string()
 	throw InvalidTypeAccess();
 }
 
-double& Json::Value::number()
+Json::Value::FloatType& Json::Value::number()
 {
 	if (isFloat())
 		return m_value.floatNumber;

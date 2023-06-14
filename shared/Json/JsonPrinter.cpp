@@ -1,5 +1,4 @@
-#include <Json/JsonPrinter.hpp>
-#include <Json/JsonPrinter.hpp>
+#include "JsonPrinter.hpp"
 
 #include <ostream>
 #include <sstream>

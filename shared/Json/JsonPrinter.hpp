@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Json/JsonValue.hpp>
+#include "JsonValue.hpp"
 
 std::ostream& operator<< (std::ostream& os, const Json::Value& json);
 

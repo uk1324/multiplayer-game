@@ -25,7 +25,7 @@ GameClient::GameClient(yojimbo::Client& client, Renderer& renderer)
 GameClient::~GameClient() {
 	client.Disconnect();
 }
-
+ 
 #include <imgui.h>
 #include <iostream>
 

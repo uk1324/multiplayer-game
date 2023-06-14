@@ -1,0 +1,90 @@
+import "shared.stg"
+
+dataFile(dataFile) ::= <<
+#pragma once
+<includePaths(dataFile.includePaths)>
+
+<dataFile.declarations : { declaration | <declaration(declaration)> }>
+>>
+
+declaration(declaration) ::= <%
+<if(declaration.isStruct)>
+    <struct(declaration)>
+<elseif(declaration.isEnum)>
+    <enum(declaration)>
+<else>
+    error
+<endif>
+%>
+
+struct(struct) ::= <<
+<if(struct.isNetworkSerialize)>
+#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(structValue) \
+    <struct.fields : { field | <networkSerialize(field.dataType, fieldAccess("structValue", field.name))> }; separator="\\\n">
+<endif>
+
+struct <struct.name><if(struct.isNetworkSerialize)>: yojimbo::Message<endif> {
+    <struct.declarations : { declaration | <declarationInStruct(declaration)> }; separator="\n">
+    <if(struct.isNetworkSerialize)><\\>
+    template\<typename Stream\>
+    bool Serialize(Stream& stream) {
+        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(*this)
+    }
+    <endif>
+};
+
+<if(struct.isGui)>
+void gui(<struct.name>& value);
+<endif>
+
+<if(struct.isJson)>
+Json::Value toJson(const <struct.name>& value);
+template\<\>
+<struct.name> fromJson\<<struct.name>\>(const Json::Value& json);
+<endif>
+>>
+
+declarationInStruct(declaration) ::= <%
+<if(declaration.isField)>
+    <field(declaration)>
+<else>
+    error
+<endif>
+%>
+
+field(field) ::= "<field.dataType.name> <field.name><if(field.hasDefaultValue)> = <field.defaultValue><endif>;"
+
+enum(enum) ::= <<
+enum class <enum.name> {
+    <enum.definitions : { definition | <definition.name><if(definition.hasInitializer)> = <definition.initializer><endif>}; separator=",\n">
+};
+
+<if(enum.isToStr)>
+const char* toStr(<enum.name> value);
+<endif>
+<if(enum.isImGuiCombo)>
+void combo(<enum.name>* value);
+<endif>
+>>
+
+networkSerialize(dataType, name) ::= <%
+<if(dataType.isFloat)>
+    serialize_float(stream, <name>);
+<elseif(dataType.isBool)>
+    serialize_bool(stream, <name>);
+<elseif(dataType.isRangedSignedInt)>
+    serialize_int(stream, <name>, <field.dataType.min>, <field.dataType.max>);
+<elseif(dataType.isVector)>
+    {
+        int size = <name>.size();
+        serialize_int(stream, size, 0, INT_MAX);
+        for (int i = 0; i \< size; i++) {
+            <networkSerialize(dataType.itemDataType, arrayAccess(name, "i"))>
+        }
+    }
+<elseif(dataType.isIdentifier)>
+    NETWORK_SERIALIZE_<dataType.nameUpperSnakeCase>(<name>);
+<else>
+    error
+<endif>
+%>

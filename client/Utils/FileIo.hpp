@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Json/Json.hpp>
+#include <shared/Json/Json.hpp>
 #include <Utils/ByteBuffer.hpp>
 
 #include <string>

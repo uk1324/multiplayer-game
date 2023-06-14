@@ -1,0 +1,72 @@
+shader line {
+	vertexFormat = PT
+	vert = "line.vert"
+	vert = defaultPassInstanceDataToFragment
+	instance = {
+		Mat2x3 transform;
+		float width;
+		color color;
+	}
+	fragUniform = {
+		float smoothingRadius;
+	}
+	// Use default.
+	maxCapacity = 100
+}
+
+#version 430
+
+layout (location = 0) in vec2 vertexPos;
+layout (location = 1) in vec2 vertexTexturePos;
+
+layout (location = 2) in float instanceWidth;
+layout (location = 3) in vec4 instanceColor;
+
+out vec2 texturePosition;
+out float width;
+out vec4 color;
+
+int main() {
+	texturePosition = vertexTexturePos;
+}
+
+struct LineShaderInstance {
+	
+}
+
+// TODO: Baking uniforms into the program. Shouldn't be difficult, because they are both just variables in GLSL.
+struct LineShaderFragUniforms {
+
+}
+
+void shaderSetUniforms(ShaderProgram& shader, const LineShaderFragUniforms& uniforms);
+
+struct LineShader {
+	ShaderProgram* shader;
+	// If there are multiple different vertex buffers and vertex attribute buffers then a std::map<AttributeBuffer*, std::vector<Instance>> could be stored.
+	std::vector<LineShaderInstance> toDraw;
+
+	void addToDraw()
+
+	Vao createVao(Span<VertPt>)
+
+	void reset() {
+		toDraw.clear();
+	}
+
+	void draw() {
+		
+	}
+
+	void drawCall(Buffer& buffer, usize bufferSizeBytes, int indexCount) {
+		const auto maxInstancesPerDrawCall = bufferSizeBytes / sizeof(LineShaderInstance);
+		const auto drawn = 0;
+		// Can't just put leftToDraw here because the subtraction would underflow. Have to do the check.
+		while (draw <= toDraw.size()) {
+			const auto leftToDraw = draw - toDraw.size();
+			const auto toDrawInThisDrawCall = (leftToDraw > maxInstancesPerDrawCall) ? maxInstancesPerDrawCall : leftToDraw;
+			Vbo::setData(toDraw.data() + drawn, toDrawInThisDrawCall * sizeof(LineShaderInstance));
+			glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, toDrawInThisDrawCall);
+		}
+	}
+}

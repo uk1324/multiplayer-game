@@ -1,3 +1,5 @@
 .vs/
 !./vs/launch.vs.json
 out/
+generated/
+*Data.hpp

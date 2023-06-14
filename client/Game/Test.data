@@ -1,0 +1,18 @@
+struct
+[[Gui, Json]]
+Ve2 {
+    float x;
+    float y;
+    float z;
+}
+
+struct
+[[Gui, Json]]
+Test32 {
+    Ve2 cool;
+    float x = `0.0f`;
+    float y;
+    bool thisIsATest32Abc;
+    color color;
+    ranged_float<-1, 1> t;
+}

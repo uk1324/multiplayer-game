@@ -7,7 +7,48 @@ MainLoop::MainLoop()
 	//connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
 }
 
+#include <Game/TestData.hpp>
+#include <shared/Utils/Gui.hpp>
+#include <shared/Json/JsonPrinter.hpp>
+
 void MainLoop::update() {
+	Gui::update();
+
+
+	static Test32 test;
+	static Test32 test1;
+	GUI_PROPERTY_EDITOR(gui(test));
+	static float a;
+	const auto json = toJson(test);
+	//const auto text = Json::stringify(json);
+	std::stringstream stream;
+	Json::prettyPrint(stream, json);
+	ImGui::TextWrapped(stream.str().c_str());
+
+	auto obj = fromJson<Test32>(json);
+	GUI_PROPERTY_EDITOR(gui(obj));
+
+	//GUI_PROPERTY_EDITOR(Gui::sliderFloat("a", a, 0.0f, 1.0));
+
+	//if (ImGui::BeginTable("table", 2)) {
+	//	ImGui::TableNextRow();
+	//	ImGui::TableSetColumnIndex(0);
+	//	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	//	ImGui::TreeNodeEx("a");
+	//	ImGui::TableSetColumnIndex(1);
+	//	//ImGui::SetNextItemWidth(-FLT_MIN);
+	//	ImGui::SliderFloat("##aa", &a, 0.0f, 1.0f);
+
+	//	ImGui::EndTable();
+	//}
+	/*if (Gui::beginPropertyEditor())
+	{
+		
+	}
+	Gui::popPropertyEditor();*/
+
+
+	//ImGui::ShowDemoWindow();
 	client.AdvanceTime(client.GetTime() + FRAME_DT);
 	client.ReceivePackets();
 	if (client.IsConnected()) {
