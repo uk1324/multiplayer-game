@@ -11,9 +11,9 @@ MainLoop::MainLoop()
 #include <shared/Utils/Gui.hpp>
 #include <shared/Json/JsonPrinter.hpp>
 #include <Game/Test2Data.hpp>
+#include <shared/AData.hpp>
 
 void MainLoop::update() {
-	Gui::update();
 
 	static Ve3 b;
 	GUI_PROPERTY_EDITOR(gui(b));

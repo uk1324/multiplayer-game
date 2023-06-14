@@ -1,1 +1,19 @@
 I wanted cmake to reconfigure when a .data file was added or delated, but all I found is CMAKE_CONFIGURE_DEPENDS, which reconfigures on creation, delation and modification. In my case cmake doesn't need to be reconfigured on modification, because modification is already handled by add_custom_command DEPENDS. To make it reconfigure only when a new file is added CmakeGenerator watches the directory and writes to a file that is added to CMAKE_CONFIGURE_DEPENDS when a new file is added.
+
+From https://cmake.org/cmake/help/latest/command/add_custom_command.html
+Do not list the output in more than one independent target that may build in parallel or the instances of the rule may conflict. Instead, use the add_custom_target() command to drive the command and make the other targets depend on that one. See the Example: Generating Files for Multiple Targets below.
+
+When I tried using add_custom_command then things would break when you 
+Modify .data a file with a generated .hpp that is included by some other file.
+On the first build the .hpp would get generated, but the old .hpp would be included.
+On the second build the right .hpp file would be included and there would be an error.
+Modify the .data file to be correct again.
+The build wouldn't even get to generating the .hpp file.
+The only way to fix it would be to modify the .hpp file to not cause the error.
+And only then would on the next rebuild the generate for the .data file would get called.
+
+Using add_custom_target like described in 
+https://samthursfield.wordpress.com/2015/11/21/cmake-dependencies-between-targets-and-files-and-custom-commands/
+fixes the the ordering issue, but for some reason the issue with the .hpp changes only getting applied on the second build presists.
+
+

@@ -1,0 +1,6 @@
+struct
+A {
+    float x;
+    float y;
+    float z;
+}

@@ -1,5 +1,7 @@
 import com.sun.nio.file.ExtendedWatchEventModifier;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +12,7 @@ public class CmakeGenerator {
     static String path;
 
     public static void main(String[] args) {
-        path = "./client";
+        path = "./shared";
         updateCmakeGeneratedFilesList();
         watchDirectory(path);
     }
@@ -23,9 +25,10 @@ public class CmakeGenerator {
 
             var directory = Path.of(path);
 
-            WatchEvent.Kind<Path>[] events = new WatchEvent.Kind[2];
+            WatchEvent.Kind<Path>[] events = new WatchEvent.Kind[3];
             events[0] = StandardWatchEventKinds.ENTRY_CREATE;
             events[1] = StandardWatchEventKinds.ENTRY_DELETE;
+            events[2] = StandardWatchEventKinds.ENTRY_MODIFY;
             WatchKey watchKey = directory.register(watchService, events, ExtendedWatchEventModifier.FILE_TREE);
 
             for (;;) {
@@ -38,14 +41,31 @@ public class CmakeGenerator {
                     if (!fileName.toString().endsWith(Config.EXTENSION)) {
                         continue;
                     }
+                    System.out.println(fileName.toString());
 
                     WatchEvent.Kind<?> kind = event.kind();
                     if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-                        System.out.println("File created : " + fileName);
-                        updateCmakeGeneratedFilesList();
+                        /*System.out.println("File created : " + fileName);
+                        updateCmakeGeneratedFilesList();*/
                     } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-                        System.out.println("File deleted: " + fileName);
-                        updateCmakeGeneratedFilesList();
+                        /*System.out.println("File deleted: " + fileName);
+                        updateCmakeGeneratedFilesList();*/
+                    } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
+                        /*var process = Runtime.getRuntime().exec(String.format("runCodegenTool.bat %s %s", fileName.toString(), "./generated"));
+
+                        process.getOutputStream();*/
+                        System.out.println("File modified: " + fileName);
+//                        var cmd = String.format("cmd.exe", "runCodegenTool.bat %s %s", "./shared" + fileName.toString(), "./generated");
+                        ProcessBuilder builder = new ProcessBuilder("runCodegenTool.bat", "./shared/" + fileName.toString(), "./generated");
+                        builder.redirectErrorStream(true);
+                        Process p = builder.start();
+                        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                        String line;
+                        while (true) {
+                            line = r.readLine();
+                            if (line == null) { break; }
+                            System.out.println(line);
+                        }
                     }
                 }
 

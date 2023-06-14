@@ -84,7 +84,7 @@ add_subdirectory(client)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022
 # https://learn.microsoft.com/en-us/cpp/build/tasks-vs-json-schema-reference-cpp?view=msvc-170
-add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
+add_executable(client ${GENERATED_FILES} "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 	"dependencies/imgui/imgui.cpp"
 	"dependencies/imgui/imgui_draw.cpp"
 	"dependencies/imgui/imgui_impl_glfw.cpp"
