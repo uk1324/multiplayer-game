@@ -3,6 +3,7 @@
 #include <yojimbo/yojimbo.h>
 #include <Shared/Math/vec2.hpp>
 #include <Shared/Utils/Types.hpp>
+#include <shared/MessagesData.hpp>
 #include <bit>
 
 namespace GameChannel {
@@ -51,20 +52,20 @@ namespace GameMessageType {
 
 using PlayerIndex = int;
 
-class JoinMessage : public yojimbo::Message {
-public:
-    PlayerIndex clientPlayerIndex = 0;
-    int currentFrame = 0;
-
-    template <typename Stream>
-    bool Serialize(Stream& stream) {
-        serialize_int(stream, clientPlayerIndex, 0, MAX_CLIENTS);
-        serialize_int(stream, currentFrame, -2, INT_MAX);
-        return true;
-    }
-
-    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
-};
+//class JoinMessage : public yojimbo::Message {
+//public:
+//    PlayerIndex clientPlayerIndex = 0;
+//    int currentFrame = 0;
+//
+//    template <typename Stream>
+//    bool Serialize(Stream& stream) {
+//        serialize_int(stream, clientPlayerIndex, 0, MAX_CLIENTS);
+//        serialize_int(stream, currentFrame, -2, INT_MAX);
+//        return true;
+//    }
+//
+//    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+//};
 
 struct ClientInputMessage : public yojimbo::Message {
     i32 sequenceNumber;

@@ -20,16 +20,19 @@ declaration(declaration) ::= <%
 struct(struct) ::= <<
 <if(struct.isNetworkSerialize)>
 #define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(structValue) \
-    <struct.fields : { field | <networkSerialize(field.dataType, fieldAccess("structValue", field.name))> }; separator="\\\n">
+    <struct.fields : { field | <networkSerialize(field.dataType, field.name)> }; separator="\\\n">
 <endif>
 
 struct <struct.name><if(struct.isNetworkSerialize)>: yojimbo::Message<endif> {
     <struct.declarations : { declaration | <declarationInStruct(declaration)> }; separator="\n">
-    <if(struct.isNetworkSerialize)><\\>
+    <if(struct.isNetworkSerialize)>
     template\<typename Stream\>
     bool Serialize(Stream& stream) {
-        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(*this)
+        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(*this);
+        return true;
     }
+
+    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
     <endif>
 };
 

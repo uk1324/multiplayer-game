@@ -10,10 +10,13 @@ MainLoop::MainLoop()
 #include <Game/TestData.hpp>
 #include <shared/Utils/Gui.hpp>
 #include <shared/Json/JsonPrinter.hpp>
+#include <Game/Test2Data.hpp>
 
 void MainLoop::update() {
 	Gui::update();
 
+	static Ve3 b;
+	GUI_PROPERTY_EDITOR(gui(b));
 
 	static Test32 test;
 	static Test32 test1;
@@ -28,7 +31,7 @@ void MainLoop::update() {
 	auto obj = fromJson<Test32>(json);
 	GUI_PROPERTY_EDITOR(gui(obj));
 
-	//GUI_PROPERTY_EDITOR(Gui::sliderFloat("a", a, 0.0f, 1.0));
+	GUI_PROPERTY_EDITOR(Gui::sliderFloat("a", a, 0.0f, 1.0));
 
 	//if (ImGui::BeginTable("table", 2)) {
 	//	ImGui::TableNextRow();

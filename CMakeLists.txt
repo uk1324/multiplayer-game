@@ -26,31 +26,59 @@ include_directories(
 	"."
 )
 
-file(GLOB DATA_FILES ${PROJECT_SOURCE_DIR}/client/*.data)
-
-set_property(
-  DIRECTORY 
-  APPEND 
-  PROPERTY CMAKE_CONFIGURE_DEPENDS 
-  ${DATA_FILES}
-)
+# file(GLOB DATA_FILES ${PROJECT_SOURCE_DIR}/client/*.data)
+# 
+# set_property(
+#   DIRECTORY 
+#   APPEND 
+#   PROPERTY CMAKE_CONFIGURE_DEPENDS 
+#   ${DATA_FILES}
+# )
 # "generated/cmake.txt"
 
-set(GENERATED_PATH ${CMAKE_CURRENT_SOURCE_DIR}/generated)
-include("generated/cmake.txt")
+# set(GENERATED_PATH ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+# include("generated/cmake.txt")
+# 
+# execute_process(
+# 	COMMAND generateCmakeDependencyList.bat
+# 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# )
+# 
+# # https://cmake.org/cmake/help/latest/command/add_custom_command.html
+# add_custom_command(
+# 	OUTPUT ${GENERATED_FILES}
+# 	COMMAND runCodeGenTool.bat
+# 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# 	DEPENDS ${DEPENDENCIES_FILES}
+# )
 
-execute_process(
-	COMMAND generateCmakeDependencyList.bat
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+# file(GLOB_RECURSE DATA_FILES "./client/*.data")
+# set_property(
+# 	DIRECTORY 
+# 	APPEND 
+# 	PROPERTY CMAKE_CONFIGURE_DEPENDS 
+# 	#${DATA_FILES}
+# 	"${CMAKE_CURRENT_SOURCE_DIR}/generated/cmake.txt"
+# )
+# foreach(DATA_FILE ${DATA_FILES})
+# 	get_filename_component(DATA_FILE_NAME ${DATA_FILE} NAME_WE)
+# 	set(OUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/generated/${DATA_FILE_NAME}DataGenerated.cpp")
+# 	list(APPEND GENERATED_FILES ${OUT_FILE})
+# 	add_custom_command(
+# 		OUTPUT ${OUT_FILE}
+# 		COMMAND runCodeGenTool.bat ${DATA_FILE} "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+# 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# 		DEPENDS ${DATA_FILE}
+# 	)
+# endforeach(DATA_FILE)
 
-# https://cmake.org/cmake/help/latest/command/add_custom_command.html
-add_custom_command(
-	OUTPUT ${GENERATED_FILES}
-	COMMAND runCodeGenTool.bat
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS ${DEPENDENCIES_FILES}
-)
+
+# set(CODEGEN_TOOL_PATH "java -Dfile.encoding=UTF-8 -classpath 'codeGenTool/out/production/codeGenTool\;codeGenTool/lib/ST-4.3.4.jar\;codeGenTool/lib/antlr-4.13.0-complete.jar' Main")
+#set(CODEGEN_TOOL_PATH "java -Dfile.encoding=UTF-8 -classpath 'codeGenTool/out/production/codeGenTool;codeGenTool/lib/ST-4.3.4.jar;codeGenTool/lib/antlr-4.13.0-complete.jar' Main")
+set(CODEGEN_TOOL_PATH ./runCodegenTool.bat)
+set(CODEGEN_TOOL_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set(GENERATED_PATH "${CMAKE_CURRENT_SOURCE_DIR}/generated")
+include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory(client)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
@@ -63,9 +91,14 @@ add_executable(client "client/main.cpp" "dependencies/stb_image/src/stb_image.c"
 	"dependencies/imgui/imgui_tables.cpp"
 	"dependencies/imgui/imgui_widgets.cpp"
 	"dependencies/imgui/imgui_impl_opengl3.cpp"
-	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp" "shared/WindowsUtils.cpp" "dependencies/imgui/imgui_demo.cpp" 
-	${GENERATED_FILES}
+	"dependencies/imgui/imgui_impl_opengl3.h" "shared/Gameplay.cpp" "shared/WindowsUtils.cpp" "dependencies/imgui/imgui_demo.cpp"
 )
+targetAddGenerated(client "${CMAKE_CURRENT_SOURCE_DIR}/shared")
+set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
+targetAddGenerated(client "${CMAKE_CURRENT_SOURCE_DIR}/client")
+
+get_target_property(MY_PROJECT_SOURCES client SOURCES)
+message("${MY_PROJECT_SOURCES}")
 
 target_link_libraries(client client-lib)
 target_include_directories(client PUBLIC "/dependencies")

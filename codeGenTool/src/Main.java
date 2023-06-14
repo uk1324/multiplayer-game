@@ -37,7 +37,7 @@ class GeneratedFilesPaths {
         this.hppFilePath = Paths.get(this.directory, this.hppFileName).toString();
         this.cppFilePath = Paths.get(Config.GENERATED_DIRECTORY, cppFileName).toString();
 
-        this.hppFilePathRelativeToCppFile = Paths.get("..", this.directory, this.hppFileName).toString();
+        this.hppFilePathRelativeToCppFile = Paths.get(Config.GENERATED_DIRECTORY).relativize(Paths.get(this.hppFilePath)).toString();
     }
 }
 
@@ -45,11 +45,20 @@ public class Main {
     /*public static void*/
 
     public static void main(String[] args) {
-        var path = "./client";
-        try (Stream<Path> files = Files.walk(Paths.get(path))) {
-            files.forEach(Main::processPath);
-        } catch (java.io.IOException v) {
-            System.err.println("path doesn't exist");
+        if (args.length == 2) {
+            System.out.println(args[0]);
+            System.out.println(args[1]);
+            Config.GENERATED_DIRECTORY = args[1];
+            processPath(Path.of(args[0]));
+        } else if (args.length == 1) {
+            var path = args[0];
+            try (Stream<Path> files = Files.walk(Paths.get(path))) {
+                files.forEach(Main::processPath);
+            } catch (java.io.IOException v) {
+                System.err.println("path doesn't exist");
+            }
+        } else {
+            System.err.println("wrong number of arguments");
         }
     }
 
@@ -79,6 +88,7 @@ public class Main {
             var group = new STGroupFile("dataFileHpp.stg");
             ST st = group.getInstanceOf("dataFile");
             st.add("dataFile", dataFile);
+            System.out.format("generating %s\n", paths.hppFilePath);
             writeStringToFile(paths.hppFilePath, st.render());
         }
 
@@ -87,12 +97,12 @@ public class Main {
             ST st = group.getInstanceOf("dataFile");
             st.add("dataFile", dataFile);
             st.add("hppPath", paths.hppFilePathRelativeToCppFile);
-            //var cppPath = fileDirectory + fileName + ".cpp";
             try {
                 Files.createDirectories(Paths.get(Config.GENERATED_DIRECTORY));
             } catch (IOException e) {
                 System.err.format("failed to create directory '%s'\n", Config.GENERATED_DIRECTORY);
             }
+            System.out.format("generating %s\n", paths.cppFilePath);
             writeStringToFile(paths.cppFilePath, st.render());
         }
     }
