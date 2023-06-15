@@ -1,5 +1,5 @@
 #include "JsonValue.hpp"
-#include <shared/Utils/Assertions.hpp>
+#include <Assertions.hpp>
 
 Json::Value::Value()
 	: m_type(Type::Null)

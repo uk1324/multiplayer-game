@@ -5,14 +5,36 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   set(CMAKE_EXE_LINKER_FLAGS "/SAFESEH:NO")
 endif()
 
-add_library(
-	client-lib 
-	"${PROJECT_SOURCE_DIR}/dependencies/glad/src/glad.c"
-	"${PROJECT_SOURCE_DIR}/dependencies/stb_image/src/stb_image.c"
+project(client)
+
+add_executable(
+	client
+	"main.cpp" 
+	"../dependencies/stb_image/src/stb_image.c"
+	"../dependencies/imgui/imgui.cpp"
+	"../dependencies/imgui/imgui_draw.cpp"
+	"../dependencies/imgui/imgui_impl_glfw.cpp"
+	"../dependencies/imgui/imgui_tables.cpp"
+	"../dependencies/imgui/imgui_widgets.cpp"
+	"../dependencies/imgui/imgui_impl_opengl3.cpp"
+	"../dependencies/imgui/imgui_impl_opengl3.h" 
+	"../dependencies/imgui/imgui_demo.cpp"
+	"../dependencies/glad/src/glad.c"
+	"../dependencies/stb_image/src/stb_image.c"
 	"../shared/Json/JsonValue.cpp"
 	"../shared/Json/JsonPrinter.cpp"
 	"../shared/Json/JsonParser.cpp"
-	"Log/Log.hpp" "Log/Log.cpp" "Engine/Window.hpp" "Engine/Window.cpp" "Utils/FileIo.hpp" "Utils/FileIo.cpp"   "Log/Log.hpp" "Log/Log.cpp" "Engine/Engine.hpp" "Engine/Engine.cpp" "Engine/Time.cpp" "Engine/Time.hpp" "Engine/Engine.cpp"   "Engine/Graphics/Shader.cpp" "Engine/Graphics/Shader.hpp" "Engine/Graphics/ShaderProgram.hpp" "Engine/Graphics/ShaderProgram.cpp" "Engine/Input/MouseButton.hpp" "Engine/Graphics/Texture.hpp" "Engine/Graphics/Texture.cpp" "Engine/Graphics/Vbo.hpp"  "Engine/Graphics/Vbo.cpp" "Engine/Graphics/Vao.hpp" "Engine/Graphics/Vao.cpp" "Engine/Graphics/TextureArray.hpp" "Engine/Graphics/TextureArray.cpp" "Engine/Graphics/CubeMap.hpp" "Engine/Graphics/CubeMap.cpp" "Engine/Graphics/IndexBuffer.hpp" "Engine/Graphics/IndexBuffer.cpp" "Utils/TerminalColors.hpp" "../shared/Utils/Color32.cpp" "../shared/Utils/Image32.cpp" "Utils/Timer.hpp" "Engine/Graphics/Fbo.hpp" "Engine/Graphics/Fbo.cpp" "Utils/ByteBuffer.hpp" "Utils/ByteBuffer.cpp" "Utils/Span.hpp" "Game/GameClient.cpp" "Engine/Input/Input.hpp" "Engine/Input/Input.cpp" "../shared/Networking.cpp" "Game/GameClientAdapter.cpp" "Game/Renderer.cpp" "Game/Camera.cpp" "../shared/Math/Aabb.cpp" "Engine/Graphics/TextureAtlasGenerator.cpp" "Game/MainLoop.cpp" "Utils/Timer.cpp" "../shared/Utils/Gui.cpp"  "../shared/Utils/Json.cpp")
+	"../shared/Gameplay.cpp" 
+	"../shared/WindowsUtils.cpp" 
+	"GameClient.cpp" "GameClientAdapter.cpp" "Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
+)
 
+target_link_libraries(client engine)
+target_link_libraries(client math)
+target_link_libraries(client glfw)
 
-target_link_libraries(client-lib glfw)
+targetAddGenerated(client "../shared")
+set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
+targetAddGenerated(client "./")
+
+target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimbo.lib")

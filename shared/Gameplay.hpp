@@ -1,6 +1,6 @@
 #pragma once
 
-#include <shared/Math/vec2.hpp>
+#include <engine/Math/vec2.hpp>
 #include <shared/Networking.hpp>
 
 static constexpr float PLAYER_HITBOX_RADIUS = 0.05f;

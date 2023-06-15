@@ -1,1 +1,1 @@
-"./out/build/x64-Debug/client.exe"
+"./out/build/x64-Debug/client/client.exe"

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <yojimbo/yojimbo.h>
-#include <Shared/Math/vec2.hpp>
-#include <Shared/Utils/Types.hpp>
+#include <engine/Math/Vec2.hpp>
+#include <Types.hpp>
 #include <shared/MessagesData.hpp>
 #include <bit>
 
@@ -50,23 +50,6 @@ namespace GameMessageType {
     };
 };
 
-using PlayerIndex = int;
-
-//class JoinMessage : public yojimbo::Message {
-//public:
-//    PlayerIndex clientPlayerIndex = 0;
-//    int currentFrame = 0;
-//
-//    template <typename Stream>
-//    bool Serialize(Stream& stream) {
-//        serialize_int(stream, clientPlayerIndex, 0, MAX_CLIENTS);
-//        serialize_int(stream, currentFrame, -2, INT_MAX);
-//        return true;
-//    }
-//
-//    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
-//};
-
 struct ClientInputMessage : public yojimbo::Message {
     i32 sequenceNumber;
     struct Input {
@@ -101,7 +84,7 @@ struct WorldUpdateMessage : public yojimbo::BlockMessage {
     i32 bulletsCount;
 
     struct Player {
-        PlayerIndex index;
+        i32 index;
         Vec2 position;
     };
 
@@ -152,14 +135,6 @@ struct LeaderboardUpdateMessage : public yojimbo::BlockMessage {
         return true;
     }
 
-    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
-};
-
-struct SpawnRequestMessage : public yojimbo::Message {
-    template <typename Stream>
-    bool Serialize(Stream& stream) {
-        return true;
-    }
     YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
 };
 

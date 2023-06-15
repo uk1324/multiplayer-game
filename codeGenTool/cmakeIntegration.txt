@@ -14,6 +14,6 @@ And only then would on the next rebuild the generate for the .data file would ge
 
 Using add_custom_target like described in 
 https://samthursfield.wordpress.com/2015/11/21/cmake-dependencies-between-targets-and-files-and-custom-commands/
-fixes the the ordering issue, but for some reason the issue with the .hpp changes only getting applied on the second build presists.
+fixes the the ordering issue, but the double issues presits. The issues only happens if you use F5 to build. It doesn't happen when using Ctrl + Shift + B
 
 

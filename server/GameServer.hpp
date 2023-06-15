@@ -56,7 +56,7 @@ struct GameServer {
 		float catchUpTime;
 	};
 
-	std::unordered_map<PlayerIndex, Player> players;
+	std::unordered_map<i32, Player> players;
 	std::unordered_map<i32, Bullet> bullets;
 	int bulletIndexCounter = 0;
 
