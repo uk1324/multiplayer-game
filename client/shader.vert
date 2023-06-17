@@ -11,7 +11,7 @@ out vec2 texturePos;
 out vec2 atlasOffset;
 out vec2 size;
 out vec4 color;
-
+/*generated end*/
 void main() {
 	gl_Position = vec4(instanceTransform * vec3(vertexPos, 1.0), 0.0, 1);
 	texturePos = vertexTexturePos;	

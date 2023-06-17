@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 			std::cout << *windowIndex << '\n';
 			const auto y = 30;
 			const auto x = *windowIndex * WINDOW_WIDTH;
-			glfwSetWindowPos(Window::handle(), x, y);
+			Window::setPos(Vec2(x, y));
 			setConsolePosAndSize(x, y + 30 + WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
 		}
 		quit = Engine::run(60);

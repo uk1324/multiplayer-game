@@ -42,8 +42,6 @@ class GeneratedFilesPaths {
 }
 
 public class Main {
-    /*public static void*/
-
     public static void main(String[] args) {
         if (args.length == 2) {
             System.out.println(args[0]);
@@ -68,6 +66,22 @@ public class Main {
         }
         // Path::endsWith doesn't work.
         return file.toString().endsWith(Config.EXTENSION);
+    }
+
+    static void mergeGenerated(String filePath, String newGenerated) {
+        var optSource = tryReadFileToString(filePath.toString());
+        if (optSource.isEmpty()) {
+            return;
+        }
+        var source = optSource.get();
+        var GENERATED_END = "/*generated end*/";
+        var split = source.indexOf(GENERATED_END);
+        if (split == -1) {
+            System.err.format("'%s' contains no '%s'", filePath, GENERATED_END);
+            return;
+        }
+        source = source.substring(split + GENERATED_END.length(), source.length());
+        writeStringToFile(filePath, newGenerated + source);
     }
 
     static void processPath(Path path) {
@@ -105,16 +119,59 @@ public class Main {
             System.out.format("generating %s\n", paths.cppFilePath);
             writeStringToFile(paths.cppFilePath, st.render());
         }
+
+        for (var declaration : dataFile.declarations) {
+            if (!(declaration instanceof Shader)) {
+                continue;
+            }
+            var shader = (Shader)declaration;
+            var group = new STGroupFile("shader.stg");
+
+            {
+                ST st = group.getInstanceOf("vert");
+                st.add("shader", shader);
+                var vertFilePath = Paths.get(paths.directory, paths.fileName + ".vert");
+                var vertFile = new File(vertFilePath.toString());
+                if (vertFile.exists() && vertFile.isFile()) {
+                    st.add("generatedForFirstTime", false);
+                    mergeGenerated(vertFilePath.toString(), st.render());
+                } else {
+                    st.add("generatedForFirstTime", true);
+                    writeStringToFile(vertFilePath.toString(), st.render());
+                }
+            }
+
+            {
+                ST st = group.getInstanceOf("frag");
+                st.add("shader", shader);
+                var fragFilePath = Paths.get(paths.directory, paths.fileName + ".frag");
+                var vertFile = new File(fragFilePath.toString());
+                if (vertFile.exists() && vertFile.isFile()) {
+                    st.add("generatedForFirstTime", false);
+                    mergeGenerated(fragFilePath.toString(), st.render());
+                } else {
+                    st.add("generatedForFirstTime", true);
+                    writeStringToFile(fragFilePath.toString(), st.render());
+                }
+            }
+        }
+    }
+
+    static Optional<String> tryReadFileToString(String path) {
+        try {
+            return Optional.of(Files.readString(Path.of(path)));
+        } catch(IOException e) {
+            System.err.format("failed to read %s", path);
+            return Optional.empty();
+        }
     }
 
     static Optional<DataFile> readAndParseDataFile(String file) {
-        String source;
-        try {
-            source = Files.readString(Path.of(file));
-        } catch(IOException e) {
-            System.err.println("failed to read file");
+        var optSource = tryReadFileToString(file);
+        if (optSource.isEmpty()) {
             return Optional.empty();
         }
+        String source = optSource.get();
 
         var parser = new Parser(source);
         DataFile dataFile;
@@ -129,6 +186,7 @@ public class Main {
             System.err.println(e.getMessage());
             return Optional.empty();
         }
+
         return Optional.of(dataFile);
     }
 

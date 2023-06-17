@@ -27,7 +27,6 @@ static constexpr int SERVER_PORT = 40001;
 static constexpr int CLIENT_PORT = 30001;
 
 static const uint8_t DEFAULT_PRIVATE_KEY[yojimbo::KeyBytes] = { 0 };
-static const int MAX_CLIENTS = 64;
 
 static constexpr int FPS = 60;
 static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
@@ -77,47 +76,47 @@ struct ClientInputMessage : public yojimbo::Message {
     YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
 };
 
-struct WorldUpdateMessage : public yojimbo::BlockMessage {
-    i32 lastReceivedClientSequenceNumber;
-    i32 sequenceNumber;
-    i32 playersCount;
-    i32 bulletsCount;
-
-    struct Player {
-        i32 index;
-        Vec2 position;
-    };
-
-    struct Bullet {
-        i32 index;
-        Vec2 position;
-        Vec2 velocity;
-        i32 ownerPlayerIndex = -1; // Maybe just sent ownedByPlayerInstead.
-        i32 aliveFramesLeft = -1;
-        i32 spawnFrameClientSequenceNumber;
-        i32 frameSpawnIndex;
-        float timeElapsed;
-        float timeToCatchUp;
-    };
-
-    void set(i32 lastReceivedClientSequenceNumber, i32 sequenceNumber, i32 playersCount, i32 bulletsCount) {
-        this->lastReceivedClientSequenceNumber = lastReceivedClientSequenceNumber;
-        this->sequenceNumber = sequenceNumber;
-        this->playersCount = playersCount;
-        this->bulletsCount = bulletsCount;
-    }
-
-    template <typename Stream>
-    bool Serialize(Stream& stream) {
-        serialize_int(stream, lastReceivedClientSequenceNumber, 0, INT_MAX);
-        serialize_int(stream, sequenceNumber, 0, INT_MAX);
-        serialize_int(stream, playersCount, 0, INT_MAX);
-        serialize_int(stream, bulletsCount, 0, INT_MAX);
-        return true;
-    }
-
-    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
-};
+//struct WorldUpdateMessage : public yojimbo::BlockMessage {
+//    i32 lastReceivedClientSequenceNumber;
+//    i32 sequenceNumber;
+//    i32 playersCount;
+//    i32 bulletsCount;
+//
+//    struct Player {
+//        i32 index;
+//        Vec2 position;
+//    };
+//
+//    struct Bullet {
+//        i32 index;
+//        Vec2 position;
+//        Vec2 velocity;
+//        i32 ownerPlayerIndex = -1; // Maybe just sent ownedByPlayerInstead.
+//        i32 aliveFramesLeft = -1;
+//        i32 spawnFrameClientSequenceNumber;
+//        i32 frameSpawnIndex;
+//        float timeElapsed;
+//        float timeToCatchUp;
+//    };
+//
+//    void set(i32 lastReceivedClientSequenceNumber, i32 sequenceNumber, i32 playersCount, i32 bulletsCount) {
+//        this->lastReceivedClientSequenceNumber = lastReceivedClientSequenceNumber;
+//        this->sequenceNumber = sequenceNumber;
+//        this->playersCount = playersCount;
+//        this->bulletsCount = bulletsCount;
+//    }
+//
+//    template <typename Stream>
+//    bool Serialize(Stream& stream) {
+//        serialize_int(stream, lastReceivedClientSequenceNumber, 0, INT_MAX);
+//        serialize_int(stream, sequenceNumber, 0, INT_MAX);
+//        serialize_int(stream, playersCount, 0, INT_MAX);
+//        serialize_int(stream, bulletsCount, 0, INT_MAX);
+//        return true;
+//    }
+//
+//    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+//};
 
 struct LeaderboardUpdateMessage : public yojimbo::BlockMessage {
     struct Entry {

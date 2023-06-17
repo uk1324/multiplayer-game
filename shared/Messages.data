@@ -1,10 +1,46 @@
+`
+#include <engine/Math/Vec2.hpp>
+#include <vector>
+
+static const int MAX_CLIENTS = 64;
+`
+
 struct
-[[NetworkSerialize]]
+[[NetworkSerialize, NetworkMessage]]
 JoinMessage {
-    ranged_int<0, 64> clientPlayerIndex = `0`;
-    ranged_int<-6000000, 6000000> currentFrame = `0`;
+    ranged_int<`0`, `MAX_CLIENTS`> clientPlayerIndex = `0`;
 }
 
 struct
-[[NetworkSerialize]]
+[[NetworkSerialize, NetworkMessage]]
 SpawnRequestMessage {}
+
+struct
+[[NetworkSerialize]] 
+WorldUpdateMessagePlayer {
+    ranged_int<`0`, `MAX_CLIENTS`> index;
+    Vec2 position;
+}
+
+struct  
+[[NetworkSerialize]]  
+WorldUpdateMessageBullet {
+    ranged_int<`0`, `INT_MAX`> index;
+    Vec2 position;
+    Vec2 velocity;
+    ranged_int<`0`, `MAX_CLIENTS`> ownerPlayerIndex = `-1`;
+    ranged_int<`0`, `INT_MAX`> aliveFramesLeft = `-1`;
+    ranged_int<`0`, `INT_MAX`> spawnFrameClientSequenceNumber;
+    ranged_int<`0`, `INT_MAX`> frameSpawnIndex;
+    float timeElapsed;
+    float timeToCatchUp;
+}
+
+struct 
+[[NetworkSerialize, NetworkMessage]]
+WorldUpdateMessage {
+    ranged_int<`0`, `INT_MAX`> lastReceivedClientSequenceNumber;
+    ranged_int<`0`, `INT_MAX`> sequenceNumber;
+    vector<WorldUpdateMessagePlayer> players;
+    vector<WorldUpdateMessageBullet> bullets;
+}

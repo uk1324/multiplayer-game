@@ -12,7 +12,8 @@ public class CmakeGenerator {
     static String path;
 
     public static void main(String[] args) {
-        path = "./shared";
+        path = "./client";
+        Config.GENERATED_DIRECTORY = "./generated";
         updateCmakeGeneratedFilesList();
         watchDirectory(path);
     }
@@ -56,7 +57,10 @@ public class CmakeGenerator {
                         process.getOutputStream();*/
                         System.out.println("File modified: " + fileName);
 //                        var cmd = String.format("cmd.exe", "runCodegenTool.bat %s %s", "./shared" + fileName.toString(), "./generated");
-                        ProcessBuilder builder = new ProcessBuilder("runCodegenTool.bat", "./shared/" + fileName.toString(), "./generated");
+                        String[] args = { Paths.get(path, fileName.toString()).toAbsolutePath().toString() , Paths.get("generated").toAbsolutePath().toString() };
+                        Main.main(args);
+
+   /*                     ProcessBuilder builder = new ProcessBuilder("runCodegenTool.bat", Paths.get("./shared/", fileName.toString()).toString() , "./generated");
                         builder.redirectErrorStream(true);
                         Process p = builder.start();
                         BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -65,7 +69,7 @@ public class CmakeGenerator {
                             line = r.readLine();
                             if (line == null) { break; }
                             System.out.println(line);
-                        }
+                        }*/
                     }
                 }
 

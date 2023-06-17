@@ -3,8 +3,7 @@
 #include <array>
 #include <string_view>
 
-class CubeMap
-{
+class CubeMap {
 public:
 	CubeMap(
 		std::string_view right,

@@ -12,8 +12,12 @@ declaration(declaration) ::= <%
     <struct(declaration)>
 <elseif(declaration.isEnum)>
     <enum(declaration)>
+<elseif(declaration.isCpp)>
+
+<elseif(declaration.isShader)>
+    <shader(declaration)>
 <else>
-    error
+    declaration error
 <endif>
 %>
 
@@ -46,6 +50,12 @@ template\<\>
     };
 }
 <endif>
+
+<if(struct.isUniform)>
+void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value) {
+    <struct.fields : { field | shader.set("<field.name>", value.<field.name>); } >
+}
+<endif>
 >>
 
 gui(dataType, name, displayedName) ::= <<
@@ -73,7 +83,7 @@ if (node("<displayedName>")) {
 >>
 
 toJson(dataType, name) ::= <<
-<if(dataType.isFloat || dataType.isRangedFloat || dataType.isBool)><\\>
+<if(dataType.isFloat || dataType.isBool)><\\>
 json["<name>"] = Json::Value(value.<name>);
 <else><\\>
 json["<name>"] = toJson(value.<name>);
@@ -81,7 +91,7 @@ json["<name>"] = toJson(value.<name>);
 >>
 
 fromJson(dataType, name) ::= <<
-<if(dataType.isFloat || dataType.isRangedFloat)><\\>
+<if(dataType.isFloat)><\\>
 <name>.number()<\\>
 <elseif(dataType.isI32)><\\>
 <name>.intNumber()<\\>
@@ -107,4 +117,54 @@ void combo(<enum.name>* value) {
 }
 <endif>
 <endif>
+>>
+
+shader(shader) ::= <<
+<struct(shader.instance)>
+<struct(shader.fragUniforms)>
+<struct(shader.vertUniforms)>
+
+void <shader.name>Instances::addInstanceAttributesToVao(Vao& vao) {
+    using Vec1 = float;
+    <shader.vertexAttributes : { attribute | <if(attribute.isPerInstance)><setVaoAttribute(attribute.nameWithoutPrefix, attribute.field.dataType, attribute.layout, shader.instance.name)><endif> }; separator="\n">
+}
+
+void <shader.name>Instances::drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount) {
+    const auto maxInstancesPerDrawCall = instanceBufferSizeBytes / sizeof(<shader.name>Instance);
+    auto drawn = 0;
+    <! Can't just put leftToDraw here and check in the while loop if > 0 because the subtraction would underflow. Have to do the check in the while loop and calculate leftToDraw after. !>
+    while (drawn \< toDraw.size()) {
+        const auto leftToDraw = drawn - toDraw.size();
+        const auto toDrawInThisDrawCall = (leftToDraw > maxInstancesPerDrawCall) ? maxInstancesPerDrawCall : leftToDraw;
+        Vbo::setData(0, toDraw.data() + drawn, toDrawInThisDrawCall * sizeof(<shader.name>Instance));
+        glDrawElementsInstanced(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, nullptr, toDrawInThisDrawCall);
+        drawn += toDrawInThisDrawCall;
+    }
+    toDraw.clear();
+}
+>>
+
+setVaoAttribute(name, dataType, layout, instanceName) ::= <<
+<! For nesting types could generate a function that takes the layout for each struct !>
+<! It would probably take more time to write a system to automatically generate these than to just write the specific needed cases !>
+<if(dataType.isFloat)><\\>
+<setSingleVaoAttribute(layout, "0", "Float", "1", instanceName, name)>
+<elseif(dataType.isVec2)><\\>
+<setSingleVaoAttribute(layout, "0", "Float", "2", instanceName, name)>
+<elseif(dataType.isVec3)><\\>
+<setSingleVaoAttribute(layout, "0", "Float", "3", instanceName, name)>
+<elseif(dataType.isVec4)><\\>
+<setSingleVaoAttribute(layout, "0", "Float", "4", instanceName, name)>
+<elseif(dataType.isMat3x2)><\\>
+<setSingleVaoAttribute(layout, "0", "Float", "2", instanceName, name)>
+<setSingleVaoAttribute(layout, "1", "Float", "2", instanceName, name)>
+<setSingleVaoAttribute(layout, "2", "Float", "2", instanceName, name)>
+<else><\\>
+error
+<endif>
+>>
+
+setSingleVaoAttribute(layout, layoutOffset, shaderDataType, shaderDataTypeCount, instanceName, name) ::= <<
+Vao::setAttribute(<layout> + <layoutOffset>, BufferLayout(ShaderDataType::<shaderDataType>, <shaderDataTypeCount>, offsetof(<instanceName>, <name>) + sizeof(Vec<shaderDataTypeCount>) * <layoutOffset>, sizeof(<instanceName>), false));
+glVertexAttribDivisor(<layout> + <layoutOffset>, 1);
 >>

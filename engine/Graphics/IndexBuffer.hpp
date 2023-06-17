@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 
-
 class Ibo
 {
 public:

@@ -1,6 +1,5 @@
 #include <Engine/Graphics/Vao.hpp>
-
-#include <stddef.h>
+#include <glad/glad.h>
 
 BufferLayout::BufferLayout(ShaderDataType dataType, uint32_t dataTypeCountPerVertex, intptr_t offset, size_t stride, bool isNormalized)
 	: dataType(dataType)
@@ -17,14 +16,19 @@ IntBufferLayout::IntBufferLayout(ShaderDataType dataType, uint32_t dataTypeCount
 	, stride(stride)
 {}
 
-Vao::Vao()
-{
-	glGenVertexArrays(1, &m_handle);
-}
-
 Vao::~Vao()
 {
 	glDeleteVertexArrays(1, &m_handle);
+}
+
+Vao Vao::generate() {
+	uint32_t handle;
+	glGenVertexArrays(1, &handle);
+	return Vao(handle);
+}
+
+Vao Vao::null() {
+	return Vao(NULL);
 }
 
 Vao::Vao(Vao&& other) noexcept
@@ -100,3 +104,6 @@ void Vao::bind() const
 {
 	glBindVertexArray(m_handle);
 }
+
+Vao::Vao(uint32_t handle)
+	: m_handle(handle) {}

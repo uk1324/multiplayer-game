@@ -7,6 +7,7 @@
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>
 #include <engine/Math/Vec4.hpp>
+#include <client/Shaders/DeathAnimationData.hpp>
 #include <filesystem>
 
 struct Renderer {
@@ -23,6 +24,9 @@ struct Renderer {
 	Camera camera;
 
 private:
+	static constexpr usize INSTANCES_VBO_BYTES_SIZE = 4096;
+	Vbo instancesVbo;
+
 	Vao spriteVao;
 	Vbo fullscreenQuadPtVbo;
 	Ibo fullscreenQuadPtIbo;
@@ -57,8 +61,8 @@ public:
 	Sprite bullet3Sprite;
 
 	void playDeathAnimation(Vec2 position, int playerIndex);
+	void reloadChangedShaders();
 private:
-
 	ShaderProgram* backgroundShader;
 
 public:
@@ -77,6 +81,8 @@ public:
 	std::vector<SpawnAnimation> spawnAnimations;
 private:
 	ShaderProgram* deathAnimationShader;
+	Vao deathAnimationVao;
+	DeathAnimationInstances deathAnimationInstances;
 
 	ShaderProgram& createShader(std::string_view vertPath, std::string_view fragPath);
 	struct ShaderEntry {
@@ -86,7 +92,7 @@ private:
 		std::filesystem::file_time_type fragPathLastWriteTime;
 		ShaderProgram program;
 
-		void updateLastWriteTimes();
+		void tryReload();
 	};
 	std::list<ShaderEntry> shaders;
 	void reloadShaders();

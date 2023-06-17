@@ -9,6 +9,7 @@ struct Vec4T {
 	constexpr Vec4T(const T& x, const T& y, const T& z, const T& w = 1);
 
 	T* data();
+	const T* data() const;
 
 	T x, y, z, w;
 };
@@ -39,5 +40,10 @@ constexpr Vec4T<T>::Vec4T(const T& x, const T& y, const T& z, const T& w)
 
 template<typename T>
 inline T* Vec4T<T>::data() {
+	return &x;
+}
+
+template<typename T>
+inline const T* Vec4T<T>::data() const {
 	return &x;
 }

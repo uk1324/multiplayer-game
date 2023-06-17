@@ -1,20 +1,21 @@
 #pragma once
 
-#include <glad/glad.h>
-
+#include <Types.hpp>
 #include <string_view>
+#include <variant>
 
-enum class ShaderType
-{
-	Vertex = GL_VERTEX_SHADER,
-	Fragment = GL_FRAGMENT_SHADER,
-	Geometry = GL_GEOMETRY_SHADER,
+enum class ShaderType {
+	Vertex = 0x8B31,
+	Fragment = 0x8B30,
+	Geometry = 0x8DD9,
 };
 
-class Shader
-{
+class Shader {
 public:
-	explicit Shader(std::string_view path, ShaderType type);
+	struct Error {
+		std::string message;
+	};
+	static std::variant<Shader, Error> compile(std::string_view path, ShaderType type);
 	~Shader();
 
 	Shader(const Shader&) = delete;
@@ -23,11 +24,11 @@ public:
 	Shader(Shader&& other) noexcept;
 	Shader& operator= (Shader&& other) noexcept;
 
-	GLuint handle() const;
+	u32 handle() const;
 
 private:
-	std::string preprocess(std::string_view path, int depth);
+	Shader(u32 handle);
+	static std::string preprocess(std::string_view path, int depth = 0);
 
-private:
-	GLuint m_handle;
+	u32 handle_;
 };

@@ -1,8 +1,6 @@
 #include <Engine/Graphics/IndexBuffer.hpp>
 #include <glad/glad.h>
 
-#include <stddef.h>
-
 Ibo::Ibo()
 	: m_handle(NULL)
 {}

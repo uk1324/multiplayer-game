@@ -1,11 +1,9 @@
 #pragma once
 
 #include <engine/Math/Vec2.hpp>
-#include <GLFW/glfw3.h>
 #include <string_view>
 
-class Window
-{
+class Window {
 public:
 	static void init(int width, int height, std::string_view title);
 	static void terminate();
@@ -23,8 +21,5 @@ public:
 
 	static bool shouldClose();
 
-	static GLFWwindow* handle();
-
-private:
-	static GLFWwindow* m_handle;
+	static void* handle();
 };

@@ -1,56 +1,51 @@
 #include <Engine/Graphics/Shader.hpp>
 #include <Utils/FileIo.hpp>
 #include <Log/Log.hpp>
-
+#include <glad/glad.h>
 #include <filesystem>
 
-Shader::Shader(std::string_view path, ShaderType type)
-{
-	m_handle = glCreateShader(static_cast<GLenum>(type));
-
-	std::string source = preprocess(path, 0);
+std::variant<Shader, Shader::Error> Shader::compile(std::string_view path, ShaderType type) {
+	const auto handle = glCreateShader(static_cast<GLenum>(type));
+	std::string source = preprocess(path);
 	const char* src = source.c_str();
-	GLint length = static_cast<GLint>(source.length());
-	glShaderSource(m_handle, 1, &src, &length);
-	glCompileShader(m_handle);
+	const auto length = static_cast<GLint>(source.length());
+	glShaderSource(handle, 1, &src, &length);
+	glCompileShader(handle);
 	GLint status;
-	glGetShaderiv(m_handle, GL_COMPILE_STATUS, &status);
-	if (status == GL_FALSE)
-	{
+	glGetShaderiv(handle, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE) {
 		char infoLog[512];
-		glGetShaderInfoLog(m_handle, sizeof(infoLog), nullptr, infoLog);
-		LOG_FATAL("failed to compile shader %s\n%s\n", path.data(), infoLog);
+		glGetShaderInfoLog(handle, sizeof(infoLog), nullptr, infoLog);
+		return Error{ infoLog };
 	}
+	return Shader(handle);
 }
 
 Shader::Shader(Shader&& other) noexcept
-	: m_handle(other.m_handle)
-{
-	other.m_handle = NULL;
+	: handle_(other.handle_) {
+	other.handle_ = NULL;
 }
 
-Shader& Shader::operator=(Shader&& other) noexcept
-{
-	glDeleteShader(m_handle);
-	m_handle = other.m_handle;
-	other.m_handle = NULL;
+Shader& Shader::operator=(Shader&& other) noexcept {
+	glDeleteShader(handle_);
+	handle_ = other.handle_;
+	other.handle_ = NULL;
 	return *this;
 }
 
-Shader::~Shader()
-{
-	glDeleteShader(m_handle);
+Shader::~Shader() {
+	glDeleteShader(handle_);
 }
 
-GLuint Shader::handle() const
-{
-	return m_handle;
+GLuint Shader::handle() const {
+	return handle_;
 }
 
-std::string Shader::preprocess(std::string_view path, int depth)
-{
-	if (depth > 5)
-	{
+Shader::Shader(u32 handle)
+	: handle_(handle){}
+
+std::string Shader::preprocess(std::string_view path, int depth) {
+	if (depth > 5) {
 		LOG_FATAL("max include depth exceeded");
 	}
 	auto sourceString = stringFromFile(path);
@@ -59,8 +54,7 @@ std::string Shader::preprocess(std::string_view path, int depth)
 
 	size_t offset = 0;
 	std::vector<std::string> parts;
-	for (;;) 
-	{
+	for (;;) {
 		std::string_view includeString = "#include \"";
 		auto pathStart = source.find(includeString, offset);
 		if (pathStart == std::string::npos)

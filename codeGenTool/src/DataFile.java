@@ -46,6 +46,9 @@ abstract class Declaration {
     public boolean getIsEnum() {
         return this instanceof Enum;
     }
+    public boolean getIsShader() {
+        return this instanceof Shader;
+    }
 }
 
 class IncludePath {
@@ -80,8 +83,13 @@ class Struct extends Declaration {
         }
     }
 
+    public static Struct empty(String name) {
+        return new Struct(name, new ArrayList<>(), new ArrayList<>());
+    }
+
+
     public Iterator<Field> getFields() {
-        var stream =  declarations
+        var stream = declarations
                 .stream()
                 .filter((DeclarationInStruct declaration) -> declaration instanceof Field)
                 .map((DeclarationInStruct declaration) -> (Field)declaration);
@@ -104,13 +112,21 @@ class Struct extends Declaration {
     public boolean getIsJson() {
         return attributes.stream().anyMatch(a -> a instanceof StructAttributeJson);
     }
+    public boolean getIsNetworkMessage() {
+        return attributes.stream().anyMatch(a -> a instanceof StructAttributeNetworkMessage);
+    }
+    public boolean getIsUniform() {
+        return attributes.stream().anyMatch(a -> a instanceof StructAttributeUniform);
+    }
 }
 
 abstract class StructAttribute { }
 
 class StructAttributeNetworkSerialize extends StructAttribute { }
+class StructAttributeNetworkMessage extends StructAttribute { }
 class StructAttributeGui extends StructAttribute { }
 class StructAttributeJson extends StructAttribute { }
+class StructAttributeUniform extends StructAttribute { }
 
 class Enum extends Declaration {
     public String name;
@@ -147,6 +163,69 @@ class EnumDefinition {
 
     public String getInitializer() {
         return initializerCppSource.get();
+    }
+}
+
+class Shader extends Declaration {
+    public String name;
+    public Struct instance;
+    public Struct fragUniforms;
+    public Struct vertUniforms;
+    public String vertexFormat;
+    public List<VertexAttribute> vertexAttributes = new ArrayList<>();
+    public List<Field> instanceFragFields;
+    public List<Field> instanceVertFields;
+    public List<Field> vertOut;
+
+    public boolean getVertUniformsIsEmpty() {
+        return vertUniforms.fields.isEmpty();
+    }
+
+    Shader(String name, Struct instance, Struct fragUniforms, Struct vertUniforms, String vertexFormat, List<Field> instanceFragFields, List<Field> instanceVertFields, List<Field> vertOut) {
+        // TODO: could support passing structs instead of a vertexFormat.
+        int layout = 0;
+        if (vertexFormat.equals("PT")) {
+            var field = new Field(new IdentifierDataType("Vec2"), "vertexPosition", Optional.empty());
+            vertexAttributes.add(new VertexAttribute(layout, field, false));
+            layout++;
+            field = new Field(new IdentifierDataType("Vec2"), "vertexTexturePosition", Optional.empty());
+            vertexAttributes.add(new VertexAttribute(layout, field, false));
+            layout++;
+        }
+        for (var field : instance.fields) {
+            var f = new Field(field.dataType, "instance" + FormatUtils.firstLetterToUppercase(field.name), field.defaultValueCppSource);
+            vertexAttributes.add(new VertexAttribute(layout, f, true));
+            if (f.dataType.getName().equals("Mat3x2")) {
+                layout += 3;
+            } else {
+                layout++;
+            }
+        }
+        this.name = name;
+        this.instance = instance;
+        this.fragUniforms = fragUniforms;
+        this.vertUniforms = vertUniforms;
+        this.vertexFormat = vertexFormat;
+        this.instanceVertFields = instanceVertFields;
+        this.instanceFragFields = instanceFragFields;
+        this.vertOut = vertOut;
+    }
+}
+
+class VertexAttribute {
+    public int layout;
+    public Field field;
+    public boolean isPerInstance;
+
+    VertexAttribute(int layout, Field field, boolean isPerInstance) {
+        this.layout = layout;
+        this.field = field;
+        this.isPerInstance = isPerInstance;
+    }
+
+    public String getNameWithoutPrefix() {
+        var noInstance = field.name.replace("instance", "");
+        return FormatUtils.firstLetterToLowercase(noInstance);
     }
 }
 
@@ -189,13 +268,17 @@ class Field extends DeclarationInStruct {
     public String getDisplayName() {
         return FormatUtils.camelCaseToFirstLetterUppercaseWithSpaces(name);
     }
-    public String getDefaultValue() {
-        return defaultValueCppSource.get();
+    public String getNameFirstLetterToUppercase() {
+        return FormatUtils.firstLetterToUppercase(name);
     }
 
     public boolean getHasDefaultValue() {
         return defaultValueCppSource.isPresent();
     }
+    public String getDefaultValue() {
+        return defaultValueCppSource.get();
+    }
+
 }
 
 class CppInStruct extends DeclarationInStruct {
@@ -213,9 +296,12 @@ abstract class DataType {
     public String getNameUpperSnakeCase() {
         return FormatUtils.camelCaseToUpperSnakeCase(getName());
     }
+    public String getNameFirstLetterLowercase() {
+        return FormatUtils.firstLetterToLowercase(getName());
+    }
 
     public boolean getIsFloat() {
-        return this instanceof FloatDataType;
+        return getName().equals("float");
     }
     public boolean getIsRangedFloat() {
         return this instanceof RangedFloatDataType;
@@ -238,12 +324,18 @@ abstract class DataType {
     public boolean getIsVec3() {
         return getName().equals("Vec3");
     };
+    public boolean getIsVec4() {
+        return getName().equals("Vec4");
+    };
     public boolean getIsVector() {
         return this instanceof VectorDataType;
     }
     public boolean getIsIdentifier() {
         return this instanceof IdentifierDataType;
     }
+    public boolean getIsMat3x2() {
+        return getName().equals("Mat3x2");
+    };
 }
 
 class FloatDataType extends DataType {
@@ -289,25 +381,16 @@ class ColorDataType extends DataType {
 }
 
 class RangedSignedIntDataType extends DataType {
-    public long min, max;
+    public String min, max;
 
-    RangedSignedIntDataType(long min, long max) {
+    RangedSignedIntDataType(String min, String max) {
         this.min = min;
         this.max = max;
     }
 
     @Override
     public String getName() {
-        if (this.max <= Byte.MAX_VALUE && this.min >= Byte.MIN_VALUE) {
-            return "i8";
-        } else if (this.max <= Short.MAX_VALUE && this.min >= Short.MIN_VALUE) {
-            return "i16";
-        } else if (this.max <= Integer.MAX_VALUE && this.min >= Integer.MIN_VALUE) {
-            return "i32";
-        } else {
-            // serialize_int doesn't support values bigger than 32 bits. TODO: Maybe support this later.
-            return "error";
-        }
+        return "i32";
     }
 }
 

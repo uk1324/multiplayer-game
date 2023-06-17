@@ -1,0 +1,61 @@
+vert(shader, generatedForFirstTime) ::= <<
+#version 430 core
+<if(shader.vertexAttributes)>
+
+<shader.vertexAttributes : { attribute | layout(location = <attribute.layout>) in <variable(attribute.field.dataType, attribute.field.name)>; }; separator="\n"><\\>
+<endif><\\>
+<if(shader.vertUniforms.fields)>
+
+<shader.vertUniforms.fields : { uniform | uniform <variable(uniform.dataType, uniform.name)>; }; separator="\n">
+<endif><\\>
+<if(shader.vertOut)>
+
+<shader.vertOut : { variable | out <variable(variable.dataType, variable.name)>; }; separator="\n">
+<endif><\\>
+<if(shader.instanceFragFields)>
+
+<shader.instanceFragFields : { variable | out <variable(variable.dataType, variable.name)>; }; separator="\n">
+
+void passToFragment() {
+    <shader.instanceFragFields : { variable | <variable.name> = instance<variable.nameFirstLetterToUppercase>; }; separator="\n">
+}
+<endif><\\>
+
+/*generated end*/<\\>
+<if(generatedForFirstTime)>
+
+void main() {
+
+}
+<endif>
+>>
+
+frag(shader, generatedForFirstTime) ::= <<
+#version 430 core
+<if(shader.fragUniforms.fields)>
+
+<shader.fragUniforms.fields : { uniform | uniform <variable(uniform.dataType, uniform.name)>; }; separator="\n">
+<endif><\\>
+<if(shader.vertOut)>
+
+<shader.vertOut : { variable | in <variable(variable.dataType, variable.name)>; }; separator="\n">
+<endif><\\>
+<if(shader.instanceFragFields)>
+
+<shader.instanceFragFields : { variable | in <variable(variable.dataType, variable.name)>; }; separator="\n">
+<endif><\\>
+
+out vec4 fragColor;
+
+/*generated end*/<\\>
+<if(generatedForFirstTime)>
+
+void main() {
+
+}
+<endif>
+>>
+
+variable(dataType, name) ::= <%
+<dataType.nameFirstLetterLowercase> <name>
+%>

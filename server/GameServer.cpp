@@ -222,56 +222,50 @@ void GameServer::broadcastWorldState() {
 			return player.isAlive;
 		};
 
-		auto playersToSend = 0;
+	/*	auto playersToSend = 0;
 		for (const auto& [_, player] : players) {
 			if (shouldSendPlayer(player)) {
 				playersToSend++;
 			}
 		}
-		const auto bulletsCount = bullets.size();
+		const auto bulletsCount = bullets.size();*/
 
-		if (playersToSend == 0 && bulletsCount == 0) {
+		/*if (playersToSend == 0 && bulletsCount == 0) {
 			continue;
-		}
+		}*/
 
-		message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber, playersToSend, bulletsCount);
+		//message->set(players[clientIndex].newestExecutedInputSequenceNumber, sequenceNumber, playersToSend, bulletsCount);
 		
-		const auto playersBlockSize = sizeof(WorldUpdateMessage::Player) * playersToSend;
+		/*const auto playersBlockSize = sizeof(WorldUpdateMessage::Player) * playersToSend;
 		const auto bulletsBlockSize = sizeof(WorldUpdateMessage::Bullet) * bulletsCount;
 		const auto blockSize = playersBlockSize + bulletsBlockSize;
-		u8* block = server.AllocateBlock(clientIndex, blockSize);
+		u8* block = server.AllocateBlock(clientIndex, blockSize);*/
 		
-		auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(block + playersBlockSize);
+		//auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(block + playersBlockSize);
 
-		int i;
-		if (playersToSend > 0) {
-			auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(block);
-			i = 0;
-			for (const auto& [playerIndex, player] : players) {
-				if (!shouldSendPlayer(player))
-					continue;
+		message->lastReceivedClientSequenceNumber = players[clientIndex].newestExecutedInputSequenceNumber;
+		message->sequenceNumber = sequenceNumber;
+		for (const auto& [playerIndex, player] : players) {
+			if (!shouldSendPlayer(player))
+				continue;
 
-				msgPlayers[i] = WorldUpdateMessage::Player{ .index = playerIndex, .position = player.pos };
-				i++;
-			}
+			message->players.push_back(WorldUpdateMessagePlayer{ .index = playerIndex, .position = player.pos });
 		}
-		i = 0;
+		
 		for (const auto& [bulletIndex, bullet] : bullets) {
-			msgBullets[i] = WorldUpdateMessage::Bullet{ 
-				.index = bulletIndex, 
-				.position = bullet.pos, 
-				.velocity = bullet.velocity,
-				.ownerPlayerIndex = bullet.ownerPlayerIndex,
-				.aliveFramesLeft = bullet.aliveFramesLeft,
-				.spawnFrameClientSequenceNumber = bullet.spawnFrameClientSequenceNumber,
-				.frameSpawnIndex = bullet.frameSpawnIndex,
-				.timeElapsed = bullet.timeElapsed,
-				.timeToCatchUp = bullet.catchUpTime,
-			};
-			i++;
+			message->bullets.push_back(WorldUpdateMessageBullet{
+				.index = bulletIndex,
+					.position = bullet.pos,
+					.velocity = bullet.velocity,
+					.ownerPlayerIndex = bullet.ownerPlayerIndex,
+					.aliveFramesLeft = bullet.aliveFramesLeft,
+					.spawnFrameClientSequenceNumber = bullet.spawnFrameClientSequenceNumber,
+					.frameSpawnIndex = bullet.frameSpawnIndex,
+					.timeElapsed = bullet.timeElapsed,
+					.timeToCatchUp = bullet.catchUpTime,
+			});
 		}
 
-		server.AttachBlockToMessage(clientIndex, message, block, blockSize);
 		server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
 	}
 	sequenceNumber++;
@@ -371,7 +365,6 @@ void GameServer::onClientConnected(int clientIndex) {
 	players[clientIndex] = Player{};
 	const auto msg = reinterpret_cast<JoinMessage*>(server.CreateMessage(clientIndex, GameMessageType::JOIN));
 	msg->clientPlayerIndex = clientIndex;
-	msg->currentFrame = -1;
 	server.SendMessage(clientIndex, GameChannel::RELIABLE, msg);
 }
 

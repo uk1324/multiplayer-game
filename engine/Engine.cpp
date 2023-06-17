@@ -7,12 +7,13 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #include <client/MainLoop.hpp>
+#include <glad/glad.h>
+#include <glfw/glfw3.h>
 
 bool Engine::run(int fps)
 {
 	constexpr double FRAME_TIME_CAP = 2.0;
 
-	/*double lastFrameStartTime = Time::currentTime();*/
 	double lastFrameStartTime = glfwGetTime();
 	double frameStartTime;
 	double frameTime;
@@ -130,7 +131,7 @@ void Engine::initImGui()
 	auto& style = ImGui::GetStyle();
 	style.WindowRounding = 5.0f;
 
-	ImGui_ImplGlfw_InitForOpenGL(Window::handle(), true);
+	ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(Window::handle()), true);
 	ImGui_ImplOpenGL3_Init("#version 430");
 }
 

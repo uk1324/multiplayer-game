@@ -3,17 +3,24 @@
 #include <Engine/Graphics/Shader.hpp>
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
+#include <engine/Math/Vec4.hpp>
 #include <engine/Math/mat3x2.hpp>
 
 #include <unordered_map>
+#include <optional>
 
-class ShaderProgram
-{
+class ShaderProgram {
 public:
-	// TODO: Api that does crash when the shader doesn't load to use in reloading.
-	ShaderProgram();
-	ShaderProgram(std::string_view vertexPath, std::string_view fragmentPath);
-	ShaderProgram(std::string_view vertexPath, std::string_view geometryPath, std::string_view fragmentPath);
+	struct Error {
+		std::string vertexErrorMessage;
+		std::string fragmentErrorMessage;
+		std::string linkerErrorMessage;
+
+		std::string toSingleMessage() const;
+	};
+
+	static std::variant<ShaderProgram, Error> compile(std::string_view vertexPath, std::string_view fragmentPath);
+	static ShaderProgram create(std::string_view vertexPath, std::string_view fragmentPath);
 	~ShaderProgram();
 
 	ShaderProgram(const ShaderProgram&) = delete;
@@ -24,27 +31,24 @@ public:
 
 	// Wanted to use the constructor to pass a vector of shaders but Shader is non copyable and you can't have a pointer to a reference.
 	void addShader(const Shader& shader);
-	void link();
+	std::optional<std::string> link();
 
 	void use();
 
-	// Most of the name suffixes are pretty useless.
-	// Could just name these methods set().
-	void setVec2(std::string_view name, const Vec2& vec);
-	void setVec3(std::string_view name, const Vec3& vec);
-	/*void setVec3I(std::string_view name, const Vec3I& vec);
-	void setMat4(std::string_view name, const Mat4& mat);*/
-	void setInt(std::string_view name, int32_t value);
-	void setUnsignedInt(std::string_view name, uint32_t value);
+	void set(std::string_view name, const Vec2& vec);
+	void set(std::string_view name, const Vec3& vec);
+	void set(std::string_view name, const Vec4& vec);
+	void set(std::string_view name, int32_t value);
+	void set(std::string_view name, uint32_t value);
 	void setTexture(std::string_view name, int value);
-	void setFloat(std::string_view name, float value);
-	void setBool(std::string_view name, bool value);
-	void setMat3x2(std::string_view name, const Mat3x2& value);
-	/*void setColor(std::string_view name, const Color& value);*/
+	void set(std::string_view name, float value);
+	void set(std::string_view name, bool value);
+	void set(std::string_view name, const Mat3x2& value);
 
-	GLuint handle() const;
+	u32 handle() const;
 
 private:
+	ShaderProgram(u32 handle);
 	// This isn't the best way to cache uniforms.
 	// A better way would to to parse the glsl files and extract the variables declarations.
 	// ^ (if you really tried you could make this solution also not require map lookup)
@@ -55,7 +59,7 @@ private:
 	int getUniformLocation(std::string_view name);
 
 private:
-	GLuint m_handle;
+	u32 handle_;
 
 	std::unordered_map<std::string, int> m_cachedUniformLocations;
 };

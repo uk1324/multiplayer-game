@@ -9,7 +9,7 @@ MainLoop::MainLoop()
 
 #include <client/TestData.hpp>
 #include <Gui.hpp>
-#include <shared/Json/JsonPrinter.hpp>
+#include <engine/Json/JsonPrinter.hpp>
 #include <client/Test2Data.hpp>
 #include <shared/AData.hpp>
 

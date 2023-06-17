@@ -1,17 +1,16 @@
 #pragma once
 
 #include <Engine/Graphics/Vbo.hpp>
-#include <glad/glad.h>
 
 enum class ShaderDataType : uint32_t
 {
-	Byte = GL_BYTE,
-	UnsignedByte = GL_UNSIGNED_BYTE,
-	Short = GL_SHORT,
-	UnsignedShort = GL_UNSIGNED_SHORT,
-	Int = GL_INT,
-	UnsignedInt = GL_UNSIGNED_INT,
-	Float = GL_FLOAT,
+	Byte = 0x1400,
+	UnsignedByte = 0x1401,
+	Short = 0x1402,
+	UnsignedShort = 0x1403,
+	Int = 0x1404,
+	UnsignedInt = 0x1405,
+	Float = 0x1406,
 };
 
 struct BufferLayout
@@ -41,12 +40,11 @@ public:
 	intptr_t offset;
 };
 
-class Vao
-{
+class Vao {
 public:
-	Vao();
 	~Vao();
-
+	static Vao generate();
+	static Vao null();
 	Vao(const Vao&) = delete;
 	Vao& operator= (const Vao&) = delete;
 
@@ -77,5 +75,7 @@ public:
 	void bind() const;
 
 private:
+	Vao(uint32_t handle);
+
 	uint32_t m_handle;
 };

@@ -1,4 +1,18 @@
 public class FormatUtils {
+    static public String firstLetterToLowercase(String s) {
+        if (s.length() == 0) {
+            return s;
+        }
+        return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+    }
+
+    static public String firstLetterToUppercase(String s) {
+        if (s.length() == 0) {
+            return s;
+        }
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
     static public String camelCaseToUpperSnakeCase(String s) {
         return transformCamelCase(s, Character::toUpperCase, "_");
     }

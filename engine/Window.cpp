@@ -1,25 +1,23 @@
 #include <Engine/Window.hpp>
 #include <Engine/Input/Input.hpp>
 #include <Log/Log.hpp>
+#include <glfw/glfw3.h>
 
-void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-	if (action == GLFW_PRESS)
-	{
+static GLFWwindow* windowHandle = nullptr;
+
+void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (action == GLFW_PRESS) {
 		Input::onKeyDown(key, false);
-	} else if (action == GLFW_RELEASE)
-	{
+	} else if (action == GLFW_RELEASE) {
 		Input::onKeyUp(key);
 	}
 }
 
-void mouseMoveCallback(GLFWwindow* window, double mouseX, double mouseY)
-{
+void mouseMoveCallback(GLFWwindow* window, double mouseX, double mouseY) {
 	Input::onMouseMove(Vec2(static_cast<float>(mouseX), static_cast<float>(mouseY)));
 }
 
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	// @Hack: Assumes the button ids don't conflinct with keyboard ids.
 	if (action == GLFW_PRESS) {
 		Input::onKeyDown(button, false);
@@ -28,38 +26,34 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 	}
 }
 
-void mouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
-{
+void mouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
 	Input::onMouseScroll(static_cast<float>(yOffset));
 }
 
-void Window::init(int width, int height, std::string_view title)
-{
+void Window::init(int width, int height, std::string_view title) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	m_handle = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
-	if (m_handle == nullptr)
+	windowHandle = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+	if (windowHandle == nullptr)
 	{
 		LOG_FATAL("failed to create window");
 	}
-	glfwMakeContextCurrent(m_handle);
+	glfwMakeContextCurrent(windowHandle);
 
-	glfwSetKeyCallback(m_handle, keyboardCallback);
-	glfwSetCursorPosCallback(m_handle, mouseMoveCallback);
-	glfwSetMouseButtonCallback(m_handle, mouseButtonCallback);
-	glfwSetScrollCallback(m_handle, mouseScrollCallback);
+	glfwSetKeyCallback(windowHandle, keyboardCallback);
+	glfwSetCursorPosCallback(windowHandle, mouseMoveCallback);
+	glfwSetMouseButtonCallback(windowHandle, mouseButtonCallback);
+	glfwSetScrollCallback(windowHandle, mouseScrollCallback);
 }
 
-void Window::terminate()
-{
-	glfwDestroyWindow(m_handle);
+void Window::terminate() {
+	glfwDestroyWindow(windowHandle);
 }
 
-Vec2 Window::size()
-{
+Vec2 Window::size() {
 	int x, y;
-	glfwGetFramebufferSize(m_handle, &x, &y);
+	glfwGetFramebufferSize(windowHandle, &x, &y);
 	return Vec2{ static_cast<float>(x), static_cast<float>(y) };
 }
 
@@ -68,44 +62,34 @@ float Window::aspectRatio() {
 	return size.x / size.y;
 }
 
-void Window::update()
-{
-	glfwSwapBuffers(m_handle);
+void Window::update() {
+	glfwSwapBuffers(windowHandle);
 }
 
-void Window::close()
-{
-	glfwSetWindowShouldClose(m_handle, true);
+void Window::close() {
+	glfwSetWindowShouldClose(windowHandle, true);
 }
 
-void Window::setTitle(const char* title)
-{
-	glfwSetWindowTitle(m_handle, title);
+void Window::setTitle(const char* title) {
+	glfwSetWindowTitle(windowHandle, title);
 }
 
-void Window::setPos(Vec2 pos)
-{
-	glfwSetWindowPos(m_handle, static_cast<int>(pos.x), static_cast<int>(pos.y));
+void Window::setPos(Vec2 pos) {
+	glfwSetWindowPos(windowHandle, static_cast<int>(pos.x), static_cast<int>(pos.y));
 }
 
-void Window::hideCursor()
-{
-	glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+void Window::hideCursor() {
+	glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void Window::showCursor()
-{
-	glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+void Window::showCursor() {
+	glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
-bool Window::shouldClose()
-{
-	return glfwWindowShouldClose(m_handle);
+bool Window::shouldClose() {
+	return glfwWindowShouldClose(windowHandle);
 }
 
-GLFWwindow* Window::handle()
-{
-	return m_handle;
+void* Window::handle() {
+	return windowHandle;
 }
-
-GLFWwindow* Window::m_handle;

@@ -2,7 +2,9 @@
 #include <Engine/Window.hpp>
 #include <Engine/Input/Input.hpp>
 #include <engine/Math/Utils.hpp>
+#include <Gui.hpp>
 #include <imgui/imgui.h>
+#include <glad/glad.h>
 #include <iostream>
 
 struct PtVertex {
@@ -20,11 +22,27 @@ static constexpr u32 fullscreenQuadIndices[]{
 	0, 1, 2, 2, 1, 3
 };
 
+Vao createPtVao(Vbo& vbo) {
+	auto vao = Vao::generate();
+	vao.bind();
+	vbo.bind();
+	Vao::setAttribute(0, BufferLayout(ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex), false));
+	Vao::setAttribute(1, BufferLayout(ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false));
+	return vao;
+}
+
+// TODO: Preprocesing
 Renderer::Renderer() 
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
-	, atlasTexture(Texture::null()) {
+	, atlasTexture(Texture::null())
+	, spriteVao(Vao::generate())
+	, deathAnimationVao(Vao::null())
+	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
+{
+	deathAnimationVao = createPtVao(fullscreenQuadPtVbo);
+	deathAnimationInstances.addInstanceAttributesToVao(deathAnimationVao);
 	spriteVao.bind();
 	{
 		fullscreenQuadPtVbo.bind();
@@ -92,7 +110,7 @@ Renderer::Renderer()
 		backgroundShader = &createShader("client/background.vert", "client/background.frag");
 	}
 	{
-		deathAnimationShader = &createShader("client/quadShader.vert", "client/deathAnimationShader.frag");
+		deathAnimationShader = &createShader("client/Shaders/deathAnimation.vert", "client/Shaders/deathAnimation.frag");
 	}
 	camera.zoom /= 3.0f;
 }
@@ -101,20 +119,7 @@ void Renderer::update() {
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
 		reloadShaders();
 	}
-
-	for (auto& shader : shaders) {
-		const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
-		const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
-		if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
-			continue;
-		}
-		shader.program = ShaderProgram(shader.vertPath, shader.fragPath);
-		shader.vertPathLastWriteTime = vertLastWriteTime;
-		shader.fragPathLastWriteTime = fragLastWriteTime;
-		std::cout << "reloaded shader\n"
-			<< "vert: " << shader.vertPath << '\n'
-			<< "frag: " << shader.fragPath << '\n';
-	}
+	reloadChangedShaders();
 
 	glViewport(0, 0, Window::size().x, Window::size().y);
 
@@ -132,7 +137,7 @@ void Renderer::update() {
 	{
 		backgroundShader->use();
 		const auto cameraToWorld = (screenScale * cameraTransform).inversed();
-		backgroundShader->setMat3x2("cameraToWorld", cameraToWorld);
+		backgroundShader->set("cameraToWorld", cameraToWorld);
 
 		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
@@ -196,29 +201,44 @@ void Renderer::update() {
 		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
 	} while (false)
 
-#define ANIMATION_DEFULAT_SPAWN(animations, defaultAnimation) \
+#define ANIMATION_DEFULAT_SPAWN(animations, ...) \
 	do { \
 		if (ImGui::Button("spawn")) { \
-			animations.push_back(defaultAnimation); \
+			animations.push_back((__VA_ARGS__)); \
 		} \
 	} while (false)
 
-	ANIMATION_UPDATE(deathAnimations, 0.025f);
+
+	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0 });
+	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
 	ANIMATION_UPDATE(spawnAnimations, 0.02f);
 
-	{
+	for (const auto& animation : deathAnimations) {
+		deathAnimationInstances.toDraw.push_back(DeathAnimationInstance{
+			.transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f }),
+			.time = animation.t,
+		});
+	}
+	static DeathAnimationFragUniforms fragUniforms;
+	GUI_PROPERTY_EDITOR(gui(fragUniforms));
+	shaderSetUniforms(*deathAnimationShader, fragUniforms);
+	deathAnimationShader->use();
+	fullscreenQuadPtIbo.bind();
+	deathAnimationInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
+
+	/*{
 		spriteVao.bind();
 		deathAnimationShader->use();
 		fullscreenQuadPtIbo.bind();
 		for (auto& animation : deathAnimations) {
 			const auto transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f });
-			deathAnimationShader->setMat3x2("transform", transform);
-			deathAnimationShader->setFloat("time", animation.t);
+			deathAnimationShader->set("transform", transform);
+			deathAnimationShader->set("time", animation.t);
 			glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 		}
-	}
+	}*/
 }
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
@@ -240,21 +260,43 @@ ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string_vie
 	shaders.push_back(ShaderEntry{ 
 		.vertPath = vertPath, 
 		.fragPath = fragPath, 
-		.program = ShaderProgram(vertPath, fragPath) 
+		.program = ShaderProgram::create(vertPath, fragPath) 
 	});
-	shaders.back().updateLastWriteTimes();
-	return shaders.back().program;
+	auto& shader = shaders.back();
+	shader.vertPathLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
+	shader.fragPathLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
+	return shader.program;
 }
 
 void Renderer::reloadShaders() {
 	for (auto& entry : shaders) {
-		entry.program = ShaderProgram(entry.vertPath, entry.fragPath);
+		entry.tryReload();
+	}
+}
+void Renderer::ShaderEntry::tryReload() {
+	auto result = ShaderProgram::compile(vertPath, fragPath);
+	if (const auto error = std::get_if<ShaderProgram::Error>(&result)) {
+		std::cout << "tried to reload vert: " << vertPath << " frag: " << fragPath << '\n';
+		std::cout << error->toSingleMessage();
+	} else {
+		std::cout << "reloaded shader\n"
+			<< "vert: " << vertPath << '\n'
+			<< "frag: " << fragPath << '\n';
+		program = std::move(std::get<ShaderProgram>(result));
 	}
 }
 
-void Renderer::ShaderEntry::updateLastWriteTimes() {
-	fragPathLastWriteTime = std::filesystem::last_write_time(fragPath);
-	vertPathLastWriteTime = std::filesystem::last_write_time(vertPath);
+void Renderer::reloadChangedShaders() {
+	for (auto& shader : shaders) {
+		const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
+		const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
+		if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
+			continue;
+		}
+		shader.tryReload();
+		shader.vertPathLastWriteTime = vertLastWriteTime;
+		shader.fragPathLastWriteTime = fragLastWriteTime;
+	}
 }
 
 Vec2 Renderer::Sprite::scaledSize(float scale) const {

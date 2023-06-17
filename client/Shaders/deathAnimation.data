@@ -1,0 +1,15 @@
+shader DeathAnimation {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	fragInstance = {
+		float time;
+	};
+	fragUniforms = [[Gui]] {
+		color color;
+	};
+	vertOut = {
+		Vec2 texturePosition;
+	};
+}

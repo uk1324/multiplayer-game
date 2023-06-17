@@ -12,6 +12,10 @@ declaration(declaration) ::= <%
     <struct(declaration)>
 <elseif(declaration.isEnum)>
     <enum(declaration)>
+<elseif(declaration.isCpp)>
+    <declaration.cppSource>
+<elseif(declaration.isShader)>
+    <shader(declaration)>
 <else>
     error
 <endif>
@@ -19,20 +23,20 @@ declaration(declaration) ::= <%
 
 struct(struct) ::= <<
 <if(struct.isNetworkSerialize)>
-#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(structValue) \
-    <struct.fields : { field | <networkSerialize(field.dataType, field.name)> }; separator="\\\n">
+#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, structValue) \
+    <struct.fields : { field | <networkSerialize(field.dataType, fieldAccess("(structValue)", field.name))> }; separator="\\\n">
 <endif>
 
-struct <struct.name><if(struct.isNetworkSerialize)>: yojimbo::Message<endif> {
+struct <struct.name> <if(struct.isNetworkMessage)>: yojimbo::Message <endif>{
     <struct.declarations : { declaration | <declarationInStruct(declaration)> }; separator="\n">
     <if(struct.isNetworkSerialize)>
     template\<typename Stream\>
     bool Serialize(Stream& stream) {
-        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(*this);
+        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, *this);
         return true;
     }
 
-    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
+    <if(struct.isNetworkMessage)>YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();<endif>
     <endif>
 };
 
@@ -44,6 +48,10 @@ void gui(<struct.name>& value);
 Json::Value toJson(const <struct.name>& value);
 template\<\>
 <struct.name> fromJson\<<struct.name>\>(const Json::Value& json);
+<endif>
+
+<if(struct.isUniform)>
+void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value);
 <endif>
 >>
 
@@ -70,6 +78,19 @@ void combo(<enum.name>* value);
 <endif>
 >>
 
+shader(shader) ::= <<
+<struct(shader.instance)>
+<struct(shader.fragUniforms)>
+<struct(shader.vertUniforms)>
+
+struct <shader.name>Instances {
+    std::vector\<<shader.name>Instance\> toDraw;
+
+    void addInstanceAttributesToVao(Vao& vao);
+    void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
+};
+>>
+
 networkSerialize(dataType, name) ::= <%
 <if(dataType.isFloat)>
     serialize_float(stream, <name>);
@@ -82,11 +103,17 @@ networkSerialize(dataType, name) ::= <%
         int size = <name>.size();
         serialize_int(stream, size, 0, INT_MAX);
         for (int i = 0; i \< size; i++) {
-            <networkSerialize(dataType.itemDataType, arrayAccess(name, "i"))>
+            if (Stream::IsReading) {
+                <dataType.itemDataType.name> value;
+                <networkSerialize(dataType.itemDataType, "value")>
+                <name>.push_back(std::move(value));
+            } else {
+                <networkSerialize(dataType.itemDataType, arrayAccess(name, "i"))>
+            }
         }
     }
 <elseif(dataType.isIdentifier)>
-    NETWORK_SERIALIZE_<dataType.nameUpperSnakeCase>(<name>);
+    NETWORK_SERIALIZE_<dataType.nameUpperSnakeCase>(stream, <name>);
 <else>
     error
 <endif>

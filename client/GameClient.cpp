@@ -262,22 +262,21 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 			const auto& firstUpdate = *firstWorldUpdate;
 
-			const auto playersSize = msg->playersCount * sizeof(WorldUpdateMessage::Player);
+			/*const auto playersSize = msg->playersCount * sizeof(WorldUpdateMessage::Player);
 			const auto bulletsSize = msg->bulletsCount * sizeof(WorldUpdateMessage::Bullet);
 			const auto dataSize = playersSize + bulletsSize;
 
 			if (msg->GetBlockSize() != dataSize) {
 				ASSERT_NOT_REACHED();
 				break;
-			}
+			}*/
 			newestUpdateSequenceNumber = msg->sequenceNumber;
 			newestUpdateLastReceivedClientSequenceNumber = msg->lastReceivedClientSequenceNumber;
 
-			const auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(msg->GetBlockData());
-			const auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(msg->GetBlockData() + playersSize);
+			/*const auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(msg->GetBlockData());
+			const auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(msg->GetBlockData() + playersSize);*/
 
-			for (int i = 0; i < msg->playersCount; i++) {
-				const auto& msgPlayer = msgPlayers[i];
+			for (const auto& msgPlayer : msg->players) {
 				if (msgPlayer.index == clientPlayerIndex) {
 					playerTransform.position = msgPlayer.position;
 					
@@ -299,9 +298,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				}
 			}
 
-			for (int i = 0; i < msg->bulletsCount; i++) {
-				const auto& msgBullet = msgBullets[i];
-
+			for (const auto& msgBullet : msg->bullets) {
 				auto& bullet = interpolatedBullets[msgBullet.index];
 				const auto spawn = bullet.transform.positions.size() == 0;
 				bullet.transform.updatePositions(firstUpdate, msgBullet.position, sequenceNumber, msg->sequenceNumber);
