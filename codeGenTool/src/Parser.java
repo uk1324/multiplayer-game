@@ -6,6 +6,11 @@ class ParserError extends Exception {
     ParserError(String message) {
         super(message);
     }
+    ParserError(String message, int line) {
+        super(message);
+        this.line = Optional.of(line);
+    }
+    Optional<Integer> line = Optional.empty();
 }
 
 public class Parser {
@@ -50,9 +55,9 @@ public class Parser {
 
     Declaration declaration() throws LexerError, ParserError {
         if (matchIdentifier("struct")) {
+            var attributes = structAttributes();
             expect(TokenType.IDENTIFIER);
             var name = previousToken.text;
-            var attributes = structAttributes();
             var declarations = structDeclarationsBlock();
             return new Struct(name, declarations, attributes);
         } else if (matchIdentifier("enum")) {
@@ -185,7 +190,7 @@ public class Parser {
             }
             if (optFragInstanceDeclarations.isPresent()) {
                 instanceDeclarations.addAll(optFragInstanceDeclarations.get());
-                instanceVertFields = filterKeepOnlyFields(optFragInstanceDeclarations.get());
+                instanceFragFields = filterKeepOnlyFields(optFragInstanceDeclarations.get());
             }
 
             List<StructAttribute> instanceAttributes = optInstanceAttributes.orElse(new ArrayList<>());
@@ -386,10 +391,23 @@ public class Parser {
         return currentToken.type == type;
     }
 
+    int tokenLine(final Token token) {
+        int line = 0;
+        for (int i = 0; i < source.length(); i++) {
+            if (source.charAt(i) == '\n') {
+                line++;
+            }
+            if (i == token.start) {
+                break;
+            }
+        }
+        return line;
+    }
+
     void expect(TokenType type) throws LexerError, ParserError {
         // This must be the order. First check if isAtEnd then do match, because match can change isAtEnd
         if (isAtEnd || !match(type)) {
-            throw new ParserError(String.format("unexpected '%s'", currentToken.text));
+            throw new ParserError(String.format("unexpected '%s'", currentToken.text), tokenLine(currentToken));
         }
     }
 

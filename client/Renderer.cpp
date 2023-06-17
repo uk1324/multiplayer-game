@@ -5,6 +5,7 @@
 #include <Gui.hpp>
 #include <imgui/imgui.h>
 #include <glad/glad.h>
+#include <client/Debug.hpp>
 #include <iostream>
 
 struct PtVertex {
@@ -22,27 +23,42 @@ static constexpr u32 fullscreenQuadIndices[]{
 	0, 1, 2, 2, 1, 3
 };
 
-Vao createPtVao(Vbo& vbo) {
+Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 	auto vao = Vao::generate();
 	vao.bind();
 	vbo.bind();
+	// Index buffers belong to a vao and are not global state so they must be bound after a vao is bound.
+	// https://www.khronos.org/opengl/wiki/Vertex_Specification#Index_buffers
+	ibo.bind();
 	Vao::setAttribute(0, BufferLayout(ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex), false));
 	Vao::setAttribute(1, BufferLayout(ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false));
+	Vao::unbind();
+	Ibo::unbind();
 	return vao;
 }
 
-// TODO: Preprocesing
 Renderer::Renderer() 
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
-	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
+	, fullscreenQuadPtIbo(fullscreenQuadIndices, std::size(fullscreenQuadIndices))
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
 	, atlasTexture(Texture::null())
 	, spriteVao(Vao::generate())
 	, deathAnimationVao(Vao::null())
+	, circleVao(Vao::null())
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
 {
-	deathAnimationVao = createPtVao(fullscreenQuadPtVbo);
-	deathAnimationInstances.addInstanceAttributesToVao(deathAnimationVao);
+	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	deathAnimationVao.bind();
+	instancesVbo.bind();
+	DeathAnimationInstances::addInstanceAttributesToVao();
+	deathAnimationShader = &createShader("client/Shaders/deathAnimation.vert", "client/Shaders/deathAnimation.frag");
+
+	circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	circleVao.bind();
+	instancesVbo.bind();
+	CircleInstances::addInstanceAttributesToVao();
+	circleShader = &createShader("client/Shaders/circle.vert", "client/Shaders/circle.frag");
+
 	spriteVao.bind();
 	{
 		fullscreenQuadPtVbo.bind();
@@ -109,11 +125,14 @@ Renderer::Renderer()
 	{
 		backgroundShader = &createShader("client/background.vert", "client/background.frag");
 	}
-	{
-		deathAnimationShader = &createShader("client/Shaders/deathAnimation.vert", "client/Shaders/deathAnimation.frag");
-	}
 	camera.zoom /= 3.0f;
 }
+
+#define INSTANCED_DRAW_QUAD_PT(instanceName) \
+	instanceName##Shader->use(); \
+	instanceName##Vao.bind(); \
+	instanceName##Instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
+	instanceName##Instances.toDraw.clear();
 
 void Renderer::update() {
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
@@ -126,13 +145,9 @@ void Renderer::update() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	const auto aspectRatio = Window::aspectRatio();
-	camera.aspectRatio = aspectRatio;
-	const auto cameraTransform = camera.cameraTransform();
-	const auto screenScale{ Mat3x2::scale(Vec2{ 1.0f, aspectRatio }) };
-	auto makeTransform = [&screenScale, aspectRatio, &cameraTransform](Vec2 translation, float orientation, Vec2 scale) -> Mat3x2 {
-		return Mat3x2::rotate(orientation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ translation.x, translation.y * aspectRatio }) * cameraTransform;
-	};
+	camera.aspectRatio = Window::aspectRatio();
+	cameraTransform = camera.cameraTransform();
+	screenScale = Mat3x2::scale(Vec2(1.0f, camera.aspectRatio));
 
 	{
 		backgroundShader->use();
@@ -155,12 +170,9 @@ void Renderer::update() {
 
 		int toDraw = 0;
 		spriteVao.bind();
-		fullscreenQuadPtIbo.bind();
-		//texturedQuadPerInstanceDataVbo.bind();
+		texturedQuadPerInstanceDataVbo.bind();
 		for (int i = 0; i < spritesToDraw.size(); i++) {
 			const auto& sprite = spritesToDraw[i];
-			/*auto sprite = spritesToDraw[i];
-			sprite.sprite = Sprite{ .offset = Vec2(0, 0), .size = Vec2(1, 1),.aspectRatio = 1.0f, };*/
 			auto& quad = texturedQuadPerInstanceData[toDraw];
 			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size);
 			quad.atlasOffset = sprite.sprite.offset;
@@ -221,24 +233,14 @@ void Renderer::update() {
 			.time = animation.t,
 		});
 	}
-	static DeathAnimationFragUniforms fragUniforms;
-	GUI_PROPERTY_EDITOR(gui(fragUniforms));
-	shaderSetUniforms(*deathAnimationShader, fragUniforms);
-	deathAnimationShader->use();
-	fullscreenQuadPtIbo.bind();
-	deathAnimationInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
+	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	/*{
-		spriteVao.bind();
-		deathAnimationShader->use();
-		fullscreenQuadPtIbo.bind();
-		for (auto& animation : deathAnimations) {
-			const auto transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f });
-			deathAnimationShader->set("transform", transform);
-			deathAnimationShader->set("time", animation.t);
-			glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
-		}
-	}*/
+
+	drawDebugShapes();
+}
+
+Mat3x2 Renderer::makeTransform(Vec2 pos, float rotation, Vec2 scale) {
+	return Mat3x2::rotate(rotation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ pos.x, pos.y * camera.aspectRatio }) * cameraTransform;
 }
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
@@ -254,6 +256,20 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 		.position = position,
 		.playerIndex = playerIndex
 	});
+}
+
+void Renderer::drawDebugShapes() {
+	for (const auto& circle : Debug::circles) {
+		const auto width = 0.003f * 1920.0f / Window::size().x * 5.0f;
+		circleInstances.toDraw.push_back(CircleInstance{
+			.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
+			.smoothing = width * (2.0f / 3.0f),
+			.width = width
+		});
+	}
+	Debug::circles.clear();
+	INSTANCED_DRAW_QUAD_PT(circle)
 }
 
 ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string_view fragPath) {

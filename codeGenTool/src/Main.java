@@ -183,6 +183,9 @@ public class Main {
             return Optional.empty();
         } catch (ParserError e) {
             System.err.println("failed to parse file");
+            if (e.line.isPresent()) {
+                System.err.format("error on line %s\n", e.line.get());
+            }
             System.err.println(e.getMessage());
             return Optional.empty();
         }

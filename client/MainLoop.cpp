@@ -12,46 +12,11 @@ MainLoop::MainLoop()
 #include <engine/Json/JsonPrinter.hpp>
 #include <client/Test2Data.hpp>
 #include <shared/AData.hpp>
+#include <client/Debug.hpp>
 
 void MainLoop::update() {
-
-	//static Ve3 b;
-	//GUI_PROPERTY_EDITOR(gui(b));
-
-	//static Test32 test;
-	//static Test32 test1;
-	//GUI_PROPERTY_EDITOR(gui(test));
-	//static float a;
-	//const auto json = toJson(test);
-	////const auto text = Json::stringify(json);
-	//std::stringstream stream;
-	//Json::prettyPrint(stream, json);
-	//ImGui::TextWrapped(stream.str().c_str());
-
-	//auto obj = fromJson<Test32>(json);
-	//GUI_PROPERTY_EDITOR(gui(obj));
-
-	//GUI_PROPERTY_EDITOR(Gui::sliderFloat("a", a, 0.0f, 1.0));
-
-	//if (ImGui::BeginTable("table", 2)) {
-	//	ImGui::TableNextRow();
-	//	ImGui::TableSetColumnIndex(0);
-	//	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-	//	ImGui::TreeNodeEx("a");
-	//	ImGui::TableSetColumnIndex(1);
-	//	//ImGui::SetNextItemWidth(-FLT_MIN);
-	//	ImGui::SliderFloat("##aa", &a, 0.0f, 1.0f);
-
-	//	ImGui::EndTable();
-	//}
-	/*if (Gui::beginPropertyEditor())
-	{
-		
-	}
-	Gui::popPropertyEditor();*/
-
-
-	//ImGui::ShowDemoWindow();
+	Debug::drawCircle(renderer.camera.cursorPos(), 0.5);
+	
 	client.AdvanceTime(client.GetTime() + FRAME_DT);
 	client.ReceivePackets();
 	if (client.IsConnected()) {

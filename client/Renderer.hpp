@@ -7,7 +7,8 @@
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>
 #include <engine/Math/Vec4.hpp>
-#include <client/Shaders/DeathAnimationData.hpp>
+#include <client/Shaders/deathAnimationData.hpp>
+#include <client/Shaders/circleData.hpp>
 #include <filesystem>
 
 struct Renderer {
@@ -26,6 +27,10 @@ struct Renderer {
 private:
 	static constexpr usize INSTANCES_VBO_BYTES_SIZE = 4096;
 	Vbo instancesVbo;
+
+	Mat3x2 screenScale;
+	Mat3x2 cameraTransform;
+	Mat3x2 makeTransform(Vec2 pos, float rotation, Vec2 scale);
 
 	Vao spriteVao;
 	Vbo fullscreenQuadPtVbo;
@@ -83,6 +88,11 @@ private:
 	ShaderProgram* deathAnimationShader;
 	Vao deathAnimationVao;
 	DeathAnimationInstances deathAnimationInstances;
+	
+	ShaderProgram* circleShader;
+	Vao circleVao;
+	CircleInstances circleInstances;
+	void drawDebugShapes();
 
 	ShaderProgram& createShader(std::string_view vertPath, std::string_view fragPath);
 	struct ShaderEntry {

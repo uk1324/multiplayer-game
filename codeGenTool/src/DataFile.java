@@ -181,7 +181,7 @@ class Shader extends Declaration {
         return vertUniforms.fields.isEmpty();
     }
 
-    Shader(String name, Struct instance, Struct fragUniforms, Struct vertUniforms, String vertexFormat, List<Field> instanceFragFields, List<Field> instanceVertFields, List<Field> vertOut) {
+    Shader(String name, Struct instance, Struct fragUniforms, Struct vertUniforms, String vertexFormat, List<Field> instanceVertFields, List<Field> instanceFragFields, List<Field> vertOut) {
         // TODO: could support passing structs instead of a vertexFormat.
         int layout = 0;
         if (vertexFormat.equals("PT")) {

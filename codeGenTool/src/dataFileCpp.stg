@@ -60,10 +60,10 @@ void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value) {
 
 gui(dataType, name, displayedName) ::= <<
 <\\>
-<if(dataType.isFloat)><\\>
-inputFloat("<displayedName>", <name>);
-<elseif(dataType.isRangedFloat)><\\>
+<if(dataType.isRangedFloat)><\\>
 sliderFloat("<displayedName>", <name>, <dataType.min>, <dataType.max>);
+<elseif(dataType.isFloat)><\\>
+inputFloat("<displayedName>", <name>);
 <elseif(dataType.isBool)><\\>
 checkbox("<displayedName>", <name>);
 <elseif(dataType.isColor)><\\>
@@ -124,7 +124,7 @@ shader(shader) ::= <<
 <struct(shader.fragUniforms)>
 <struct(shader.vertUniforms)>
 
-void <shader.name>Instances::addInstanceAttributesToVao(Vao& vao) {
+void <shader.name>Instances::addInstanceAttributesToVao() {
     using Vec1 = float;
     <shader.vertexAttributes : { attribute | <if(attribute.isPerInstance)><setVaoAttribute(attribute.nameWithoutPrefix, attribute.field.dataType, attribute.layout, shader.instance.name)><endif> }; separator="\n">
 }
@@ -132,15 +132,15 @@ void <shader.name>Instances::addInstanceAttributesToVao(Vao& vao) {
 void <shader.name>Instances::drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount) {
     const auto maxInstancesPerDrawCall = instanceBufferSizeBytes / sizeof(<shader.name>Instance);
     auto drawn = 0;
+    instanceBuffer.bind();
     <! Can't just put leftToDraw here and check in the while loop if > 0 because the subtraction would underflow. Have to do the check in the while loop and calculate leftToDraw after. !>
     while (drawn \< toDraw.size()) {
-        const auto leftToDraw = drawn - toDraw.size();
+        const auto leftToDraw = toDraw.size() - drawn;
         const auto toDrawInThisDrawCall = (leftToDraw > maxInstancesPerDrawCall) ? maxInstancesPerDrawCall : leftToDraw;
         Vbo::setData(0, toDraw.data() + drawn, toDrawInThisDrawCall * sizeof(<shader.name>Instance));
         glDrawElementsInstanced(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, nullptr, toDrawInThisDrawCall);
         drawn += toDrawInThisDrawCall;
     }
-    toDraw.clear();
 }
 >>
 

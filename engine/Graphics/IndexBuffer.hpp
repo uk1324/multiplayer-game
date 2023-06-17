@@ -16,7 +16,7 @@ public:
 	Ibo& operator= (Ibo&& other) noexcept;
 
 	void bind();
-	void unbind();
+	static void unbind();
 
 private:
 	uint32_t m_handle;

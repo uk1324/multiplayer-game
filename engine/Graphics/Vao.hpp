@@ -73,6 +73,7 @@ public:
 		intptr_t offset);
 
 	void bind() const;
+	static void unbind();
 
 private:
 	Vao(uint32_t handle);

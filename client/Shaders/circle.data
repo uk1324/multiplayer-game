@@ -1,0 +1,14 @@
+shader Circle {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	fragInstance = {
+		color color;
+		float smoothing;
+		float width;
+	};
+	vertOut = {
+		Vec2 position;
+	};
+}

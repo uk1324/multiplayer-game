@@ -105,5 +105,9 @@ void Vao::bind() const
 	glBindVertexArray(m_handle);
 }
 
+void Vao::unbind() {
+	glBindVertexArray(NULL);
+}
+
 Vao::Vao(uint32_t handle)
 	: m_handle(handle) {}

@@ -86,7 +86,7 @@ shader(shader) ::= <<
 struct <shader.name>Instances {
     std::vector\<<shader.name>Instance\> toDraw;
 
-    void addInstanceAttributesToVao(Vao& vao);
+    static void addInstanceAttributesToVao();
     void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
 };
 >>
