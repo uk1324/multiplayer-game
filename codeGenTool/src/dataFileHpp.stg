@@ -83,10 +83,11 @@ shader(shader) ::= <<
 <struct(shader.fragUniforms)>
 <struct(shader.vertUniforms)>
 
+void add<shader.name>InstanceAttributesToVao(Vao& vao);
+
 struct <shader.name>Instances {
     std::vector\<<shader.name>Instance\> toDraw;
 
-    static void addInstanceAttributesToVao();
     void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
 };
 >>

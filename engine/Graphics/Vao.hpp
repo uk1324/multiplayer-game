@@ -2,8 +2,7 @@
 
 #include <Engine/Graphics/Vbo.hpp>
 
-enum class ShaderDataType : uint32_t
-{
+enum class ShaderDataType : u32 {
 	Byte = 0x1400,
 	UnsignedByte = 0x1401,
 	Short = 0x1402,
@@ -13,32 +12,9 @@ enum class ShaderDataType : uint32_t
 	Float = 0x1406,
 };
 
-struct BufferLayout
-{
-public:
-	BufferLayout() = default;
-	BufferLayout(ShaderDataType dataType, uint32_t dataTypeCountPerVertex, intptr_t offset, size_t stride, bool normalize);
-
-public:
-	ShaderDataType dataType;
-	uint32_t dataTypeCountPerVertex;
-	bool isNormalized;
-	size_t stride;
-	intptr_t offset;
-};
-
-struct IntBufferLayout
-{
-public:
-	IntBufferLayout() = default;
-	IntBufferLayout(ShaderDataType dataType, uint32_t dataTypeCountPerVertex, intptr_t offset, size_t stride);
-
-public:
-	ShaderDataType dataType;
-	uint32_t dataTypeCountPerVertex;
-	size_t stride;
-	intptr_t offset;
-};
+// https://stackoverflow.com/questions/2207320/can-i-forbid-calling-static-methods-on-object-instance
+void boundVaoSetAttribute(u32 index, ShaderDataType dataType, u32 dataTypeCountPerVertex, intptr_t offset, usize stride, bool normalize = false);
+void boundVaoSetIntAttribute(u32 index, ShaderDataType dataType, u32 dataTypeCountPerVertex, intptr_t offset, usize stride);
 
 class Vao {
 public:
@@ -53,30 +29,14 @@ public:
 
 	uint32_t handle() const;
 
-	// Sets the atribute of the currently bound VertexArray at index to the currently bound VertexBuffer with specified layout.
-	static void setAttribute(uint32_t index, const BufferLayout& layout);
-	static void setAttribute(uint32_t index, const IntBufferLayout& layout);
-
-	static void setAttribute(
-		uint32_t index,
-		ShaderDataType dataType,
-		uint32_t dataTypeCountPerVertex,
-		bool normalize,
-		size_t stride,
-		intptr_t offset);
-
-	static void setIntAttribute(
-		uint32_t index,
-		ShaderDataType dataType,
-		uint32_t dataTypeCountPerVertex,
-		size_t stride,
-		intptr_t offset);
+	void setAttribute(u32 index, ShaderDataType dataType, u32 dataTypeCountPerVertex, intptr_t offset, usize stride, bool normalize = false);
+	void setIntAttribute(u32 index, ShaderDataType dataType, u32 dataTypeCountPerVertex, intptr_t offset, usize stride);
 
 	void bind() const;
 	static void unbind();
 
 private:
-	Vao(uint32_t handle);
+	Vao(u32 handle);
 
-	uint32_t m_handle;
+	u32 m_handle;
 };

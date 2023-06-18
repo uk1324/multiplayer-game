@@ -2,8 +2,9 @@
 
 #include "Line.hpp"
 #include "Aabb.hpp"
-
 #include <array>
+
+std::optional<Vec2> intersectLineSegments(Vec2 s0, Vec2 e0, Vec2 s1, Vec2 e1);
 
 struct LineSegment {
 	LineSegment(Line line, float minDistanceAlongLine, float maxDistanceAlongLine);

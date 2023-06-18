@@ -15,8 +15,6 @@ MainLoop::MainLoop()
 #include <client/Debug.hpp>
 
 void MainLoop::update() {
-	Debug::drawCircle(renderer.camera.cursorPos(), 0.5);
-	
 	client.AdvanceTime(client.GetTime() + FRAME_DT);
 	client.ReceivePackets();
 	if (client.IsConnected()) {

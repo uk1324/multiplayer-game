@@ -78,3 +78,7 @@ auto LineSegment::intersection(const LineSegment& other) const -> std::optional<
 
 	return intersection;
 }
+
+std::optional<Vec2> intersectLineSegments(Vec2 s0, Vec2 e0, Vec2 s1, Vec2 e1) {
+	return LineSegment(s0, e0).intersection(LineSegment(s1, e1));
+}

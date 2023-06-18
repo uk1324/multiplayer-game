@@ -210,6 +210,10 @@ class Shader extends Declaration {
         this.instanceFragFields = instanceFragFields;
         this.vertOut = vertOut;
     }
+
+    String getNameFirstLetterLowercase() {
+        return FormatUtils.firstLetterToLowercase(name);
+    }
 }
 
 class VertexAttribute {

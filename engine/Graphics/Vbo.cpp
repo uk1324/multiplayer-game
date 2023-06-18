@@ -47,18 +47,17 @@ Vbo& Vbo::operator=(Vbo&& other) noexcept
 	return *this;
 }
 
-void Vbo::setData(intptr_t offset, const void* data, size_t dataByteSize)
-{
-	glBufferSubData(GL_ARRAY_BUFFER, offset, dataByteSize, data);
+void Vbo::setData(intptr_t offset, const void* data, size_t dataByteSize) {
+	bind();
+	boundVboSetData(offset, data, dataByteSize);
 }
 
-void Vbo::allocateData(const void* data, size_t dataByteSize)
-{
-	glBufferData(GL_ARRAY_BUFFER, dataByteSize, data, GL_DYNAMIC_DRAW);
+void Vbo::allocateData(const void* data, size_t dataByteSize) {
+	bind();
+	boundVboAllocateData(data, dataByteSize);
 }
 
-void Vbo::bind() const
-{
+void Vbo::bind() const {
 	glBindBuffer(GL_ARRAY_BUFFER, m_handle);
 }
 
@@ -70,4 +69,12 @@ void Vbo::bindAsIndexBuffer() const
 const GLuint Vbo::handle() const
 {
 	return m_handle;
+}
+
+void boundVboSetData(intptr_t offset, const void* data, size_t dataByteSize) {
+	glBufferSubData(GL_ARRAY_BUFFER, offset, dataByteSize, data);
+}
+
+void boundVboAllocateData(const void* data, size_t dataByteSize) {
+	glBufferData(GL_ARRAY_BUFFER, dataByteSize, data, GL_DYNAMIC_DRAW);
 }

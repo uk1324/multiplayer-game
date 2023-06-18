@@ -1,6 +1,10 @@
 #pragma once
 
 #include <stdint.h>
+#include <Types.hpp>
+
+void boundVboSetData(intptr_t offset, const void* data, size_t dataByteSize);
+void boundVboAllocateData(const void* data, size_t dataByteSize);
 
 class Vbo
 {
@@ -21,8 +25,8 @@ public:
 	Vbo& operator= (Vbo&& other) noexcept;
 
 	// The VertexBuffer must be bound before calling.
-	static void setData(intptr_t offset, const void* data, size_t dataByteSize);
-	static void allocateData(const void* data, size_t dataByteSize);
+	void setData(intptr_t offset, const void* data, size_t dataByteSize);
+	void allocateData(const void* data, size_t dataByteSize);
 
 	void bind() const;
 	void bindAsIndexBuffer() const;

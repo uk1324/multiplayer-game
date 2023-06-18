@@ -2,7 +2,7 @@
 
 #include <Engine/Graphics/ShaderProgram.hpp>
 #include <Engine/Graphics/Vao.hpp>
-#include <Engine/Graphics/IndexBuffer.hpp>
+#include <Engine/Graphics/Ibo.hpp>
 #include <Engine/Graphics/Texture.hpp>
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>

@@ -1,4 +1,4 @@
-#include <Engine/Graphics/IndexBuffer.hpp>
+#include <Engine/Graphics/Ibo.hpp>
 #include <glad/glad.h>
 
 Ibo::Ibo()
