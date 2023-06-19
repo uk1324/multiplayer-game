@@ -44,9 +44,9 @@ bool Engine::run(int fps)
 				ImGui::NewFrame();
 
 				game.update();
-				if (Input::isKeyDown(KeyCode::R)) {
+				/*if (Input::isKeyDown(KeyCode::R)) {
 					return false;
-				}
+				}*/
 
 				ImGui::Render();
 				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

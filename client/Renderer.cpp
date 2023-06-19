@@ -6,6 +6,7 @@
 #include <imgui/imgui.h>
 #include <glad/glad.h>
 #include <client/Debug.hpp>
+#include <engine/Math/Transform.hpp>
 #include <engine/Math/LineSegment.hpp>
 #include <iostream>
 
@@ -255,15 +256,36 @@ void Renderer::update() {
 	if (line.size() > 50) {
 		line.erase(line.begin());
 	}
-	if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(line.back(), camera.cursorPos()) > 0.1f) {
+	/*if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(line.back(), camera.cursorPos()) > 0.1f) {
+		line.push_back(camera.cursorPos());
+	}*/
+	if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(line.back(), camera.cursorPos()) > 0.05f) {
 		line.push_back(camera.cursorPos());
 	}
-	/*
-	if (Input::isKeyDown(KeyCode::R)) {
-		for (const auto& p : line) {
-			std::cout << "Vec2(" << p.x << ", " << p.y << "),\n";
+
+	static std::optional<int> grabbed;
+	if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+		for (int i = 0; i < line.size(); i++) {
+			if (distance(camera.cursorPos(), line[i]) < 0.05f) {
+				grabbed = i;
+				break;
+			}
 		}
-	}*/
+	}
+
+	if (grabbed.has_value()) {
+		line[*grabbed] = camera.cursorPos();
+	}
+
+	if (Input::isMouseButtonUp(MouseButton::RIGHT)) {
+		grabbed = std::nullopt;
+	}
+	
+	if (Input::isKeyDown(KeyCode::R)) {
+		const auto l = line.back();
+		line.clear();
+		line.push_back(l);
+	}
 
 	/*static constexpr u32 fullscreenQuadIndices[]{
 	0, 1, 2, 2, 1, 3
@@ -285,39 +307,45 @@ void Renderer::update() {
 		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false);
 		return v;
 	}();
+	// IN 3D REQUIRES CLIPPING AND CULLING
 
 	auto addQuad = [&vertices](Vec2 v0, Vec2 v1, Vec2 v2, Vec2 v3) {
 		/*const int v[] = { 0, 1, 2, 2, 1, 3 };
 		for (const auto a : v) {
 
 		}*/
-		vertices.push_back({ v0, Vec2(0.0f) });
-		vertices.push_back({ v1, Vec2(0.0f) });
-		vertices.push_back({ v2, Vec2(0.0f) });
-		vertices.push_back({ v1, Vec2(0.0f) });
-		vertices.push_back({ v2, Vec2(0.0f) });
-		vertices.push_back({ v3, Vec2(0.0f) });
+		vertices.push_back({ v0, Vec2(0.0f, 0.0f) });
+		vertices.push_back({ v1, Vec2(0.0f, 1.0f) });
+		vertices.push_back({ v2, Vec2(0.0f, 0.0f) });
+		vertices.push_back({ v1, Vec2(0.0f, 1.0f) });
+		vertices.push_back({ v2, Vec2(0.0f, 0.0f) });
+		vertices.push_back({ v3, Vec2(0.0f, 1.0f) });
 	};
 
 	auto addLine = [&](Vec2 s, Vec2 e) {
 		addQuad(s, e, s, e);
 	};
 
-	float width = 0.1f;
+	static float width = 0.1f;
+	ImGui::SliderFloat("width", &width, 0.0f, 1.0f);
 	Vec2 previousV1(0.0f);
 	Vec2 previousV3(0.0f);
-	static bool a;
+	static bool a = true;
 	ImGui::Checkbox("a", &a);
+
+	static bool b = true;
+	ImGui::Checkbox("b", &b);
+
+	static bool color = true;
+	ImGui::Checkbox("color", &color);
 	for (i32 i = 0; i < static_cast<i32>(line.size()) - 1; i++) {
 		const auto current = line[i];
 		const auto next = line[i + 1];
 		const auto currentToNext = (next - current);
 		const auto normalToLine0 = currentToNext.rotBy90deg().normalized();
 
-		/*const auto v0 = i == 0 ? current + normalToLine0 * width : previousV1;*/
 		const auto v0 = current + normalToLine0 * width;
 		auto v1 = v0 + currentToNext;
-		/*const auto v2 = i == 0 ? current - normalToLine0 * width : previousV3;*/
 		const auto v2 = current - normalToLine0 * width;
 		auto v3 = v2 + currentToNext;
 
@@ -339,28 +367,85 @@ void Renderer::update() {
 		//// TODO: Parallel
 		const auto intersection0 = intersectLineSegments(v0, v1, nextV0, nextV1);
 		const auto intersection1 = intersectLineSegments(v2, v3, nextV2, nextV3);
-		//ASSERT(!(intersection0.has_value() && intersection1.has_value()));
+
 		Vec2 newV1;
 		Vec2 newV3;
+		auto roundJoin = [&](Vec2 start, Vec2 end, Vec2 around, int count, Vec2 p, float startTextureY, float aroundTextureY) {
+			/*vertices.push_back({ start });
+			vertices.push_back({ around });
+			vertices.push_back({ p });
+			vertices.push_back({ end });
+			vertices.push_back({ around });
+			vertices.push_back({ p });*/
+			auto startAngle = (start - around).angle();
+			auto endAngle = (end - around).angle();
+			auto angleRange = std::abs(endAngle - startAngle);
+			auto angleStep = angleRange / count;
+			if (angleRange > PI<float>) {
+				//Debug::drawCircle(around, 0.02f);
+				angleRange = TAU<float> - angleRange;
+				//std::swap(startAngle, endAngle);
+				angleStep = -(angleRange / count);
+			}
+			if (startAngle > endAngle) {
+				angleStep = -angleStep;
+			}
+
+			if (abs(endAngle - (startAngle + angleStep * count)) > 0.01f) {
+ 				int x = 5;
+			}
+
+			Rotation rotationStep(angleRange / count);
+			Vec2 previous = start;
+			Vec2 r = start - around;
+			const auto length = (around - start).length();
+			for (int i = 0; i < count; i++) {
+				/*vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length });
+				vertices.push_back({ around });
+				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length });*/
+				vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(0.0f, startTextureY) });
+				vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
+				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(0.0f, startTextureY) });
+
+			}
+		};
+
+		Vec2 up;
+		Vec2 down;
 		if (intersection0.has_value()) {
 			newV1 = *intersection0;
-			newV3 = *Line(v2, v3).intersection(Line(nextV2, nextV3));
+			//newV3 = *Line(v2, v3).intersection(Line(nextV2, nextV3));
 			/*addtoNextV0toV1Length = (v1 - v0) - (newV1 - v0);
 			addtoNextV2toV3Length = (v3 - v2) - (newV3 - v2);
 			v1 = newV1;
 			v3 = newV3;*/
 			/*Debug::drawCircle(newV1, 0.02f);
 			Debug::drawCircle(newV3, 0.02f);*/
+			/*roundJoin(v3, nextV2, v1, 5);*/
+			//roundJoin(v3, nextV2, newV1, 5);
+			roundJoin(v3, nextV2, next, 5, newV1, 1.0f, 0.0f);
+			down = newV1;
+			up = nextV2;
+			/*newV3 = nextV2;*/
+			newV3 = v3;
 		} else if (intersection1.has_value()) {
 			newV3 = *intersection1;
-			newV1 = *Line(v0, v1).intersection(Line(nextV0, nextV1));
-			/*addtoNextV0toV1Length = (v1 - v0) - (newV1 - v0);
-			addtoNextV2toV3Length = (v3 - v2) - (newV3 - v2);
-			v1 = newV1;
-			v3 = newV3;*/
-			/*Debug::drawCircle(newV1, 0.04f);
-			Debug::drawCircle(newV3, 0.04f);*/
+			//newV1 = *Line(v0, v1).intersection(Line(nextV0, nextV1));
+			/*newV1 = nextV0;*/
+			newV1 = v1;
+			//roundJoin(v1, newV1, newV3, 5);
+			/*roundJoin(v1, nextV0, v3, 5);*/
+			/*roundJoin(v1, nextV0, newV3, 5);*/
+			roundJoin(v1, nextV0, next, 5, newV3, 0.0f, 1.0f);
+			up = newV3;
+			down = nextV0;
 		} else {
+
+			//Debug::drawCircle(next, 0.02f);
+			newV1 = v1;
+			newV3 = v3;
+			down = nextV0;
+			up = nextV2;
 			const auto v3io = Line(v2, v3).intersection(Line(nextV2, nextV3));
 			const auto v1io = Line(v0, v1).intersection(Line(nextV0, nextV1));
 			if (!v3io.has_value() || !v1io.has_value()) {
@@ -369,43 +454,46 @@ void Renderer::update() {
 			}
 
 			if (signedDistance(Line(v3, v3 + normalToLine0), *v3io) < 0.0f) {
-				newV3 = v3;
-				newV1 = *v1io;
+				/*newV3 = v3;
+				newV1 = *v1io;*/
+				/*roundJoin(v1, nextV0, next, 5, newV3, 0.0f, 1.0f);
+				up = newV3;
+				down = nextV0;*/
+				/*up = nextV3;
+				down = nextV1;*/
+				roundJoin(v1, nextV0, next, 5, next, 1.0f, 0.5f);
+				//roundJoin(v1, nextV0, next, 5, next, 1.0f, 0.5f);
+
 			} else {
-				
-				newV3 = *v3io;
-				newV1 = v1;
+				/*roundJoin(v3, nextV2, next, 5, newV1, 1.0f, 0.0f);
+				down = newV1;
+				up = nextV2;*/
+				roundJoin(v3, nextV2, next, 5, next, 1.0f, 0.5f);
+				//roundJoin(v3, nextV2, next, 5, next, 1.0f, 0.5f);
+				/*down = nextV1;
+				up = nextV2;*/
+				/*newV3 = *v3io;
+				newV1 = v1;*/
 			}
-			//ImGui::Text("error");
-			///*newV3 = v3;
-			//newV1 = v1;*/
-			//Debug::drawCircle(next, 0.04f);
-
-			///*addLine(v0, v1);
-			//addLine(nextV0, nextV1);
-			//addLine(v2, v3);
-			//addLine(nextV2, nextV3);*/
-			//Debug::drawCircle(next, 0.02f);
-			//continue;
-			/*addLine(v0, v1);
-			addLine(nextV0, nextV1);
-
-			addLine(v2, v3);
-			addLine(nextV2, nextV3);*/
-			//addLine(v2, v3);
-			//ASSERT_NOT_REACHED();
+		
 		}
 
 
+		//addQuad(v0, v1, v2, v3);
 		if (a) {
 			if (i == 0) {
+				/*addQuad(v0, v2, newV1, newV3);*/
 				addQuad(v0, v2, newV1, newV3);
 			} else {
+				/*addQuad(previousV1, previousV3, newV1, newV3);*/
+				/*addQuad(previousV1, previousV3, newV1, newV3);*/
 				addQuad(previousV1, previousV3, newV1, newV3);
 			}
 		}
-		previousV1 = newV1;
-		previousV3 = newV3;
+		/*previousV1 = newV1;
+		previousV3 = newV3;*/
+		previousV1 = down;
+		previousV3 = up;
 		///*const auto v2 = v0 + vectorToNext;
 		//const auto v3 = v1 + vectorToNext*/;
 		//addQuad(v0, v1, v2, v3);
@@ -431,9 +519,10 @@ void Renderer::update() {
 	/*lineShader.set("transform", transform);*/
 	/*lineShader.set("transform", Mat3x2::scale(0.1f * Vec2(1.0f, camera.aspectRatio)));*/
 	lineShader.set("transform", Mat3x2::identity);
+	lineShader.set("color", color);
 	ImGui::Text("aspect %g", camera.aspectRatio);
 	vao.bind();
-	static bool test;
+	static bool test = true;
 	ImGui::Checkbox("test", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());

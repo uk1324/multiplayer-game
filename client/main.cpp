@@ -7,6 +7,7 @@
 #include <shared/DebugWindowInfo.hpp>
 
 // https://www.youtube.com/watch?v=CfZtX8Vj4s0 
+// Hybird simluation of pixel partices. Move as an actual particle collide as a pixel particle.
 
 int main(int argc, char* argv[]) {
 	std::optional<int> windowIndex;
