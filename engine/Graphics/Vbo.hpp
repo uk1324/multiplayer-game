@@ -1,17 +1,14 @@
 #pragma once
 
-#include <stdint.h>
 #include <Types.hpp>
 
-void boundVboSetData(intptr_t offset, const void* data, size_t dataByteSize);
-void boundVboAllocateData(const void* data, size_t dataByteSize);
+void boundVboSetData(intptr_t offset, const void* data, usize dataByteSize);
+void boundVboAllocateData(const void* data, usize dataByteSize);
 
-class Vbo
-{
+class Vbo {
 public:
-	Vbo();
 	// Dynamic draw
-	explicit Vbo(size_t dataByteSize);
+	explicit Vbo(usize dataByteSize);
 	// Static draw
 	Vbo(const void* data, size_t dataByteSize);
 	~Vbo();
@@ -25,14 +22,15 @@ public:
 	Vbo& operator= (Vbo&& other) noexcept;
 
 	// The VertexBuffer must be bound before calling.
-	void setData(intptr_t offset, const void* data, size_t dataByteSize);
-	void allocateData(const void* data, size_t dataByteSize);
+	void setData(intptr_t offset, const void* data, usize dataByteSize);
+	void allocateData(const void* data, usize dataByteSize);
 
 	void bind() const;
 	void bindAsIndexBuffer() const;
 
-	const uint32_t handle() const;
+	const u32 handle() const;
 
 private:
-	uint32_t m_handle;
+	Vbo(u32 handle);
+	u32 handle_;
 };

@@ -8,11 +8,10 @@
 #include <client/Debug.hpp>
 #include <engine/Math/Transform.hpp>
 #include <engine/Math/LineSegment.hpp>
+#include <engine/Math/Polygon.hpp>
 #include <iostream>
-
-struct PtVertex {
-	Vec2 pos, texturePos;
-};
+#include <client/PtVertex.hpp>
+#include <client/LineTriangulator.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -41,7 +40,7 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 
 Renderer::Renderer() 
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
-	, fullscreenQuadPtIbo(fullscreenQuadIndices, std::size(fullscreenQuadIndices))
+	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
 	, atlasTexture(Texture::null())
 	, spriteVao(Vao::generate())
@@ -237,36 +236,21 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	drawDebugShapes();
-
-	static std::vector<Vec2> line = {
-		/*Vec2(-1.14062, 0.495313),
-		Vec2(-0.0375, 1.18281),
-		Vec2(0.840625, 1.03906),
-		Vec2(1.4375, 0.142188),
-		Vec2(1.325, -0.795312),
-		Vec2(-0.0187501, -1.34531),*/
+	static std::vector<Vec2> linea = {
 		Vec2(0.0f)
 	};
-	//if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-	//	line.push_back(camera.cursorPos());
-	//	//renderer.camera.screenSpaceToCameraSpace(Input::cursorPos())
-	//}
 
-	if (line.size() > 50) {
-		line.erase(line.begin());
+	if (linea.size() > 50) {
+		linea.erase(linea.begin());
 	}
-	/*if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(line.back(), camera.cursorPos()) > 0.1f) {
-		line.push_back(camera.cursorPos());
-	}*/
-	if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(line.back(), camera.cursorPos()) > 0.05f) {
-		line.push_back(camera.cursorPos());
+	if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > 0.05f) {
+		linea.push_back(camera.cursorPos());
 	}
 
 	static std::optional<int> grabbed;
 	if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-		for (int i = 0; i < line.size(); i++) {
-			if (distance(camera.cursorPos(), line[i]) < 0.05f) {
+		for (int i = 0; i < linea.size(); i++) {
+			if (distance(camera.cursorPos(), linea[i]) < 0.05f) {
 				grabbed = i;
 				break;
 			}
@@ -274,7 +258,7 @@ void Renderer::update() {
 	}
 
 	if (grabbed.has_value()) {
-		line[*grabbed] = camera.cursorPos();
+		linea[*grabbed] = camera.cursorPos();
 	}
 
 	if (Input::isMouseButtonUp(MouseButton::RIGHT)) {
@@ -282,251 +266,326 @@ void Renderer::update() {
 	}
 	
 	if (Input::isKeyDown(KeyCode::R)) {
-		const auto l = line.back();
-		line.clear();
-		line.push_back(l);
+		const auto l = linea.back();
+		linea.clear();
+		linea.push_back(l);
 	}
+	const auto line = linea;
 
-	/*static constexpr u32 fullscreenQuadIndices[]{
-	0, 1, 2, 2, 1, 3
-	};*/
-	std::vector<PtVertex> vertices = {
-		/*{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
-		{ Vec2{ 1.0f, 1.0f }, Vec2{ 1.0f, 1.0f } },
-		{ Vec2{ -1.0f, -1.0f }, Vec2{ 0.0f, 0.0f } },
-		{ Vec2{ -1.0f, -1.0f }, Vec2{ 0.0f, 0.0f } },
-		{ Vec2{ 1.0f, 1.0f }, Vec2{ 1.0f, 1.0f } },
-		{ Vec2{ 1.0f, -1.0f }, Vec2{ 1.0f, 0.0f } },*/
-	};
-	static Vbo vbo(1024);
+	// It might be possible to do tesslate an arc both on top and the bottom. And move the uv.x faster on the bottom and slower on the top.
+
+	//std::vector<PtVertex> vertices;
+	static Vbo vbo = Vbo::generate();
+	static Ibo ibo = Ibo::generate();
 	static const auto vao = [&]() {
 		auto v = Vao::generate();
 		v.bind();
 		vbo.bind();
+		ibo.bind();
 		boundVaoSetAttribute(0, ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex), false);
 		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false);
+		Vao::unbind();
+		ibo.unbind();
 		return v;
 	}();
 	// IN 3D REQUIRES CLIPPING AND CULLING
+	float distanceAlong = 0.0f;
+	float currentLength = 0.0f;
+	float jointLength = 0.0f;
+	//auto addQuad = [&](Vec2 v0, Vec2 v1, Vec2 v2, Vec2 v3, float upTexturePosX, float downTexturePosX) {
+	//	vertices.push_back({ v0, Vec2(previousUpTexturePosX, 0.0f) });
+	//	vertices.push_back({ v1, Vec2(previousDownTexturePosY, 1.0f) });
+	//	vertices.push_back({ v2, Vec2(upTexturePosX, 0.0f) });
+	//	vertices.push_back({ v1, Vec2(previousDownTexturePosY, 1.0f) });
+	//	vertices.push_back({ v2, Vec2(upTexturePosX, 0.0f) });
+	//	vertices.push_back({ v3, Vec2(downTexturePosX, 1.0f) });
+	//	/*vertices.push_back({ up0, Vec2(distanceAlong - currentLength, 0.0f) });
+	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
+	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
+	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
+	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
+	//	vertices.push_back({ down1, Vec2(distanceAlong, 1.0f) });*/
+	//};
+	//auto addQuad = [&](PtVertex up0, PtVertex up1, PtVertex down0, PtVertex down1) {
+	//	vertices.push_back(up0);
+	//	vertices.push_back(up1);
+	//	vertices.push_back(down0);
+	//	vertices.push_back(up1);
+	//	vertices.push_back(down0);
+	//	vertices.push_back(down1);
+	//	/*vertices.push_back({ up0, Vec2(distanceAlong - currentLength, 0.0f) });
+	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
+	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
+	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
+	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
+	//	vertices.push_back({ down1, Vec2(distanceAlong, 1.0f) });*/
+	//};
+	//
 
-	auto addQuad = [&vertices](Vec2 v0, Vec2 v1, Vec2 v2, Vec2 v3) {
-		/*const int v[] = { 0, 1, 2, 2, 1, 3 };
-		for (const auto a : v) {
+//	static float width = 0.1f;
+//	ImGui::SliderFloat("width", &width, 0.0f, 1.0f);
+//	Vec2 previousUp1(0.0f);
+//	Vec2 previousDown1(0.0f);
+//	static bool a = true;
+//	ImGui::Checkbox("a", &a);
+//
+//	static bool b = true;
+//	ImGui::Checkbox("b", &b);
+//
+//	static bool color = true;
+//	ImGui::Checkbox("color", &color);
+//
+//	static bool c = true;
+//	ImGui::Checkbox("c", &c);
+//
+//	PtVertex nextSegmentUp0;
+//	PtVertex nextSegmentDown0;
+//	for (i32 i = 0; i < static_cast<i32>(line.size()) - 1; i++) {
+//		const auto current = line[i];
+//		const auto next = line[i + 1];
+//		const auto currentToNext = (next - current);
+//		const auto normalToLine0 = currentToNext.rotBy90deg().normalized();
+//		currentLength = currentToNext.length();
+//		const auto up0 = current + normalToLine0 * width;
+//		auto up1 = up0 + currentToNext;
+//		const auto down0 = current - normalToLine0 * width;
+//		auto down1 = down0 + currentToNext;
+//		if (i == 0) {
+//			nextSegmentUp0 = { up0, Vec2(0.0f) };
+//			nextSegmentDown0 = { down0, Vec2(0.0f) };
+//		}
+//
+//		if (i == line.size() - 2) {
+//			distanceAlong += currentLength;
+//			addQuad(nextSegmentUp0, PtVertex{ up1, Vec2{ distanceAlong, 1.0f } }, nextSegmentDown0, PtVertex{ down1, Vec2{ distanceAlong, 0.0f } });
+//			/*addQuad(previousUp1, previousDown1, up1, down1, currentLength + distanceAlong, currentLength + distanceAlong);*/
+//			break;
+//		}
+//
+//		const auto nextNext = line[i + 2];
+//		const auto nextToNextNext = (nextNext - next);
+//		const auto normalToLine1 = nextToNextNext.rotBy90deg().normalized();
+//
+//		const auto nextUp0 = next + normalToLine1 * width;
+//		const auto nextUp1 = nextUp0 + nextToNextNext;
+//		const auto nextDown0 = next - normalToLine1 * width;
+//		const auto nextDown1 = nextDown0 + nextToNextNext;
+//
+//		auto roundJoin = [&vertices](PtVertex start, Vec2 end, Vec2 roundingCenter, PtVertex segmentsIntersection, int count) -> float {
+//			//float sub = 0.5;
+//			/*if (aroundTextureY == 1.0f) {
+//				sub = -sub;
+//			}*/
+//			/*vertices.push_back({ start, Vec2(distanceAlong, startTextureY) });
+//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
+//			vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
+//			vertices.push_back({ end, Vec2(0.0f, startTextureY) });
+//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
+//			vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });*/
+//			/*vertices.push_back({ end, Vec2(0.0f, startTextureY) });
+//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY) });
+//			vertices.push_back({ p, Vec2(0.0f, startTextureY) });*/
+//			const auto roundingCircleRadiusVector = start.pos - roundingCenter;
+//			auto startAngle = (roundingCircleRadiusVector).angle();
+//			auto endAngle = (end - roundingCenter).angle();
+//			auto angleRange = std::abs(endAngle - startAngle);
+//			float angleStep;
+//			if (angleRange > PI<float>) {
+//				angleRange = TAU<float> -angleRange;
+//				angleStep = -(angleRange / count);
+//			} else {
+//				angleStep = (angleRange / count);
+//			}
+//
+//			if (startAngle > endAngle) {
+//				angleStep = -angleStep;
+//			}
+//
+//			Rotation rotationStep(angleRange / count);
+//			//auto along = distanceAlong + currentLength;
+//			const auto roundingRadius = roundingCircleRadiusVector.length();
+//			const auto step = std::abs(angleStep) * roundingRadius;
+//			for (int i = 0; i < count; i++) {
+//				/*vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(along, startTextureY) });
+//				vertices.push_back({ around, Vec2(along, aroundTextureY + sub) });
+//				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(along + step , startTextureY) });
+//				along += step;*/
+//			}
+//			return step * count;
+//		};
+//
+//		//auto roundJoin = [&](Vec2 start, Vec2 end, Vec2 around, int count, Vec2 p, float startTextureY, float aroundTextureY) -> float {\
+//		//	float sub = 0.5;
+//		//	if (aroundTextureY == 1.0f) {
+//		//		sub = -sub;
+//		//	}
+//		//	vertices.push_back({ start, Vec2(distanceAlong, startTextureY) });
+//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
+//		//	vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
+//		//	vertices.push_back({ end, Vec2(0.0f, startTextureY) });
+//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
+//		//	vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
+//		//	/*vertices.push_back({ end, Vec2(0.0f, startTextureY) });
+//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY) });
+//		//	vertices.push_back({ p, Vec2(0.0f, startTextureY) });*/
+//		//	auto startAngle = (start - around).angle();
+//		//	auto endAngle = (end - around).angle();
+//		//	auto angleRange = std::abs(endAngle - startAngle);
+//		//	auto angleStep = angleRange / count;
+//		//	if (angleRange > PI<float>) {
+//		//		//Debug::drawCircle(around, 0.02f);
+//		//		angleRange = TAU<float> - angleRange;
+//		//		//std::swap(startAngle, endAngle);
+//		//		angleStep = -(angleRange / count);
+//		//	}
+//		//	if (startAngle > endAngle) {
+//		//		angleStep = -angleStep;
+//		//	}
+//
+//		//	if (abs(endAngle - (startAngle + angleStep * count)) > 0.01f) {
+// 	//			int x = 5;
+//		//	}
+//
+//		//	Rotation rotationStep(angleRange / count);
+//		//	Vec2 previous = start;
+//		//	Vec2 r = start - around;
+//		//	auto along = distanceAlong + currentLength;
+//		//	const auto length = (around - start).length();
+//		//	const auto step = std::abs(angleStep) * length;
+//		//	for (int i = 0; i < count; i++) {
+//		//		vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(along, startTextureY) });
+//		//		vertices.push_back({ around, Vec2(along, aroundTextureY + sub) });
+//		//		vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(along + step , startTextureY) });
+//		//		along += step;
+//		//	}
+//		//	jointLength = step * count;
+//		//};
+//
+//		/*Vec2 newUp1;
+//		Vec2 newDown1;
+//		Vec2 afterDown0;
+//		Vec2 afterUp0;
+//		float upTexturePosX;
+//		float downTexturePosX;
+//		jointLength = 0.0f;
+//		upTexturePosX = currentLength + distanceAlong;
+//		downTexturePosX = currentLength + distanceAlong;*/
+//
+//		distanceAlong += currentLength;
+//		const auto intersectionUp = intersectLineSegments(up0, up1, nextUp0, nextUp1);
+//		const auto intersectionDown = intersectLineSegments(down0, down1, nextDown0, nextDown1);
+//		if (intersectionUp.has_value()) {
+//			const auto shorten = (up0 - *intersectionUp) - (up0 - up1);
+//			const auto upVertex = PtVertex{ *intersectionUp, Vec2(distanceAlong - shorten.length(), 1.0f)};
+//			const auto downVertex = PtVertex{ down1, Vec2(distanceAlong, 0.0f) };
+//			addQuad(nextSegmentUp0, upVertex, nextSegmentDown0, downVertex);
+//			const auto jointLength = roundJoin(downVertex, nextDown0, next, upVertex, 5);
+//			distanceAlong += jointLength;
+//
+//			/*nextSegmentUp0 = upVertex;
+//			nextSegmentDown0 = PtVertex{ nextDown0, Vec2(distanceAlong, 0.0f) };*/
+//			//roundJoin(down1, nextDown0, next, 5, *intersectionUp, 1.0f, 0.0f);
+//// 
+//			//nextSegmentUp0
+//			/*newUp1 = *intersectionUp;
+//			
+//			afterUp0 = newUp1;
+//			afterDown0 = nextDown0;
+//			newDown1 = down1;*/
+//
+//			/*if (c) {
+//				const auto shorten = std::abs((up0 - newUp1).length() - (up0 - up1).length());
+//				upTexturePosX = currentLength + distanceAlong - shorten;
+//				downTexturePosX = currentLength + distanceAlong;
+//				previousUpTexturePosX = upTexturePosX;
+//				previousDownTexturePosY = currentLength + distanceAlong + jointLength;
+//			}*/
+//
+//		} /*else if (intersectionDown.has_value()) {
+//			newDown1 = *intersectionDown;
+//			newUp1 = up1;
+//			roundJoin(up1, nextUp0, next, 5, newDown1, 0.0f, 1.0f);
+//			afterDown0 = newDown1;
+//			afterUp0 = nextUp0;
+//
+//			if (c) {
+//				const auto shorten = std::abs((down0 - newDown1).length() - (down0 - down1).length());
+//				upTexturePosX = currentLength + distanceAlong;
+//				downTexturePosX = currentLength + distanceAlong - shorten;
+//				previousDownTexturePosY = downTexturePosX;
+//				previousUpTexturePosX = currentLength + distanceAlong + jointLength;
+//			}
+//
+//		} else {
+//			upTexturePosX = currentLength + distanceAlong;
+//			downTexturePosX = currentLength + distanceAlong;
+//			newUp1 = up1;
+//			newDown1 = down1;
+//			afterUp0 = nextUp0;
+//			afterDown0 = nextDown0;
+//			const auto v3io = Line(down0, down1).intersection(Line(nextDown0, nextDown1));
+//			const auto v1io = Line(up0, up1).intersection(Line(nextUp0, nextUp1));
+//			if (!v3io.has_value() || !v1io.has_value()) {
+//				ImGui::Text("error");
+//				continue;
+//			}
+//
+//			if (signedDistance(Line(down1, down1 + normalToLine0), *v3io) < 0.0f) {
+//				roundJoin(up1, nextUp0, next, 5, next, 0.0f, 0.0f);
+//
+//			} else {
+//				roundJoin(down1, nextDown0, next, 5, next, 0.0f, 0.0f);
+//			}
+//		
+//		}*/
+//
+//
+//		/*if (a) {
+//			if (i == 0) {
+//				addQuad(up0, down0, newUp1, newDown1, upTexturePosX, downTexturePosX);
+//			} else {
+//				addQuad(previousUp1, previousDown1, newUp1, newDown1, upTexturePosX, downTexturePosX);
+//			}
+//		}
+//		distanceAlong += currentLength;
+//		distanceAlong += jointLength;
+//
+//		previousUp1 = afterUp0;
+//		previousDown1 = afterDown0;*/
+//
+//	}
+	//distanceAlong += currentLength;
 
-		}*/
-		vertices.push_back({ v0, Vec2(0.0f, 0.0f) });
-		vertices.push_back({ v1, Vec2(0.0f, 1.0f) });
-		vertices.push_back({ v2, Vec2(0.0f, 0.0f) });
-		vertices.push_back({ v1, Vec2(0.0f, 1.0f) });
-		vertices.push_back({ v2, Vec2(0.0f, 0.0f) });
-		vertices.push_back({ v3, Vec2(0.0f, 1.0f) });
-	};
-
-	auto addLine = [&](Vec2 s, Vec2 e) {
-		addQuad(s, e, s, e);
-	};
-
-	static float width = 0.1f;
-	ImGui::SliderFloat("width", &width, 0.0f, 1.0f);
-	Vec2 previousV1(0.0f);
-	Vec2 previousV3(0.0f);
-	static bool a = true;
-	ImGui::Checkbox("a", &a);
-
-	static bool b = true;
-	ImGui::Checkbox("b", &b);
+	static LineTriangulator triangulate;
+	auto output = triangulate(line);
+	auto& vertices = output.vertices;
+	auto& indices = output.indices;
 
 	static bool color = true;
 	ImGui::Checkbox("color", &color);
-	for (i32 i = 0; i < static_cast<i32>(line.size()) - 1; i++) {
-		const auto current = line[i];
-		const auto next = line[i + 1];
-		const auto currentToNext = (next - current);
-		const auto normalToLine0 = currentToNext.rotBy90deg().normalized();
-
-		const auto v0 = current + normalToLine0 * width;
-		auto v1 = v0 + currentToNext;
-		const auto v2 = current - normalToLine0 * width;
-		auto v3 = v2 + currentToNext;
-
-		if (i == line.size() - 2) {
-			addQuad(previousV1, previousV3, v1, v3);
-			break;
-		}
-
-		const auto nextNext = line[i + 2];
-		const auto nextToNextNext = (nextNext - next);
-		const auto normalToLine1 = nextToNextNext.rotBy90deg().normalized();
-
-		//addQuad(v0, v1, v2, v3);
-		const auto nextV0 = next + normalToLine1 * width;
-		const auto nextV1 = nextV0 + nextToNextNext;
-		const auto nextV2 = next - normalToLine1 * width;
-		const auto nextV3 = nextV2 + nextToNextNext;
-
-		//// TODO: Parallel
-		const auto intersection0 = intersectLineSegments(v0, v1, nextV0, nextV1);
-		const auto intersection1 = intersectLineSegments(v2, v3, nextV2, nextV3);
-
-		Vec2 newV1;
-		Vec2 newV3;
-		auto roundJoin = [&](Vec2 start, Vec2 end, Vec2 around, int count, Vec2 p, float startTextureY, float aroundTextureY) {
-			/*vertices.push_back({ start });
-			vertices.push_back({ around });
-			vertices.push_back({ p });
-			vertices.push_back({ end });
-			vertices.push_back({ around });
-			vertices.push_back({ p });*/
-			auto startAngle = (start - around).angle();
-			auto endAngle = (end - around).angle();
-			auto angleRange = std::abs(endAngle - startAngle);
-			auto angleStep = angleRange / count;
-			if (angleRange > PI<float>) {
-				//Debug::drawCircle(around, 0.02f);
-				angleRange = TAU<float> - angleRange;
-				//std::swap(startAngle, endAngle);
-				angleStep = -(angleRange / count);
-			}
-			if (startAngle > endAngle) {
-				angleStep = -angleStep;
-			}
-
-			if (abs(endAngle - (startAngle + angleStep * count)) > 0.01f) {
- 				int x = 5;
-			}
-
-			Rotation rotationStep(angleRange / count);
-			Vec2 previous = start;
-			Vec2 r = start - around;
-			const auto length = (around - start).length();
-			for (int i = 0; i < count; i++) {
-				/*vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length });
-				vertices.push_back({ around });
-				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length });*/
-				vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(0.0f, startTextureY) });
-				vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
-				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(0.0f, startTextureY) });
-
-			}
-		};
-
-		Vec2 up;
-		Vec2 down;
-		if (intersection0.has_value()) {
-			newV1 = *intersection0;
-			//newV3 = *Line(v2, v3).intersection(Line(nextV2, nextV3));
-			/*addtoNextV0toV1Length = (v1 - v0) - (newV1 - v0);
-			addtoNextV2toV3Length = (v3 - v2) - (newV3 - v2);
-			v1 = newV1;
-			v3 = newV3;*/
-			/*Debug::drawCircle(newV1, 0.02f);
-			Debug::drawCircle(newV3, 0.02f);*/
-			/*roundJoin(v3, nextV2, v1, 5);*/
-			//roundJoin(v3, nextV2, newV1, 5);
-			roundJoin(v3, nextV2, next, 5, newV1, 1.0f, 0.0f);
-			down = newV1;
-			up = nextV2;
-			/*newV3 = nextV2;*/
-			newV3 = v3;
-		} else if (intersection1.has_value()) {
-			newV3 = *intersection1;
-			//newV1 = *Line(v0, v1).intersection(Line(nextV0, nextV1));
-			/*newV1 = nextV0;*/
-			newV1 = v1;
-			//roundJoin(v1, newV1, newV3, 5);
-			/*roundJoin(v1, nextV0, v3, 5);*/
-			/*roundJoin(v1, nextV0, newV3, 5);*/
-			roundJoin(v1, nextV0, next, 5, newV3, 0.0f, 1.0f);
-			up = newV3;
-			down = nextV0;
-		} else {
-
-			//Debug::drawCircle(next, 0.02f);
-			newV1 = v1;
-			newV3 = v3;
-			down = nextV0;
-			up = nextV2;
-			const auto v3io = Line(v2, v3).intersection(Line(nextV2, nextV3));
-			const auto v1io = Line(v0, v1).intersection(Line(nextV0, nextV1));
-			if (!v3io.has_value() || !v1io.has_value()) {
-				ImGui::Text("error");
-				continue;
-			}
-
-			if (signedDistance(Line(v3, v3 + normalToLine0), *v3io) < 0.0f) {
-				/*newV3 = v3;
-				newV1 = *v1io;*/
-				/*roundJoin(v1, nextV0, next, 5, newV3, 0.0f, 1.0f);
-				up = newV3;
-				down = nextV0;*/
-				/*up = nextV3;
-				down = nextV1;*/
-				roundJoin(v1, nextV0, next, 5, next, 1.0f, 0.5f);
-				//roundJoin(v1, nextV0, next, 5, next, 1.0f, 0.5f);
-
-			} else {
-				/*roundJoin(v3, nextV2, next, 5, newV1, 1.0f, 0.0f);
-				down = newV1;
-				up = nextV2;*/
-				roundJoin(v3, nextV2, next, 5, next, 1.0f, 0.5f);
-				//roundJoin(v3, nextV2, next, 5, next, 1.0f, 0.5f);
-				/*down = nextV1;
-				up = nextV2;*/
-				/*newV3 = *v3io;
-				newV1 = v1;*/
-			}
-		
-		}
-
-
-		//addQuad(v0, v1, v2, v3);
-		if (a) {
-			if (i == 0) {
-				/*addQuad(v0, v2, newV1, newV3);*/
-				addQuad(v0, v2, newV1, newV3);
-			} else {
-				/*addQuad(previousV1, previousV3, newV1, newV3);*/
-				/*addQuad(previousV1, previousV3, newV1, newV3);*/
-				addQuad(previousV1, previousV3, newV1, newV3);
-			}
-		}
-		/*previousV1 = newV1;
-		previousV3 = newV3;*/
-		previousV1 = down;
-		previousV3 = up;
-		///*const auto v2 = v0 + vectorToNext;
-		//const auto v3 = v1 + vectorToNext*/;
-		//addQuad(v0, v1, v2, v3);
-		//previousV1 = v1;
-		//previousV3 = v3;
-	}
-
-	/*for (i32 i = 0; i < static_cast<i32>(line.size()) - 1; i++) {
-		const auto current = line[i];m
-		const auto next = line[i + 1];
-		addQuad(current, next, current, next);
-	}*/
 
 	const auto transform = makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f));
 	for (auto& vertex : vertices) {
 		vertex.pos *= transform;
+		//vertex.texturePos.x /= distanceAlong;
 	}
+	vao.bind();
 	vbo.allocateData(vertices.data(), vertices.size() * sizeof(PtVertex));
-	//vbo.bind();
-	//boundVboSetData();
+	ibo.allocateData(indices.data(), indices.size() * sizeof(indices[0]));
+	ibo.bind();
 	static ShaderProgram& lineShader = createShader("./client/Shaders/line.vert", "./client/Shaders/line.frag");
 	lineShader.use();
-	/*lineShader.set("transform", transform);*/
-	/*lineShader.set("transform", Mat3x2::scale(0.1f * Vec2(1.0f, camera.aspectRatio)));*/
 	lineShader.set("transform", Mat3x2::identity);
 	lineShader.set("color", color);
 	ImGui::Text("aspect %g", camera.aspectRatio);
-	vao.bind();
 	static bool test = true;
 	ImGui::Checkbox("test", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, nullptr);
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	drawDebugShapes();
 }
 
 Mat3x2 Renderer::makeTransform(Vec2 pos, float rotation, Vec2 scale) {

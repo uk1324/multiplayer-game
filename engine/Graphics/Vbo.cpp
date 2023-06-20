@@ -2,79 +2,72 @@
 
 #include <glad/glad.h>
 
-Vbo::Vbo()
-// TODO: should be explicit.
-	: m_handle(NULL)
-{}
-
-Vbo::Vbo(size_t dataByteSize)
-{
-	glGenBuffers(1, &m_handle);
+Vbo::Vbo(usize dataByteSize) {
+	glGenBuffers(1, &handle_);
 	bind();
 	glBufferData(GL_ARRAY_BUFFER, dataByteSize, nullptr, GL_DYNAMIC_DRAW);
 }
 
-Vbo::Vbo(const void* data, size_t dataByteSize)
-{
-	glGenBuffers(1, &m_handle);
+Vbo::Vbo(const void* data, usize dataByteSize) {
+	glGenBuffers(1, &handle_);
 	bind();
 	glBufferData(GL_ARRAY_BUFFER, dataByteSize, data, GL_STATIC_DRAW);
 }
 
-Vbo::~Vbo()
-{
- 	glDeleteBuffers(1, &m_handle);
+Vbo::~Vbo() {
+ 	glDeleteBuffers(1, &handle_);
 }
 
-Vbo Vbo::generate()
-{
-	Vbo vbo;
-	glGenBuffers(1, &vbo.m_handle);
-	return vbo;
+Vbo Vbo::generate() {
+	u32 handle;
+	glGenBuffers(1, &handle);
+	return Vbo(handle);
 }
 
 Vbo::Vbo(Vbo&& other) noexcept
-	: m_handle(other.m_handle)
-{
-	other.m_handle = NULL;
+	: handle_(other.handle_) {
+	other.handle_ = NULL;
 }
 
 Vbo& Vbo::operator=(Vbo&& other) noexcept
 {
-	glDeleteBuffers(1, &m_handle);
-	m_handle = other.m_handle;
-	other.m_handle = NULL;
+	glDeleteBuffers(1, &handle_);
+	handle_ = other.handle_;
+	other.handle_ = NULL;
 	return *this;
 }
 
-void Vbo::setData(intptr_t offset, const void* data, size_t dataByteSize) {
+void Vbo::setData(intptr_t offset, const void* data, usize dataByteSize) {
 	bind();
 	boundVboSetData(offset, data, dataByteSize);
 }
 
-void Vbo::allocateData(const void* data, size_t dataByteSize) {
+void Vbo::allocateData(const void* data, usize dataByteSize) {
 	bind();
 	boundVboAllocateData(data, dataByteSize);
 }
 
 void Vbo::bind() const {
-	glBindBuffer(GL_ARRAY_BUFFER, m_handle);
+	glBindBuffer(GL_ARRAY_BUFFER, handle_);
 }
 
 void Vbo::bindAsIndexBuffer() const
 {
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_handle);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle_);
 }
 
-const GLuint Vbo::handle() const
-{
-	return m_handle;
+const GLuint Vbo::handle() const {
+	return handle_;
 }
 
-void boundVboSetData(intptr_t offset, const void* data, size_t dataByteSize) {
+Vbo::Vbo(u32 handle)
+	: handle_(handle)
+{}
+
+void boundVboSetData(intptr_t offset, const void* data, usize dataByteSize) {
 	glBufferSubData(GL_ARRAY_BUFFER, offset, dataByteSize, data);
 }
 
-void boundVboAllocateData(const void* data, size_t dataByteSize) {
+void boundVboAllocateData(const void* data, usize dataByteSize) {
 	glBufferData(GL_ARRAY_BUFFER, dataByteSize, data, GL_DYNAMIC_DRAW);
 }

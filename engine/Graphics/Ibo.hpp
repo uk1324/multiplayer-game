@@ -1,12 +1,11 @@
 #pragma once
 
-#include <stdint.h>
+#include <Types.hpp>
 
-class Ibo
-{
+class Ibo {
 public:
-	Ibo();
-	Ibo(const uint32_t* indices, size_t count);
+	static Ibo generate();
+	Ibo(const void* data, usize dataByteSize);
 	~Ibo();
 
 	Ibo(const Ibo&) = delete;
@@ -15,9 +14,13 @@ public:
 	Ibo(Ibo&& other) noexcept;
 	Ibo& operator= (Ibo&& other) noexcept;
 
+	void allocateData(const void* data, usize dataByteSize);
+
 	void bind();
 	static void unbind();
 
 private:
-	uint32_t m_handle;
+	Ibo(u32 handle);
+
+	u32 handle_;
 };
