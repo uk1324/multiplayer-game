@@ -129,6 +129,8 @@ Renderer::Renderer()
 	camera.zoom /= 3.0f;
 }
 
+#include <client/Clipper2/CPP/Clipper2Lib/include/clipper2/clipper.h>
+
 #define INSTANCED_DRAW_QUAD_PT(instanceName) \
 	instanceName##Shader->use(); \
 	instanceName##Vao.bind(); \
@@ -306,8 +308,8 @@ void Renderer::update() {
 		v.bind();
 		vbo.bind();
 		ibo.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vertex, pos), sizeof(Vertex), false);
-		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vertex, texturePos), sizeof(Vertex), false);
+		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vert, pos), sizeof(Vert), false);
+		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vert, texturePos), sizeof(Vert), false);
 		Vao::unbind();
 		ibo.unbind();
 		return v;
@@ -585,6 +587,34 @@ void Renderer::update() {
 	auto& vertices = output.vertices;
 	auto& indices = output.indices;
 
+	using namespace Clipper2Lib;
+	PathsD polyline, solution;
+	std::vector<float> linePath;
+	for (const auto& p : line) {
+		linePath.push_back(p.x);
+		linePath.push_back(p.y);
+	}
+	polyline.push_back(MakePathD(linePath));
+	// offset polyline
+	solution = InflatePaths(polyline, 0.2f, JoinType::Round, EndType::Round);
+	for (const auto& path : solution) {
+		for (const auto& point : path) {
+			//Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
+		}
+	}
+	vertices.clear();
+
+	for (const auto& path : solution) {
+		for (int i = 0; i < path.size() - 1; i++) {
+			vertices.push_back(Vert{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
+			vertices.push_back(Vert{ Vec3(path[i + 1].x, path[i + 1].y, 0.0f), Vec2(0.0f) });
+			vertices.push_back(Vert{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
+		}
+		/*for (const auto& point : path) {
+			Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
+		}*/
+	}
+
 	static bool color = true;
 	ImGui::Checkbox("color", &color);
 
@@ -614,20 +644,25 @@ void Renderer::update() {
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	/*glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	*/
-	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	glEnable(GL_DEPTH_TEST);
-	{
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//glEnable(GL_DEPTH_TEST);
+	//{
+	//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-		glDepthFunc(GL_LEQUAL);
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		glDepthFunc(GL_LESS);
-	}
-	glDisable(GL_DEPTH_TEST);
+	//	glDepthFunc(GL_LEQUAL);
+	//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//	glDepthFunc(GL_LESS);
+	//}
+	//glDisable(GL_DEPTH_TEST);
 
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	
+ // polyline.push_back(MakePathD({100,100, 1500,100, 100,1500, 1500,1500}));
+	//// offset polyline
+ // solution = InflatePaths(polyline, 200, JoinType::Miter, EndType::Square);
 
 	drawDebugShapes();
 }

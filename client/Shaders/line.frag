@@ -28,6 +28,7 @@ void main() {
     } else {
         outColor = vec4(1.0);
     }
+    outColor = vec4(1.0);
     //outColor = vec4(vec3((p.z + 1.0) / 2.0), 1.0);
     //outColor = vec4(1.0);
     //outColor = vec4(texturePosition, 0.0, 1.0);

@@ -16,17 +16,30 @@ Solution: Make the texture position x constant along the joining arc.
 Joining the lines when there is no intersection point.
 What all the implementations I have seen do is to fully render both quads the issue is that this causes self intersections.
 
-Self intersections
+Self intersections also called overdraw or local self intersection in the problem of offsetting.
 Self intersections are only an issue if the line is transparent.
 Because the algorithm when generating only looks at 3 neighbouring vertices at a time self intersections will happen. Normal self intersections are wanted (the acutall not thickened line crosses another part of the line), but the buggy ones look bad.
 Removing all self intersections.
 Self intersections are causes by 2 triangles overlapping so this issue can be resolved by using order independent transparency. First render only to the depth buffer and the render the image with depthFunc = GL_EQUAL. This also removes the wanted self intersections, but you could try to handle it by rendering the self intersecting parts in different passes. It might be hard to actually find the wanted intersections. 
 What should be the depth in OIT.
 * Index of the generated vertex. Still causes some atrifacts on sharp turns
-* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good.
+* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good. Haven't figured it out yet. One side looks good the other looks bad and wanted self intersections break "Different method of removing self intersections" commit. It would probably be nice if I could write a custom depth writing function, which might be possible using depth textures.
 
+PathOffsetting.
+Something like http://www.angusj.com/clipper2/Docs/Units/Clipper/Functions/InflatePaths.htm might work, but this implementation might not work because it says Caution: Offsetting self-intersecting polygons may produce unexpected results.
+Tested it clipper2 completly breaks on self intersecting polygons.
+It might be hard to find a good offsetting algorithm, because most of them remove self intersections because they use clipping for example 
 
+Inkscape just renders the full quads each time doesn't do any clipping. The texture is constant along the arc.
 
+Boolean operations on polygons break remove the wanted self intersections.
+
+// Not anything too helpful https://stackoverflow.com/questions/687173/how-do-i-render-thick-2d-lines-as-polygons
+
+There are two types of self-intersections discussed in the literature, these are local and
+global. Local self-intersections occur when the curvature of a surface is less than the offset
+distance
+// https://scholarsarchive.byu.edu/cgi/viewcontent.cgi?article=6292&context=etd
 
 float lineSegmentSdf(vec2 p, vec2 start, vec2 end) {
     vec2 t = normalize(end - start);

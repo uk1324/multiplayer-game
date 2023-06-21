@@ -6,7 +6,7 @@
 #include <client/Debug.hpp>
 
 LineTriangulator::Result LineTriangulator::operator()(std::span<const Vec2> line) {
-	std::vector<Vertex> vertices;
+	std::vector<Vert> vertices;
 	std::vector<u32> indices;
 	if (line.size() < 2) {
 		return { vertices, indices };
@@ -17,12 +17,12 @@ LineTriangulator::Result LineTriangulator::operator()(std::span<const Vec2> line
 		for (const auto a : v) {
 
 		}*/
-		vertices.push_back(Vertex{ Vec3(v0.x, v0.y, vertices.size()), Vec2(0.0f, 0.0f) });
-		vertices.push_back(Vertex{ Vec3(v1.x, v1.y, vertices.size()), Vec2(0.0f, 1.0f) });
-		vertices.push_back(Vertex{ Vec3(v2.x, v2.y, vertices.size()), Vec2(0.0f, 0.0f) });
-		vertices.push_back(Vertex{ Vec3(v1.x, v1.y, vertices.size()), Vec2(0.0f, 1.0f) });
-		vertices.push_back(Vertex{ Vec3(v2.x, v2.y, vertices.size()), Vec2(0.0f, 0.0f) });
-		vertices.push_back(Vertex{ Vec3(v3.x, v3.y, vertices.size()), Vec2(0.0f, 1.0f) });
+		vertices.push_back(Vert{ Vec3(v0.x, v0.y, vertices.size()), Vec2(0.0f, 0.0f) });
+		vertices.push_back(Vert{ Vec3(v1.x, v1.y, vertices.size()), Vec2(0.0f, 1.0f) });
+		vertices.push_back(Vert{ Vec3(v2.x, v2.y, vertices.size()), Vec2(0.0f, 0.0f) });
+		vertices.push_back(Vert{ Vec3(v1.x, v1.y, vertices.size()), Vec2(0.0f, 1.0f) });
+		vertices.push_back(Vert{ Vec3(v2.x, v2.y, vertices.size()), Vec2(0.0f, 0.0f) });
+		vertices.push_back(Vert{ Vec3(v3.x, v3.y, vertices.size()), Vec2(0.0f, 1.0f) });
 
 		//vertices.push_back(Vertex{ Vec3(v0.x, v0.y, z), Vec2(0.0f, 0.0f) });
 		//vertices.push_back(Vertex{ Vec3(v1.x, v1.y, z), Vec2(0.0f, 1.0f) });
