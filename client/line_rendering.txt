@@ -1,3 +1,31 @@
+Rendering textured lines with thickness.
+
+Implementations
+* SDFs
+* Triangulate the line into quads and triangles.
+
+Problems
+
+Shape of the corners.
+I wanted the shape to be smooth so I decided to when drawing the line from a to b to c create an circular arc of radius half the width of the line around b from angle of the line ab + 90deg to bc + 90deg(choosing the smaller arc between those two).
+Unity creates an arc of radius equal to the width of the line around the intersection point of the thickned lines (line ab translated along the normal by half width both up and down). I implemented this in one of the commits, but there are several issues with it. Because when the angle is small the intersection point moves down the line won't contain the actual points. Also to join the lines when there is no intersection point you have to choose some other point.
+
+If a line is not straight there are multiple ways to represent a point.
+Solution: Make the texture position x constant along the joining arc.
+
+Joining the lines when there is no intersection point.
+What all the implementations I have seen do is to fully render both quads the issue is that this causes self intersections.
+
+Self intersections
+Self intersections are only an issue if the line is transparent.
+Because the algorithm when generating only looks at 3 neighbouring vertices at a time self intersections will happen. Normal self intersections are wanted (the acutall not thickened line crosses another part of the line), but the buggy ones look bad.
+Removing all self intersections.
+Self intersections are causes by 2 triangles overlapping so this issue can be resolved by using order independent transparency. First render only to the depth buffer and the render the image with depthFunc = GL_EQUAL. This also removes the wanted self intersections, but you could try to handle it by rendering the self intersecting parts in different passes. It might be hard to actually find the wanted intersections. 
+What should be the depth in OIT.
+* Index of the generated vertex. Still causes some atrifacts on sharp turns
+* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good.
+
+
 
 
 float lineSegmentSdf(vec2 p, vec2 start, vec2 end) {

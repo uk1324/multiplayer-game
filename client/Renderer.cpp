@@ -187,6 +187,22 @@ void Renderer::update() {
 			linea.push_back(l);
 		}
 		line = linea;
+		static float v = 0.01f;
+		ImGui::InputFloat("simplify", &v);
+		std::vector<Vec2> r;
+		for (int i = 0; i < line.size() - 1; i++) {
+			auto a = line[i];
+			auto b = line[i + 1];
+			if (distance(a, b) > v) {
+				r.push_back(a);
+			}
+		}
+		r.push_back(line[line.size() - 1]);
+		line = r;
+		//if (v.size() != 0 && v.size() != sizeBefore) {
+		//	Debug::drawPoint(v[0]);
+		//}
+
 	}
 
 	{
@@ -597,7 +613,8 @@ void Renderer::update() {
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	/*glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());*/
+	*/
+	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 	glEnable(GL_DEPTH_TEST);
 	{
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
