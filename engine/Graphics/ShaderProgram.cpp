@@ -122,6 +122,10 @@ void ShaderProgram::set(std::string_view name, const Mat3x2& value) {
 	glProgramUniformMatrix3x2fv(handle_, getUniformLocation(name), 1, false, reinterpret_cast<const float*>(value.m));
 }
 
+void ShaderProgram::set(std::string_view name, std::span<const Vec2> vecs) {
+	glProgramUniform2fv(handle_, getUniformLocation(name.data()), vecs.size(), reinterpret_cast<const float*>(vecs.data()));
+}
+
 //void ShaderProgram::setColor(std::string_view name, const Color& value)
 //{
 //	glProgramUniform4fv(m_handle, getUniformLocation(name.data()), 1, value.data());

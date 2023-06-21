@@ -150,10 +150,54 @@ void Renderer::update() {
 	cameraTransform = camera.cameraTransform();
 	screenScale = Mat3x2::scale(Vec2(1.0f, camera.aspectRatio));
 
+	static std::vector<Vec2> line;
+	{
+		static std::vector<Vec2> linea = {
+			Vec2(0.0f)
+		};
+
+		if (linea.size() > 50) {
+			linea.erase(linea.begin());
+		}
+		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > 0.05f) {
+			linea.push_back(camera.cursorPos());
+		}
+
+		static std::optional<int> grabbed;
+		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+			for (int i = 0; i < linea.size(); i++) {
+				if (distance(camera.cursorPos(), linea[i]) < 0.05f) {
+					grabbed = i;
+					break;
+				}
+			}
+		}
+
+		if (grabbed.has_value()) {
+			linea[*grabbed] = camera.cursorPos();
+		}
+
+		if (Input::isMouseButtonUp(MouseButton::RIGHT)) {
+			grabbed = std::nullopt;
+		}
+
+		if (Input::isKeyDown(KeyCode::R)) {
+			const auto l = linea.back();
+			linea.clear();
+			linea.push_back(l);
+		}
+		line = linea;
+	}
+
 	{
 		backgroundShader->use();
 		const auto cameraToWorld = (screenScale * cameraTransform).inversed();
 		backgroundShader->set("cameraToWorld", cameraToWorld);
+		backgroundShader->set("lineLength", static_cast<int>(line.size()));
+		//backgroundShader->set("l", line);
+		for (int i = 0; i < line.size(); i++) {
+			backgroundShader->set("line[" + std::to_string(i) + "]", line[i]);
+		}
 
 		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
@@ -236,42 +280,6 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	static std::vector<Vec2> linea = {
-		Vec2(0.0f)
-	};
-
-	if (linea.size() > 50) {
-		linea.erase(linea.begin());
-	}
-	if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > 0.05f) {
-		linea.push_back(camera.cursorPos());
-	}
-
-	static std::optional<int> grabbed;
-	if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-		for (int i = 0; i < linea.size(); i++) {
-			if (distance(camera.cursorPos(), linea[i]) < 0.05f) {
-				grabbed = i;
-				break;
-			}
-		}
-	}
-
-	if (grabbed.has_value()) {
-		linea[*grabbed] = camera.cursorPos();
-	}
-
-	if (Input::isMouseButtonUp(MouseButton::RIGHT)) {
-		grabbed = std::nullopt;
-	}
-	
-	if (Input::isKeyDown(KeyCode::R)) {
-		const auto l = linea.back();
-		linea.clear();
-		linea.push_back(l);
-	}
-	const auto line = linea;
-
 	// It might be possible to do tesslate an arc both on top and the bottom. And move the uv.x faster on the bottom and slower on the top.
 
 	//std::vector<PtVertex> vertices;
@@ -282,8 +290,8 @@ void Renderer::update() {
 		v.bind();
 		vbo.bind();
 		ibo.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex), false);
-		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false);
+		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vertex, pos), sizeof(Vertex), false);
+		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vertex, texturePos), sizeof(Vertex), false);
 		Vao::unbind();
 		ibo.unbind();
 		return v;
@@ -566,11 +574,15 @@ void Renderer::update() {
 
 	const auto transform = makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f));
 	for (auto& vertex : vertices) {
-		vertex.pos *= transform;
+		auto pos = Vec2(vertex.pos.x, vertex.pos.y);
+		pos *= transform;
+		vertex.pos.x = pos.x;
+		vertex.pos.y = pos.y;
+		vertex.pos.z /= vertices.size();
 		//vertex.texturePos.x /= distanceAlong;
 	}
 	vao.bind();
-	vbo.allocateData(vertices.data(), vertices.size() * sizeof(PtVertex));
+	vbo.allocateData(vertices.data(), vertices.size() * sizeof(Vertex));
 	ibo.allocateData(indices.data(), indices.size() * sizeof(indices[0]));
 	ibo.bind();
 	static ShaderProgram& lineShader = createShader("./client/Shaders/line.vert", "./client/Shaders/line.frag");
@@ -582,7 +594,22 @@ void Renderer::update() {
 	ImGui::Checkbox("test", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	//glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, nullptr);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	/*glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	glDrawArrays(GL_TRIANGLES, 0, vertices.size());*/
+	glEnable(GL_DEPTH_TEST);
+	{
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		glDepthFunc(GL_LEQUAL);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		glDepthFunc(GL_LESS);
+	}
+	glDisable(GL_DEPTH_TEST);
+
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	drawDebugShapes();

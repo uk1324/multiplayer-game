@@ -4,6 +4,38 @@ in vec2 worldPos;
 
 out vec4 fragColor;
 
+uniform vec2 line[50];
+uniform int lineLength;
+
+float lineSegmentSdf(vec2 p, vec2 start, vec2 end) {
+    vec2 t = normalize(end - start);
+    vec2 n = vec2(-t.y, t.x);
+    float ld = dot(n, start);
+    float d = dot(p, n) - ld;
+    float dAlong = dot(p, t);
+    float dAlongStart = dot(start, t);
+    float dAlongEnd = dot(end, t);
+    float along = clamp(dAlong, dAlongStart, dAlongEnd);
+    vec2 cloestPointOnLine = along * t + ld * n;
+    return distance(p, cloestPointOnLine);
+}
+
+
+float distanceAlong(vec2 p, vec2 start, vec2 end) {
+    vec2 t = normalize(end - start);
+    vec2 n = vec2(-t.y, t.x);
+    float ld = dot(n, start);
+    float d = dot(p, n) - ld;
+    float dAlong = dot(p, t);
+    float dAlongStart = dot(start, t);
+    return dAlong - dAlongStart;
+}
+
+vec4 blend(vec4 src, vec4 dest)
+{
+	return vec4(src.a * src.rgb + (1 - src.a) * dest.rgb, 1);
+}
+
 void main() {
 	float cameraZoom = 0.5;
 	float smallCellSize = 0.1;
@@ -29,5 +61,26 @@ void main() {
 	colHorizontal *= dHorizontal;
 
 	//fragColor = vec4(cameraPos, 0.0f, 1.0);
+	vec4 c = vec4(max(colVertical, colHorizontal), 1.0);
 	fragColor = vec4(max(colVertical, colHorizontal), 1.0);
+
+	//vec2 p = worldPos;
+	//float d = 1000.0;
+	//float distanceAlong;
+	//for (int i = 0; i < lineLength - 1; i++) {
+	//	vec2 current = line[i].xy;
+	//	vec2 next = line[i + 1].xy;
+	//	d = min(d, lineSegmentSdf(p, current, next));
+	//	//d = min(d, distance(current, p));
+	//}
+	////float ad = smoothstep(0.0, 0.01, d - 0.1);
+	////ad = 1.0 - ad;
+	////d = ad;
+	//d;
+	//d = smoothstep(0.0, 0.4, d);
+	//d = 1.0 - d;
+	//
+	//vec4 col = vec4(vec3(d), d);
+	////fragColor = vec4(vec3(d), 1.0);
+	//fragColor = col;
 }
