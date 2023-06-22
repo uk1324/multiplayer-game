@@ -129,8 +129,6 @@ Renderer::Renderer()
 	camera.zoom /= 3.0f;
 }
 
-#include <client/Clipper2/CPP/Clipper2Lib/include/clipper2/clipper.h>
-
 #define INSTANCED_DRAW_QUAD_PT(instanceName) \
 	instanceName##Shader->use(); \
 	instanceName##Vao.bind(); \
@@ -152,15 +150,21 @@ void Renderer::update() {
 	cameraTransform = camera.cameraTransform();
 	screenScale = Mat3x2::scale(Vec2(1.0f, camera.aspectRatio));
 
+	static int offset = 0;
 	static std::vector<Vec2> line;
 	{
 		static std::vector<Vec2> linea = {
-			Vec2(0.0f)
+			{-0.465625048, 0.0484374687 },
+			{-0.609375000, -0.285937428 },
+			{-0.537500024, 0.995312512 },
+			{-0.693749964, 0.482812494 }
 		};
 
 		if (linea.size() > 50) {
 			linea.erase(linea.begin());
+			offset++;
 		}
+		offset %= 60;
 		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > 0.05f) {
 			linea.push_back(camera.cursorPos());
 		}
@@ -308,8 +312,8 @@ void Renderer::update() {
 		v.bind();
 		vbo.bind();
 		ibo.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vert, pos), sizeof(Vert), false);
-		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vert, texturePos), sizeof(Vert), false);
+		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vertex, pos), sizeof(Vertex), false);
+		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vertex, texturePos), sizeof(Vertex), false);
 		Vao::unbind();
 		ibo.unbind();
 		return v;
@@ -587,33 +591,33 @@ void Renderer::update() {
 	auto& vertices = output.vertices;
 	auto& indices = output.indices;
 
-	using namespace Clipper2Lib;
-	PathsD polyline, solution;
-	std::vector<float> linePath;
-	for (const auto& p : line) {
-		linePath.push_back(p.x);
-		linePath.push_back(p.y);
-	}
-	polyline.push_back(MakePathD(linePath));
-	// offset polyline
-	solution = InflatePaths(polyline, 0.2f, JoinType::Round, EndType::Round);
-	for (const auto& path : solution) {
-		for (const auto& point : path) {
-			//Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
-		}
-	}
-	vertices.clear();
+	//using namespace Clipper2Lib;
+	//PathsD polyline, solution;
+	//std::vector<float> linePath;
+	//for (const auto& p : line) {
+	//	linePath.push_back(p.x);
+	//	linePath.push_back(p.y);
+	//}
+	//polyline.push_back(MakePathD(linePath));
+	//// offset polyline
+	//solution = InflatePaths(polyline, 0.2f, JoinType::Round, EndType::Round);
+	//for (const auto& path : solution) {
+	//	for (const auto& point : path) {
+	//		//Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
+	//	}
+	//}
+	//vertices.clear();
 
-	for (const auto& path : solution) {
-		for (int i = 0; i < path.size() - 1; i++) {
-			vertices.push_back(Vert{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
-			vertices.push_back(Vert{ Vec3(path[i + 1].x, path[i + 1].y, 0.0f), Vec2(0.0f) });
-			vertices.push_back(Vert{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
-		}
-		/*for (const auto& point : path) {
-			Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
-		}*/
-	}
+	//for (const auto& path : solution) {
+	//	for (int i = 0; i < path.size() - 1; i++) {
+	//		vertices.push_back(Vertex{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
+	//		vertices.push_back(Vertex{ Vec3(path[i + 1].x, path[i + 1].y, 0.0f), Vec2(0.0f) });
+	//		vertices.push_back(Vertex{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
+	//	}
+	//	/*for (const auto& point : path) {
+	//		Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
+	//	}*/
+	//}
 
 	static bool color = true;
 	ImGui::Checkbox("color", &color);
@@ -636,7 +640,7 @@ void Renderer::update() {
 	lineShader.set("transform", Mat3x2::identity);
 	lineShader.set("color", color);
 	ImGui::Text("aspect %g", camera.aspectRatio);
-	static bool test = true;
+	static bool test = false;
 	ImGui::Checkbox("test", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	//glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, nullptr);
@@ -644,7 +648,108 @@ void Renderer::update() {
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	/*glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	*/
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	static bool d = false;
+	ImGui::Checkbox("d", &d);
+	static int j = 60;
+	const auto jump = j - j % 3;
+	ImGui::SliderInt("jump", &j, 60, 500);
+	static std::optional<Vec2> lastFrameLastVertex;
+	//if (lastFrameLastVertex.has_value()) {
+
+	//}
+	//if (!lastFrameLastVertex.has_value() && vertices.size()) {
+	//	lastFrameLastVertex = Vec2(vertices.begin()->pos.x, vertices.begin()->pos.y);
+	//}
+	//int offs = 0;
+	//if (lastFrameLastVertex.has_value()) {
+	//	for (int i = 0; i < vertices.size(); i++) {
+	//		if (Vec2(vertices[i].pos.x, vertices[i].pos.y) == lastFrameLastVertex) {
+	//			if (i == 0) {
+	//				break;
+	//			}
+	//			glEnable(GL_DEPTH_TEST);
+	//			{
+	//				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	//				glDrawArrays(GL_TRIANGLES, 0, i - 1);
+	//				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	//				glDepthFunc(GL_LEQUAL);
+	//				glDrawArrays(GL_TRIANGLES, 0, i - 1);
+	//				glDepthFunc(GL_LESS);
+	//			}
+	//			glDisable(GL_DEPTH_TEST);
+	//			offs = i - 1;
+	//			
+	//			break;
+	//		}
+	//	}
+	//}
+
+	glEnable(GL_DEPTH_TEST);
+	{
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		glDepthFunc(GL_LEQUAL);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		glDepthFunc(GL_LESS);
+	}
+	glDisable(GL_DEPTH_TEST);
+	//if (d) {
+	//	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//	glEnable(GL_DEPTH_TEST);
+	//	{
+	//		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	//		glDepthFunc(GL_LEQUAL);
+	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//		glDepthFunc(GL_LESS);
+	//	}
+	//	glDisable(GL_DEPTH_TEST);
+	//} else {
+	//	/*glEnable(GL_DEPTH_TEST);
+	//	{
+	//		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	//		glDepthFunc(GL_LEQUAL);
+	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	//		glDepthFunc(GL_LESS);
+	//	}
+	//	glDisable(GL_DEPTH_TEST);*/
+	//	// TODO: To prevent flickering when vertices are removed render with an offset so the vertices which are rendered match with the previous call.
+	//	for (int i = offs; i < vertices.size(); i += jump) {
+	//		glClear(GL_DEPTH_BUFFER_BIT);
+	//		const auto toDraw = i + jump > vertices.size() ? vertices.size() - i : jump;
+	//		int off = 0;
+	//		if (i == 0) {
+	//			//glDrawArrays(GL_TRIANGLES, i, vertices.size());
+	//			/*off = offset;
+	//			off -= offset % 3;*/
+	//		}
+	//		glEnable(GL_DEPTH_TEST);
+	//		{
+	//			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	//			//glDrawArrays(GL_TRIANGLES, i, vertices.size());
+	//			glDrawArrays(GL_TRIANGLES, i, toDraw + off);
+	//			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	//			glDepthFunc(GL_LEQUAL);
+	//			glDrawArrays(GL_TRIANGLES, i, toDraw + off);
+	//			glDepthFunc(GL_LESS);
+	//		}
+	//		glDisable(GL_DEPTH_TEST);
+	//		/*if (i == 0) {
+	//			i += offset % 3;
+	//		}*/
+	//	}
+	//} 
+
 	//glEnable(GL_DEPTH_TEST);
 	//{
 	//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -656,6 +761,7 @@ void Renderer::update() {
 	//	glDepthFunc(GL_LESS);
 	//}
 	//glDisable(GL_DEPTH_TEST);
+	
 
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 

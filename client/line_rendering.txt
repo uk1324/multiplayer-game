@@ -1,8 +1,22 @@
 Rendering textured lines with thickness.
 
+Search terms
+* Ribbon particle/effect/emmiter
+* Trail renderer/particle/effect/emmiter
+* webgl lines
+* opengl lines
+* OpenVG
+* NV_path_rendering
+* thick line rendering
+* Skeletal Strokes https://diglib.eg.org/bitstream/handle/10.2312/SBM.SBM10.033-040/033-040.pdf?sequence=1&isAllowed=n
+
+
 Implementations
 * SDFs
 * Triangulate the line into quads and triangles.
+
+Not sure how the SDF implementation would get the texture coordinates. If you don't care about global self intersections the you just get the min of the SDFs and calculate the distance along the line that is closest to the point. One way you could handle self intersection is check if the distance of the lines that the min is checked between is smaller than some value the just do the regular method else render the one with the smaller distance along the line below and blend.
+Incomplete shadertoy implementation below. (flickering probably caused by equal values and floating point precision limits)
 
 Problems
 
@@ -16,14 +30,14 @@ Solution: Make the texture position x constant along the joining arc.
 Joining the lines when there is no intersection point.
 What all the implementations I have seen do is to fully render both quads the issue is that this causes self intersections.
 
-Self intersections also called overdraw or local self intersection in the problem of offsetting.
+Self intersections also called overdraw or local self intersection in the problem of offsetting or folds in the problem skeletal strokes.
 Self intersections are only an issue if the line is transparent.
 Because the algorithm when generating only looks at 3 neighbouring vertices at a time self intersections will happen. Normal self intersections are wanted (the acutall not thickened line crosses another part of the line), but the buggy ones look bad.
 Removing all self intersections.
 Self intersections are causes by 2 triangles overlapping so this issue can be resolved by using order independent transparency. First render only to the depth buffer and the render the image with depthFunc = GL_EQUAL. This also removes the wanted self intersections, but you could try to handle it by rendering the self intersecting parts in different passes. It might be hard to actually find the wanted intersections. 
 What should be the depth in OIT.
 * Index of the generated vertex. Still causes some atrifacts on sharp turns
-* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good. Haven't figured it out yet. One side looks good the other looks bad and wanted self intersections break "Different method of removing self intersections" commit. It would probably be nice if I could write a custom depth writing function, which might be possible using depth textures.
+* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good. Haven't figured it out yet. One side looks good the other looks bad and wanted self intersections break "Different method of removing self intersections" commit. It would probably be nice if I could write a custom depth writing function, which might be possible using depth textures. This method only works on clockwise or anticloswise angles. You can switch by doing 1.0 - texturePosition.y. Using abs won't work.
 
 PathOffsetting.
 Something like http://www.angusj.com/clipper2/Docs/Units/Clipper/Functions/InflatePaths.htm might work, but this implementation might not work because it says Caution: Offsetting self-intersecting polygons may produce unexpected results.
@@ -40,6 +54,62 @@ There are two types of self-intersections discussed in the literature, these are
 global. Local self-intersections occur when the curvature of a surface is less than the offset
 distance
 // https://scholarsarchive.byu.edu/cgi/viewcontent.cgi?article=6292&context=etd
+
+Unreal engine also has bugs examples: 
+* https://cghow.com/trails-in-unreal-engine-niagara-component-renderer/
+* https://youtu.be/Zn9-U5vQl3g?t=773
+* https://youtu.be/Zn9-U5vQl3g (passing through to the middle. Are they using (texturePosition.y - 0.5) * 2.0 method? or is it because of 3d)
+Apparently in 3d in the old system they tried to hide sharp edges by fading out whenever there was an edge.
+
+Godot Line2D is quite broken there are breaks between the segments if the distances are small. Shaders for line2d: https://www.reddit.com/r/godot/comments/btsrxc/shaders_for_line2d_are_tricky_does_anyone_use_them/
+
+Implementation examples
+https://github.com/mattdesl/lwjgl-basics/wiki/LibGDX-Finger-Swipe#5-anti-aliasing-and-stroke-effects
+Faster anti aliasing https://github.com/tyt2y3/vaserenderer
+http://artgrammer.blogspot.com/2011/05/drawing-nearly-perfect-2d-line-segments.html
+http://artgrammer.blogspot.com/2011/07/drawing-polylines-by-tessellation.html
+https://mattdesl.svbtle.com/drawing-lines-is-hard
+
+Possible actual solution
+There is a paper mentioned here https://news.ycombinator.com/item?id=9179336
+"Shader-Based Antialiased, Dashed, Stroked Polylines" https://jcgt.org/published/0002/02/08/
+and in this paper there is a mention of a metod of removing folds "Folding Avoidance in Skeletal Strokes" https://diglib.eg.org/bitstream/handle/10.2312/SBM.SBM10.033-040/033-040.pdf?sequence=1&isAllowed=n. 
+The presented method doesn't really fully solve the problem (it does solve other problems that are useful) as you can see in the first picture of figure 19 if one segment is shorted the folding still happens. 
+The actual solution might be to simplify the curve into a sequence of bezier curves like for example in blender curve draw. Add bezier curve an on the side there is an option for drawing. And then apply the algorithm in the paper. 
+One issue might be coherency if points are removed espetially for static things like road wheel marks.
+Another might be the mapping might skew things although it doesn't look like it from the rounded joints in figure 20.
+Overdraw still might happen if you move forward and back on the same line.
+
+"Shader-Based Antialiased, Dashed, Stroked Polylines"
+The implementation always does the miter joint which sometimes causes weird issues.
+On joins it advances the texture coordinates which creates discontinuities when using texture like for example hsv(uv.x, 1.0, 1.0) but looks very good when using things like dotted moving lines. The examples given in "Folding Avoidance in Skeletal Strokes" might be using a different texturing method idk or maybe the hsv texture is just not a realistic example and other textures would look good.
+
+Running the demo from "Shader-Based Antialiased, Dashed, Stroked Polylines" 
+apt install python2
+apt install pip2
+pip install numpy
+pip install PyOpenGl
+sudo apt-get install freeglut3-dev https://github.com/Marxlp/pyFlightAnalysis/issues/10
+On windows the whell packages need to have the right version of python. The version is in the filename. Was too lazy to make it work.
+Checked and the demo doesn't handle the case shown in figure 19 of "Folding Avoidance in Skeletal Strokes". Aslo the presented method like it says only works for polylines not other curves.
+
+For most practical purposes the self intersections shouldn't be much of an issue for static objects like road marks the OIT method would work, because it makes sense that doubly covered marks (intersecting) could be removed. And for trails the paths usually don't loop (trajectories) or are too short too loop.
+
+This seems really good
+"Line drawings from 3D models: a tutorial"
+https://inria.hal.science/hal-02189483/file/contour_tutorial.pdf - chapter 9
+Mentionted 
+least-squares B-spline fit - example: https://www.geometrictools.com/Documentation/BSplineCurveLeastSquaresFit.pdf
+blender freestyle maybe could find something in the source idk https://freestyle.sourceforge.io/download.php
+
+Pattented?
+https://patents.google.com/patent/US8941661B2/en
+
+Old
+
+Because rounding is used to join 2 lines there is no way to assign texture coordinates to points on the line without streching them. The rounding arc is longer than the bottom part and adds to the x coordinate which means the to part travels more than the bottom part so to maintain lengths and not create discontinouties the texture cooridnates at the point opposite to the rounding would need to be constant and the points on the arc would need to add to x distance. This would make it so the distances on one side of the line would be bigger than on the bottom part, which would not be good for texturing (the top part would be skewed relative to the bottom). Unity handles this by making the x texture coordinate constant along the whole arc. This causes articafts, because the whole arc uses the same texture for example. I think the impossiblity of creating a coordinate system on a line without stretching might be a consequence of Theorema Egregium. Straws need to be extendible to be able to bend nicely.
+
+To calculate a width at a point you need the position along the line, this could be calculated for example, by adding up all the lengths of segments and dividing the current position by this length to get a value from 0 to 1. The issue is that to keep the textures the length acutally added won't be the actual length from the current point to the next so to keep the lenghts consistent a smaller value would need to be added to the x coordinate, but if a smaller value is added then the total length, changes, which means the the calculated position along the curve from 0 to 1 won't be correct. Another option would be to add the whole length even if it isn't the correct value the issue is that then the value of the width won't be the value it should be for the value of x. The issue is what should the value be at the start of the next line after the arc. Normally it should be the same. Can't just make it wider, because it would change the intersection point and also the correct width. Could interpolate the width along the arc. Not sure how other implementations handle this. In unity it doesn't seem that the length is interpolated along the arc. The only actual solution would probably be to intersect 2 curves instead of lines at these points so that the width changes correctly. It seems that the simplest way to handle this would be to change the width in the fragment shader. A fragment shader would probably need to be used anyway to do anti aliasing. And with differently changing values in the y direction the anti aliasing width would vary along the curve, which might not look correct. The only option to handle this with actually changing triangle width would probably require adding extra quads on both sides like here .
 
 float lineSegmentSdf(vec2 p, vec2 start, vec2 end) {
     vec2 t = normalize(end - start);

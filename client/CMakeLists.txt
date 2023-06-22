@@ -33,9 +33,6 @@ target_link_libraries(client engine)
 target_link_libraries(client math)
 target_link_libraries(client glfw)
 
-add_subdirectory("Clipper2/CPP")
-target_link_libraries(client Clipper2)
-
 targetAddGenerated(client "../shared")
 set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
 targetAddGenerated(client "./")

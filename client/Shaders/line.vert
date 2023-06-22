@@ -20,7 +20,10 @@ void main() {
     // }
 
     //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), ((1.0 - texturePosition.y) - 0.5) * 2.0, 1.0);
-    gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), (vertexPosition.z) * ((texturePosition.y) - 0.5) * 2.0, 1.0);
+    //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), ((texturePosition.y) - 0.5) * 2.0, 1.0);
+    //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), abs(((texturePosition.y) - 0.5) * 2.0), 1.0);
+    gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), ((texturePosition.y) - 0.5) * 2.0, 1.0);
+    //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), vertexPosition.z, 1.0);
     //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), vertexPosition.z, 1.0);
     //gl_Position = vec4(transform * vec3(vertexPosition.xy, 1.0), ((1.0 - texturePosition.y) - 0.5) * 2.0, 1.0);
     //gl_Position = vec4(vertexPosition, 0.0, 1.0);

@@ -10,14 +10,14 @@
 #include <span>
 #include <vector>
 
-struct Vert {
+struct Vertex {
 	Vec3 pos;
 	Vec2 texturePos;
 };
 
 struct LineTriangulator {
 	struct Result {
-		std::vector<Vert> vertices;
+		std::vector<Vertex> vertices;
 		std::vector<u32> indices;
 	};
 	Result operator()(std::span<const Vec2> line);
