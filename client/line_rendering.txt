@@ -7,9 +7,12 @@ Search terms
 * opengl lines
 * OpenVG
 * NV_path_rendering
-* thick line rendering
+* thick ?(textured) line rendering
 * Skeletal Strokes https://diglib.eg.org/bitstream/handle/10.2312/SBM.SBM10.033-040/033-040.pdf?sequence=1&isAllowed=n
+https://dl.acm.org/doi/pdf/10.1145/192161.192186
+* Rodeway generator https://forum.unity.com/threads/how-to-make-line-renderer-handle-textures-at-the-end-and-corner-vertices.1397746/
 
+Nice demo https://hypertolosana.github.io/efficient-webgl-stroking/index.html
 
 Implementations
 * SDFs
@@ -37,7 +40,7 @@ Removing all self intersections.
 Self intersections are causes by 2 triangles overlapping so this issue can be resolved by using order independent transparency. First render only to the depth buffer and the render the image with depthFunc = GL_EQUAL. This also removes the wanted self intersections, but you could try to handle it by rendering the self intersecting parts in different passes. It might be hard to actually find the wanted intersections. 
 What should be the depth in OIT.
 * Index of the generated vertex. Still causes some atrifacts on sharp turns
-* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good. Haven't figured it out yet. One side looks good the other looks bad and wanted self intersections break "Different method of removing self intersections" commit. It would probably be nice if I could write a custom depth writing function, which might be possible using depth textures. This method only works on clockwise or anticloswise angles. You can switch by doing 1.0 - texturePosition.y. Using abs won't work.
+* (texturePosition.y - 0.5) * 2.0. This could probably be made too look good. Haven't figured it out yet. One side looks good the other looks bad and wanted self intersections break "Different method of removing self intersections" commit. It would probably be nice if I could write a custom depth writing function, which might be possible using depth textures. This method only works on clockwise or anticloswise angles. You can switch by doing 1.0 - texturePosition.y. Using abs won't work. The issue is that you would need to be able to switch based on the clockwisenss but one node can multiple for example in a 'Z' pattern ("Self intersection prevention glitch" commit).
 
 PathOffsetting.
 Something like http://www.angusj.com/clipper2/Docs/Units/Clipper/Functions/InflatePaths.htm might work, but this implementation might not work because it says Caution: Offsetting self-intersecting polygons may produce unexpected results.
@@ -65,6 +68,9 @@ Godot Line2D is quite broken there are breaks between the segments if the distan
 
 Implementation examples
 https://github.com/mattdesl/lwjgl-basics/wiki/LibGDX-Finger-Swipe#5-anti-aliasing-and-stroke-effects
+https://wwwtyro.net/2021/10/01/instanced-lines-part-2.html
+https://ivan.sanchezortega.es/development/2023/02/06/reinventing-line-joins.html
+http://www.pixelvex.com/gamedev/trails
 Faster anti aliasing https://github.com/tyt2y3/vaserenderer
 http://artgrammer.blogspot.com/2011/05/drawing-nearly-perfect-2d-line-segments.html
 http://artgrammer.blogspot.com/2011/07/drawing-polylines-by-tessellation.html
@@ -82,7 +88,7 @@ Overdraw still might happen if you move forward and back on the same line.
 
 "Shader-Based Antialiased, Dashed, Stroked Polylines"
 The implementation always does the miter joint which sometimes causes weird issues.
-On joins it advances the texture coordinates which creates discontinuities when using texture like for example hsv(uv.x, 1.0, 1.0) but looks very good when using things like dotted moving lines. The examples given in "Folding Avoidance in Skeletal Strokes" might be using a different texturing method idk or maybe the hsv texture is just not a realistic example and other textures would look good.
+On joins it advances the texture coordinates which creates discontinuities when using texture like for example hsv(uv.x, 1.0, 1.0) but looks very good when using things like dotted moving lines. The glitch is even visible on the continous demo which shows a smooth bezier curve with the hsv texture applied so it isn't only present in extreme cases. The examples given in "Folding Avoidance in Skeletal Strokes" might be using a different texturing method idk or maybe the hsv texture is just not a realistic example and other textures would look good.
 
 Running the demo from "Shader-Based Antialiased, Dashed, Stroked Polylines" 
 apt install python2
@@ -104,6 +110,54 @@ blender freestyle maybe could find something in the source idk https://freestyle
 
 Pattented?
 https://patents.google.com/patent/US8941661B2/en
+
+Joins
+http://tavmjong.free.fr/SVG/LINEJOIN_STUDY/
+
+https://gamedev.net/forums/topic/681039-theory-behind-these-uncharted-4-bullet-trails/5304804/
+
+Haven't read
+https://www.researchgate.net/publication/228803883_Real-Time_Offset_Surfaces_Extended_Version
+
+Bezier curve offsetting
+https://pomax.github.io/bezierinfo/#offsetting
+
+https://www.codeproject.com/Articles/226569/Drawing-polylines-by-tessellation
+
+https://www.heldermann-verlag.de/jgg/jgg12/j12h1odeh.pdf
+
+https://www.youtube.com/watch?v=CawzHMXaCw4
+
+https://www.youtube.com/watch?v=CNc9iNFQwzk
+
+https://stackoverflow.com/questions/13841369/how-to-add-trail-path-for-moving-sprite-in-andengine
+
+Not that related https://www.realtimerendering.com/blog/limits-of-triangles/
+
+https://gamedev.stackexchange.com/questions/83861/how-can-i-create-a-contrail-effect-for-a-spaceship-in-motion
+Chapter 9.3 Billboarding https://canvas.projekti.info/ebooks/Mathematics%20for%203D%20Game%20Programming%20and%20Computer%20Graphics,%20Third%20Edition.pdf
+
+Physically-based Feature Line Rendering http://lines.rexwe.st/
+
+Issues with other implementations
+https://forum.unity.com/threads/why-are-trail-renderer-uvs-distorted.1173323/
+https://forum.unity.com/threads/linerenderer-vertex-bug.978312/
+https://realtimevfx.com/t/niagara-how-to-keep-a-ribbon-facing-a-direction-in-local-space-without-loosing-the-trail/12863
+In other non unity games https://forum.unity.com/threads/how-do-i-prevent-particle-trail-bugs.448022/
+
+Just finding a curve that satisfies the curbautre requirements might not be enough because the curve must be approximated by lines which always have infinite curvature at turns and there might be some issues with shorter like like in that figure.
+Maybe could find something by searching something like constrainted interpolation idk.
+"Interpolation with Curvature Constraints" https://inria.hal.science/inria-00072572/PDF/RR-4064.pdf
+The curvature is the distance between a point and 2 normal of the points near the point in limiting position so it makes sense why this radius has to be bigger than half the width.
+
+maybe something about coordinate systems on ruled surfaces
+
+Rulled surface http://www.geometrie.tugraz.at/wallner/kurs.pdf
+
+It is impossible to solve this problem by only looking locally (3 consecutive vertices) but global methods are slow (SDFs, other pixel shader methods like depth). Could hide glitches by making the curves smoother and the segments longer (so the local area is bigger) like for example using bezier fitting. Or making the curves thinner on sharp turns or fading them out.
+Because it is possible to check using the radius of curvature is a curve is correct it might be possible in certain cases to remove the errors by smoothing.
+Could use a subdivision algorithm like for example https://observablehq.com/@pamacha/chaikins-algorithm
+
 
 Old
 

@@ -7,6 +7,8 @@
 #include <ostream>
 #include <cmath>
 
+// TODO: Methods // points[i].distance_to(points[i - 1]) and angle_to
+
 template<typename T>
 struct Vec2T {
 	constexpr Vec2T();

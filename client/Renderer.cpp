@@ -11,7 +11,7 @@
 #include <engine/Math/Polygon.hpp>
 #include <iostream>
 #include <client/PtVertex.hpp>
-#include <client/LineTriangulator.hpp>
+#include <client/LineTriangulate.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -150,22 +150,75 @@ void Renderer::update() {
 	cameraTransform = camera.cameraTransform();
 	screenScale = Mat3x2::scale(Vec2(1.0f, camera.aspectRatio));
 
-	static int offset = 0;
 	static std::vector<Vec2> line;
+	static float time = 0;
 	{
+		time += 1.0f / 60.0f;
 		static std::vector<Vec2> linea = {
-			{-0.465625048, 0.0484374687 },
+			//{-0.465625048, 0.0484374687 }
+			/*{-0.465625048, 0.0484374687 },
 			{-0.609375000, -0.285937428 },
 			{-0.537500024, 0.995312512 },
-			{-0.693749964, 0.482812494 }
+			{-0.693749964, 0.482812494 }*/
+			{ 0.0f, 0.0f}
+	/*		{ 0.131250143, -1.26093757 },
+			{ 0.343750119, -1.15468740 },
+			{ 0.343750119, -1.15468740 },
+			{ 0.621875167, -0.795312405 },
+			{ 0.621875167, -0.795312405 },
+			{ 0.753124952, -0.573437572 },
+			{ 0.753124952, -0.573437572 },
+			{ 1.05312502, -0.392187595 },
+			{ 1.05312502, -0.392187595 },
+			{ 1.09687507, -0.214062601 },
+			{ 1.09687507, -0.214062601 },
+			{ 1.29374993, 0.204687506 },
+			{ 1.29374993, 0.204687506 },
+			{ 1.34062493, 0.526562452 },
+			{ 1.34062493, 0.526562452 },
+			{ 1.22499990, 0.832812488 },
+			{ 1.22499990, 0.832812488 },
+			{ 1.10624993, 0.948437512 },
+			{ 1.10624993, 0.948437512 },
+			{ 0.375000000, 1.16093755 },
+			{ 0.375000000, 1.16093755 },
+			{ -0.100000083, 1.23906255 },*/
 		};
 
-		if (linea.size() > 50) {
+		if (linea.size() > 20) {
 			linea.erase(linea.begin());
-			offset++;
 		}
-		offset %= 60;
-		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > 0.05f) {
+		/*float z = sin(time * 2.0f);
+		linea.push_back(Vec2(z / 2.0f, 0.0f));
+		for (auto& point : linea) {
+			point.y += 0.03f;
+		}*/
+		//if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
+		//	if (linea.size() <= 1 || distance(linea.back(), camera.cursorPos()) > 0.01f) {
+		//		linea.push_back(camera.cursorPos());
+		//	}
+		//	 
+		//}
+
+		//std::vector<Vec2> r;
+		//for (int i = 0; i < line.size() - 1; i++) {
+		//	auto a = line[i];
+		//	auto b = line[i + 1];
+		//	if (distance(a, b) > 0.05) {
+		//		r.push_back(a);
+		//	}
+		//}
+		//r.push_back(line[line.size() - 1]);
+		//line = r;
+		//line = polygonDouglassPeckerSimplify(linea, 0.03f);
+		//line = linea;
+		//for (const auto p : line) {
+		//	Debug::drawCircle(p, 0.02f);
+		//}
+		//line = linea;
+		static float distanceBetweenAddedPoints = 0.4f;
+		ImGui::InputFloat("distanceBetweenAddedPoints", &distanceBetweenAddedPoints);
+		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > distanceBetweenAddedPoints) {
 			linea.push_back(camera.cursorPos());
 		}
 
@@ -193,22 +246,35 @@ void Renderer::update() {
 			linea.push_back(l);
 		}
 		line = linea;
-		static float v = 0.01f;
-		ImGui::InputFloat("simplify", &v);
-		std::vector<Vec2> r;
-		for (int i = 0; i < line.size() - 1; i++) {
-			auto a = line[i];
-			auto b = line[i + 1];
-			if (distance(a, b) > v) {
-				r.push_back(a);
+		static bool why = false;
+		ImGui::Checkbox("simplify", &why);
+		if (why) {
+			const auto wh = line;
+			line = polygonDouglassPeckerSimplify(wh, 0.015f);
+		}
+
+		if (line.size() > 0) {
+			static float v = 0.01f;
+			ImGui::InputFloat("simplify", &v);
+			std::vector<Vec2> r;
+			for (int i = 0; i < line.size() - 1; i++) {
+				auto a = line[i];
+				auto b = line[i + 1];
+				if (distance(a, b) > v) {
+					r.push_back(a);
+				}
+			}
+			r.push_back(line[line.size() - 1]);
+			line = r;
+		}
+
+		static bool showPoints = false;
+		ImGui::Checkbox("show points", &showPoints);
+		if (showPoints) {
+			for (const auto& p : line) {
+				Debug::drawCircle(p, 0.02f);
 			}
 		}
-		r.push_back(line[line.size() - 1]);
-		line = r;
-		//if (v.size() != 0 && v.size() != sizeBefore) {
-		//	Debug::drawPoint(v[0]);
-		//}
-
 	}
 
 	{
@@ -288,8 +354,8 @@ void Renderer::update() {
 	} while (false)
 
 
-	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0 });
-	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
+	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0 });
+	ANIMATION_UPDATE(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
 	ANIMATION_UPDATE(spawnAnimations, 0.02f);
@@ -302,454 +368,39 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	// It might be possible to do tesslate an arc both on top and the bottom. And move the uv.x faster on the bottom and slower on the top.
-
-	//std::vector<PtVertex> vertices;
 	static Vbo vbo = Vbo::generate();
 	static Ibo ibo = Ibo::generate();
 	static const auto vao = [&]() {
 		auto v = Vao::generate();
 		v.bind();
 		vbo.bind();
-		ibo.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(Vertex, pos), sizeof(Vertex), false);
-		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(Vertex, texturePos), sizeof(Vertex), false);
-		Vao::unbind();
-		ibo.unbind();
+		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(PtVertex, pos), sizeof(PtVertex), false);
+		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false);
 		return v;
 	}();
-	// IN 3D REQUIRES CLIPPING AND CULLING
-	float distanceAlong = 0.0f;
-	float currentLength = 0.0f;
-	float jointLength = 0.0f;
-	//auto addQuad = [&](Vec2 v0, Vec2 v1, Vec2 v2, Vec2 v3, float upTexturePosX, float downTexturePosX) {
-	//	vertices.push_back({ v0, Vec2(previousUpTexturePosX, 0.0f) });
-	//	vertices.push_back({ v1, Vec2(previousDownTexturePosY, 1.0f) });
-	//	vertices.push_back({ v2, Vec2(upTexturePosX, 0.0f) });
-	//	vertices.push_back({ v1, Vec2(previousDownTexturePosY, 1.0f) });
-	//	vertices.push_back({ v2, Vec2(upTexturePosX, 0.0f) });
-	//	vertices.push_back({ v3, Vec2(downTexturePosX, 1.0f) });
-	//	/*vertices.push_back({ up0, Vec2(distanceAlong - currentLength, 0.0f) });
-	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
-	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
-	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
-	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
-	//	vertices.push_back({ down1, Vec2(distanceAlong, 1.0f) });*/
-	//};
-	//auto addQuad = [&](PtVertex up0, PtVertex up1, PtVertex down0, PtVertex down1) {
-	//	vertices.push_back(up0);
-	//	vertices.push_back(up1);
-	//	vertices.push_back(down0);
-	//	vertices.push_back(up1);
-	//	vertices.push_back(down0);
-	//	vertices.push_back(down1);
-	//	/*vertices.push_back({ up0, Vec2(distanceAlong - currentLength, 0.0f) });
-	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
-	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
-	//	vertices.push_back({ up1, Vec2(distanceAlong - currentLength, 1.0f) });
-	//	vertices.push_back({ down0, Vec2(distanceAlong, 0.0f) });
-	//	vertices.push_back({ down1, Vec2(distanceAlong, 1.0f) });*/
-	//};
-	//
 
-//	static float width = 0.1f;
-//	ImGui::SliderFloat("width", &width, 0.0f, 1.0f);
-//	Vec2 previousUp1(0.0f);
-//	Vec2 previousDown1(0.0f);
-//	static bool a = true;
-//	ImGui::Checkbox("a", &a);
-//
-//	static bool b = true;
-//	ImGui::Checkbox("b", &b);
-//
-//	static bool color = true;
-//	ImGui::Checkbox("color", &color);
-//
-//	static bool c = true;
-//	ImGui::Checkbox("c", &c);
-//
-//	PtVertex nextSegmentUp0;
-//	PtVertex nextSegmentDown0;
-//	for (i32 i = 0; i < static_cast<i32>(line.size()) - 1; i++) {
-//		const auto current = line[i];
-//		const auto next = line[i + 1];
-//		const auto currentToNext = (next - current);
-//		const auto normalToLine0 = currentToNext.rotBy90deg().normalized();
-//		currentLength = currentToNext.length();
-//		const auto up0 = current + normalToLine0 * width;
-//		auto up1 = up0 + currentToNext;
-//		const auto down0 = current - normalToLine0 * width;
-//		auto down1 = down0 + currentToNext;
-//		if (i == 0) {
-//			nextSegmentUp0 = { up0, Vec2(0.0f) };
-//			nextSegmentDown0 = { down0, Vec2(0.0f) };
-//		}
-//
-//		if (i == line.size() - 2) {
-//			distanceAlong += currentLength;
-//			addQuad(nextSegmentUp0, PtVertex{ up1, Vec2{ distanceAlong, 1.0f } }, nextSegmentDown0, PtVertex{ down1, Vec2{ distanceAlong, 0.0f } });
-//			/*addQuad(previousUp1, previousDown1, up1, down1, currentLength + distanceAlong, currentLength + distanceAlong);*/
-//			break;
-//		}
-//
-//		const auto nextNext = line[i + 2];
-//		const auto nextToNextNext = (nextNext - next);
-//		const auto normalToLine1 = nextToNextNext.rotBy90deg().normalized();
-//
-//		const auto nextUp0 = next + normalToLine1 * width;
-//		const auto nextUp1 = nextUp0 + nextToNextNext;
-//		const auto nextDown0 = next - normalToLine1 * width;
-//		const auto nextDown1 = nextDown0 + nextToNextNext;
-//
-//		auto roundJoin = [&vertices](PtVertex start, Vec2 end, Vec2 roundingCenter, PtVertex segmentsIntersection, int count) -> float {
-//			//float sub = 0.5;
-//			/*if (aroundTextureY == 1.0f) {
-//				sub = -sub;
-//			}*/
-//			/*vertices.push_back({ start, Vec2(distanceAlong, startTextureY) });
-//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
-//			vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
-//			vertices.push_back({ end, Vec2(0.0f, startTextureY) });
-//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
-//			vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });*/
-//			/*vertices.push_back({ end, Vec2(0.0f, startTextureY) });
-//			vertices.push_back({ around, Vec2(0.0f, aroundTextureY) });
-//			vertices.push_back({ p, Vec2(0.0f, startTextureY) });*/
-//			const auto roundingCircleRadiusVector = start.pos - roundingCenter;
-//			auto startAngle = (roundingCircleRadiusVector).angle();
-//			auto endAngle = (end - roundingCenter).angle();
-//			auto angleRange = std::abs(endAngle - startAngle);
-//			float angleStep;
-//			if (angleRange > PI<float>) {
-//				angleRange = TAU<float> -angleRange;
-//				angleStep = -(angleRange / count);
-//			} else {
-//				angleStep = (angleRange / count);
-//			}
-//
-//			if (startAngle > endAngle) {
-//				angleStep = -angleStep;
-//			}
-//
-//			Rotation rotationStep(angleRange / count);
-//			//auto along = distanceAlong + currentLength;
-//			const auto roundingRadius = roundingCircleRadiusVector.length();
-//			const auto step = std::abs(angleStep) * roundingRadius;
-//			for (int i = 0; i < count; i++) {
-//				/*vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(along, startTextureY) });
-//				vertices.push_back({ around, Vec2(along, aroundTextureY + sub) });
-//				vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(along + step , startTextureY) });
-//				along += step;*/
-//			}
-//			return step * count;
-//		};
-//
-//		//auto roundJoin = [&](Vec2 start, Vec2 end, Vec2 around, int count, Vec2 p, float startTextureY, float aroundTextureY) -> float {\
-//		//	float sub = 0.5;
-//		//	if (aroundTextureY == 1.0f) {
-//		//		sub = -sub;
-//		//	}
-//		//	vertices.push_back({ start, Vec2(distanceAlong, startTextureY) });
-//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
-//		//	vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
-//		//	vertices.push_back({ end, Vec2(0.0f, startTextureY) });
-//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY + sub) });
-//		//	vertices.push_back({ p, Vec2(0.0f, aroundTextureY) });
-//		//	/*vertices.push_back({ end, Vec2(0.0f, startTextureY) });
-//		//	vertices.push_back({ around, Vec2(0.0f, aroundTextureY) });
-//		//	vertices.push_back({ p, Vec2(0.0f, startTextureY) });*/
-//		//	auto startAngle = (start - around).angle();
-//		//	auto endAngle = (end - around).angle();
-//		//	auto angleRange = std::abs(endAngle - startAngle);
-//		//	auto angleStep = angleRange / count;
-//		//	if (angleRange > PI<float>) {
-//		//		//Debug::drawCircle(around, 0.02f);
-//		//		angleRange = TAU<float> - angleRange;
-//		//		//std::swap(startAngle, endAngle);
-//		//		angleStep = -(angleRange / count);
-//		//	}
-//		//	if (startAngle > endAngle) {
-//		//		angleStep = -angleStep;
-//		//	}
-//
-//		//	if (abs(endAngle - (startAngle + angleStep * count)) > 0.01f) {
-// 	//			int x = 5;
-//		//	}
-//
-//		//	Rotation rotationStep(angleRange / count);
-//		//	Vec2 previous = start;
-//		//	Vec2 r = start - around;
-//		//	auto along = distanceAlong + currentLength;
-//		//	const auto length = (around - start).length();
-//		//	const auto step = std::abs(angleStep) * length;
-//		//	for (int i = 0; i < count; i++) {
-//		//		vertices.push_back({ around + Vec2::oriented(startAngle + i * angleStep) * length, Vec2(along, startTextureY) });
-//		//		vertices.push_back({ around, Vec2(along, aroundTextureY + sub) });
-//		//		vertices.push_back({ around + Vec2::oriented(startAngle + (i + 1) * angleStep) * length, Vec2(along + step , startTextureY) });
-//		//		along += step;
-//		//	}
-//		//	jointLength = step * count;
-//		//};
-//
-//		/*Vec2 newUp1;
-//		Vec2 newDown1;
-//		Vec2 afterDown0;
-//		Vec2 afterUp0;
-//		float upTexturePosX;
-//		float downTexturePosX;
-//		jointLength = 0.0f;
-//		upTexturePosX = currentLength + distanceAlong;
-//		downTexturePosX = currentLength + distanceAlong;*/
-//
-//		distanceAlong += currentLength;
-//		const auto intersectionUp = intersectLineSegments(up0, up1, nextUp0, nextUp1);
-//		const auto intersectionDown = intersectLineSegments(down0, down1, nextDown0, nextDown1);
-//		if (intersectionUp.has_value()) {
-//			const auto shorten = (up0 - *intersectionUp) - (up0 - up1);
-//			const auto upVertex = PtVertex{ *intersectionUp, Vec2(distanceAlong - shorten.length(), 1.0f)};
-//			const auto downVertex = PtVertex{ down1, Vec2(distanceAlong, 0.0f) };
-//			addQuad(nextSegmentUp0, upVertex, nextSegmentDown0, downVertex);
-//			const auto jointLength = roundJoin(downVertex, nextDown0, next, upVertex, 5);
-//			distanceAlong += jointLength;
-//
-//			/*nextSegmentUp0 = upVertex;
-//			nextSegmentDown0 = PtVertex{ nextDown0, Vec2(distanceAlong, 0.0f) };*/
-//			//roundJoin(down1, nextDown0, next, 5, *intersectionUp, 1.0f, 0.0f);
-//// 
-//			//nextSegmentUp0
-//			/*newUp1 = *intersectionUp;
-//			
-//			afterUp0 = newUp1;
-//			afterDown0 = nextDown0;
-//			newDown1 = down1;*/
-//
-//			/*if (c) {
-//				const auto shorten = std::abs((up0 - newUp1).length() - (up0 - up1).length());
-//				upTexturePosX = currentLength + distanceAlong - shorten;
-//				downTexturePosX = currentLength + distanceAlong;
-//				previousUpTexturePosX = upTexturePosX;
-//				previousDownTexturePosY = currentLength + distanceAlong + jointLength;
-//			}*/
-//
-//		} /*else if (intersectionDown.has_value()) {
-//			newDown1 = *intersectionDown;
-//			newUp1 = up1;
-//			roundJoin(up1, nextUp0, next, 5, newDown1, 0.0f, 1.0f);
-//			afterDown0 = newDown1;
-//			afterUp0 = nextUp0;
-//
-//			if (c) {
-//				const auto shorten = std::abs((down0 - newDown1).length() - (down0 - down1).length());
-//				upTexturePosX = currentLength + distanceAlong;
-//				downTexturePosX = currentLength + distanceAlong - shorten;
-//				previousDownTexturePosY = downTexturePosX;
-//				previousUpTexturePosX = currentLength + distanceAlong + jointLength;
-//			}
-//
-//		} else {
-//			upTexturePosX = currentLength + distanceAlong;
-//			downTexturePosX = currentLength + distanceAlong;
-//			newUp1 = up1;
-//			newDown1 = down1;
-//			afterUp0 = nextUp0;
-//			afterDown0 = nextDown0;
-//			const auto v3io = Line(down0, down1).intersection(Line(nextDown0, nextDown1));
-//			const auto v1io = Line(up0, up1).intersection(Line(nextUp0, nextUp1));
-//			if (!v3io.has_value() || !v1io.has_value()) {
-//				ImGui::Text("error");
-//				continue;
-//			}
-//
-//			if (signedDistance(Line(down1, down1 + normalToLine0), *v3io) < 0.0f) {
-//				roundJoin(up1, nextUp0, next, 5, next, 0.0f, 0.0f);
-//
-//			} else {
-//				roundJoin(down1, nextDown0, next, 5, next, 0.0f, 0.0f);
-//			}
-//		
-//		}*/
-//
-//
-//		/*if (a) {
-//			if (i == 0) {
-//				addQuad(up0, down0, newUp1, newDown1, upTexturePosX, downTexturePosX);
-//			} else {
-//				addQuad(previousUp1, previousDown1, newUp1, newDown1, upTexturePosX, downTexturePosX);
-//			}
-//		}
-//		distanceAlong += currentLength;
-//		distanceAlong += jointLength;
-//
-//		previousUp1 = afterUp0;
-//		previousDown1 = afterDown0;*/
-//
-//	}
-	//distanceAlong += currentLength;
-
-	static LineTriangulator triangulate;
-	auto output = triangulate(line);
-	auto& vertices = output.vertices;
-	auto& indices = output.indices;
-
-	//using namespace Clipper2Lib;
-	//PathsD polyline, solution;
-	//std::vector<float> linePath;
-	//for (const auto& p : line) {
-	//	linePath.push_back(p.x);
-	//	linePath.push_back(p.y);
-	//}
-	//polyline.push_back(MakePathD(linePath));
-	//// offset polyline
-	//solution = InflatePaths(polyline, 0.2f, JoinType::Round, EndType::Round);
-	//for (const auto& path : solution) {
-	//	for (const auto& point : path) {
-	//		//Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
-	//	}
-	//}
-	//vertices.clear();
-
-	//for (const auto& path : solution) {
-	//	for (int i = 0; i < path.size() - 1; i++) {
-	//		vertices.push_back(Vertex{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
-	//		vertices.push_back(Vertex{ Vec3(path[i + 1].x, path[i + 1].y, 0.0f), Vec2(0.0f) });
-	//		vertices.push_back(Vertex{ Vec3(path[i].x, path[i].y, 0.0f), Vec2(0.0f) });
-	//	}
-	//	/*for (const auto& point : path) {
-	//		Debug::drawCircle(Vec2(point.x, point.y), 0.02f);
-	//	}*/
-	//}
+	std::vector<PtVertex> vertices;
+	static float width = 0.2f;
+	ImGui::InputFloat("width", &width);
+	float len = triangulateLine(line, width, vertices);
 
 	static bool color = true;
 	ImGui::Checkbox("color", &color);
 
 	const auto transform = makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f));
-	for (auto& vertex : vertices) {
-		auto pos = Vec2(vertex.pos.x, vertex.pos.y);
-		pos *= transform;
-		vertex.pos.x = pos.x;
-		vertex.pos.y = pos.y;
-		vertex.pos.z /= vertices.size();
-		//vertex.texturePos.x /= distanceAlong;
-	}
 	vao.bind();
-	vbo.allocateData(vertices.data(), vertices.size() * sizeof(Vertex));
-	ibo.allocateData(indices.data(), indices.size() * sizeof(indices[0]));
-	ibo.bind();
+	vbo.allocateData(vertices.data(), vertices.size() * sizeof(PtVertex));
 	static ShaderProgram& lineShader = createShader("./client/Shaders/line.vert", "./client/Shaders/line.frag");
 	lineShader.use();
-	lineShader.set("transform", Mat3x2::identity);
+	lineShader.set("transform", transform);
 	lineShader.set("color", color);
-	ImGui::Text("aspect %g", camera.aspectRatio);
+	lineShader.set("time", time);
+	lineShader.set("len", len);
 	static bool test = false;
-	ImGui::Checkbox("test", &test);
+	ImGui::Checkbox("show wireframe", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	//glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, nullptr);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-	/*glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	*/
-	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	static bool d = false;
-	ImGui::Checkbox("d", &d);
-	static int j = 60;
-	const auto jump = j - j % 3;
-	ImGui::SliderInt("jump", &j, 60, 500);
-	static std::optional<Vec2> lastFrameLastVertex;
-	//if (lastFrameLastVertex.has_value()) {
 
-	//}
-	//if (!lastFrameLastVertex.has_value() && vertices.size()) {
-	//	lastFrameLastVertex = Vec2(vertices.begin()->pos.x, vertices.begin()->pos.y);
-	//}
-	//int offs = 0;
-	//if (lastFrameLastVertex.has_value()) {
-	//	for (int i = 0; i < vertices.size(); i++) {
-	//		if (Vec2(vertices[i].pos.x, vertices[i].pos.y) == lastFrameLastVertex) {
-	//			if (i == 0) {
-	//				break;
-	//			}
-	//			glEnable(GL_DEPTH_TEST);
-	//			{
-	//				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	//				glDrawArrays(GL_TRIANGLES, 0, i - 1);
-	//				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	//				glDepthFunc(GL_LEQUAL);
-	//				glDrawArrays(GL_TRIANGLES, 0, i - 1);
-	//				glDepthFunc(GL_LESS);
-	//			}
-	//			glDisable(GL_DEPTH_TEST);
-	//			offs = i - 1;
-	//			
-	//			break;
-	//		}
-	//	}
-	//}
-
-	glEnable(GL_DEPTH_TEST);
-	{
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-		glDepthFunc(GL_LEQUAL);
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		glDepthFunc(GL_LESS);
-	}
-	glDisable(GL_DEPTH_TEST);
-	//if (d) {
-	//	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//	glEnable(GL_DEPTH_TEST);
-	//	{
-	//		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	//		glDepthFunc(GL_LEQUAL);
-	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//		glDepthFunc(GL_LESS);
-	//	}
-	//	glDisable(GL_DEPTH_TEST);
-	//} else {
-	//	/*glEnable(GL_DEPTH_TEST);
-	//	{
-	//		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	//		glDepthFunc(GL_LEQUAL);
-	//		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//		glDepthFunc(GL_LESS);
-	//	}
-	//	glDisable(GL_DEPTH_TEST);*/
-	//	// TODO: To prevent flickering when vertices are removed render with an offset so the vertices which are rendered match with the previous call.
-	//	for (int i = offs; i < vertices.size(); i += jump) {
-	//		glClear(GL_DEPTH_BUFFER_BIT);
-	//		const auto toDraw = i + jump > vertices.size() ? vertices.size() - i : jump;
-	//		int off = 0;
-	//		if (i == 0) {
-	//			//glDrawArrays(GL_TRIANGLES, i, vertices.size());
-	//			/*off = offset;
-	//			off -= offset % 3;*/
-	//		}
-	//		glEnable(GL_DEPTH_TEST);
-	//		{
-	//			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	//			//glDrawArrays(GL_TRIANGLES, i, vertices.size());
-	//			glDrawArrays(GL_TRIANGLES, i, toDraw + off);
-	//			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	//			glDepthFunc(GL_LEQUAL);
-	//			glDrawArrays(GL_TRIANGLES, i, toDraw + off);
-	//			glDepthFunc(GL_LESS);
-	//		}
-	//		glDisable(GL_DEPTH_TEST);
-	//		/*if (i == 0) {
-	//			i += offset % 3;
-	//		}*/
-	//	}
-	//} 
-
+	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 	//glEnable(GL_DEPTH_TEST);
 	//{
 	//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -762,14 +413,9 @@ void Renderer::update() {
 	//}
 	//glDisable(GL_DEPTH_TEST);
 	
-
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	
- // polyline.push_back(MakePathD({100,100, 1500,100, 100,1500, 1500,1500}));
-	//// offset polyline
- // solution = InflatePaths(polyline, 200, JoinType::Miter, EndType::Square);
-
 	drawDebugShapes();
 }
 
@@ -838,14 +484,18 @@ void Renderer::ShaderEntry::tryReload() {
 
 void Renderer::reloadChangedShaders() {
 	for (auto& shader : shaders) {
-		const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
-		const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
-		if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
-			continue;
+		try {
+			const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
+			const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
+			if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
+				continue;
+			}
+			shader.tryReload();
+			shader.vertPathLastWriteTime = vertLastWriteTime;
+			shader.fragPathLastWriteTime = fragLastWriteTime;
+		} catch (std::filesystem::filesystem_error) {
+
 		}
-		shader.tryReload();
-		shader.vertPathLastWriteTime = vertLastWriteTime;
-		shader.fragPathLastWriteTime = fragLastWriteTime;
 	}
 }
 
