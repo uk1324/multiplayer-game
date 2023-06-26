@@ -1,4 +1,4 @@
-#include <client/Renderer.hpp>
+#include <client/Rendering/Renderer.hpp>
 #include <Engine/Window.hpp>
 #include <Engine/Input/Input.hpp>
 #include <engine/Math/Utils.hpp>
@@ -8,11 +8,11 @@
 #include <client/Debug.hpp>
 #include <engine/Math/Transform.hpp>
 #include <engine/Math/LineSegment.hpp>
-#include <engine/Math/Polygon.hpp>
-#include <iostream>
 #include <client/PtVertex.hpp>
-#include <client/LineTriangulate.hpp>
+#include <client/Rendering/LineTriangulate.hpp>
 #include <engine/Utils/Timer.hpp>
+#include <client/Rendering/ShaderManager.hpp>
+#include <iostream>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -45,6 +45,8 @@ struct Character {
 	float advance;
 };
 
+#define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
+
 Renderer::Renderer() 
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
@@ -61,13 +63,13 @@ Renderer::Renderer()
 	deathAnimationVao.bind();
 	instancesVbo.bind();
 	addDeathAnimationInstanceAttributesToVao(deathAnimationVao);
-	deathAnimationShader = &createShader("client/Shaders/deathAnimation.vert", "client/Shaders/deathAnimation.frag");
+	deathAnimationShader = &CREATE_GENERATED_SHADER(DEATH_ANIMATION);
 
 	circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	circleVao.bind();
 	instancesVbo.bind();
 	addCircleInstanceAttributesToVao(circleVao);
-	circleShader = &createShader("client/Shaders/circle.vert", "client/Shaders/circle.frag");
+	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);
 
 	spriteVao.bind();
 	{
@@ -131,10 +133,10 @@ Renderer::Renderer()
 		#undef ADD_TO_ATLAS
 	}	
 	{
-		spriteShader = &createShader("client/shader.vert", "client/shader.frag");
+		spriteShader = &ShaderManager::createShader("client/shader.vert", "client/shader.frag");
 	}
 	{
-		backgroundShader = &createShader("client/background.vert", "client/background.frag");
+		backgroundShader = &ShaderManager::createShader("client/background.vert", "client/background.frag");
 	}
 	camera.zoom /= 3.0f;
 
@@ -234,62 +236,12 @@ Renderer::Renderer()
 	}
 
 	{
-		textShader = &createShader("client/Shaders/text.vert", "client/Shaders/text.frag");
+		textShader = &CREATE_GENERATED_SHADER(TEXT);
 		fontVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 		fontVao.bind();
 		instancesVbo.bind();
 		addTextInstanceAttributesToVao(fontVao);
 	}
-
-	//for (const auto& [name, info] :output.nameToPos) {
-	//	if (name.length() < 1) {
-	//		CHECK_NOT_REACHED();
-	//		continue;
-	//	}
-	//	char c = name[0];
-	//	info.
-	//	//ASSERT(name.)
-	//}
-	//output.atlasImage.saveToPng();
-	
-	//glTexImage2D()
-
-	//for (unsigned char c = 0; c < 128; c++)
-	//{
-	//	// load character glyph 
-	//	if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-	//	{
-	//		std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-	//		continue;
-	//	}
-	//	// generate texture
-	//	unsigned int texture;
-	//	glGenTextures(1, &texture);
-	//	glBindTexture(GL_TEXTURE_2D, texture);
-	//	glTexImage2D(
-	//		GL_TEXTURE_2D,
-	//		0,
-	//		GL_RED,
-	//		face->glyph->bitmap.width,
-	//		face->glyph->bitmap.rows,
-	//		0,
-	//		GL_RED,
-	//		GL_UNSIGNED_BYTE,
-	//		face->glyph->bitmap.buffer
-	//	);
-	//	// set texture options
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//	// now store character for later use
-	//	Character character = {
-	//		Vec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-	//		Vec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-	//		face->glyph->advance.x
-	//	};
-	//	//Characters.insert(std::pair<char, Character>(c, character));
-	//}
 }
 
 #define INSTANCED_DRAW_QUAD_PT(instanceName) \
@@ -299,10 +251,10 @@ Renderer::Renderer()
 	instanceName##Instances.toDraw.clear();
 
 void Renderer::update() {
+	ShaderManager::update();
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
-		reloadShaders();
+		ShaderManager::reloadAllShaders();
 	}
-	reloadChangedShaders();
 
 	glViewport(0, 0, Window::size().x, Window::size().y);
 
@@ -318,67 +270,13 @@ void Renderer::update() {
 	{
 		time += 1.0f / 60.0f;
 		static std::vector<Vec2> linea = {
-			//{-0.465625048, 0.0484374687 }
-			/*{-0.465625048, 0.0484374687 },
-			{-0.609375000, -0.285937428 },
-			{-0.537500024, 0.995312512 },
-			{-0.693749964, 0.482812494 }*/
 			{ 0.0f, 0.0f}
-	/*		{ 0.131250143, -1.26093757 },
-			{ 0.343750119, -1.15468740 },
-			{ 0.343750119, -1.15468740 },
-			{ 0.621875167, -0.795312405 },
-			{ 0.621875167, -0.795312405 },
-			{ 0.753124952, -0.573437572 },
-			{ 0.753124952, -0.573437572 },
-			{ 1.05312502, -0.392187595 },
-			{ 1.05312502, -0.392187595 },
-			{ 1.09687507, -0.214062601 },
-			{ 1.09687507, -0.214062601 },
-			{ 1.29374993, 0.204687506 },
-			{ 1.29374993, 0.204687506 },
-			{ 1.34062493, 0.526562452 },
-			{ 1.34062493, 0.526562452 },
-			{ 1.22499990, 0.832812488 },
-			{ 1.22499990, 0.832812488 },
-			{ 1.10624993, 0.948437512 },
-			{ 1.10624993, 0.948437512 },
-			{ 0.375000000, 1.16093755 },
-			{ 0.375000000, 1.16093755 },
-			{ -0.100000083, 1.23906255 },*/
 		};
 
 		if (linea.size() > 20) {
 			linea.erase(linea.begin());
 		}
-		/*float z = sin(time * 2.0f);
-		linea.push_back(Vec2(z / 2.0f, 0.0f));
-		for (auto& point : linea) {
-			point.y += 0.03f;
-		}*/
-		//if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
-		//	if (linea.size() <= 1 || distance(linea.back(), camera.cursorPos()) > 0.01f) {
-		//		linea.push_back(camera.cursorPos());
-		//	}
-		//	 
-		//}
-
-		//std::vector<Vec2> r;
-		//for (int i = 0; i < line.size() - 1; i++) {
-		//	auto a = line[i];
-		//	auto b = line[i + 1];
-		//	if (distance(a, b) > 0.05) {
-		//		r.push_back(a);
-		//	}
-		//}
-		//r.push_back(line[line.size() - 1]);
-		//line = r;
-		//line = polygonDouglassPeckerSimplify(linea, 0.03f);
-		//line = linea;
-		//for (const auto p : line) {
-		//	Debug::drawCircle(p, 0.02f);
-		//}
-		//line = linea;
+		
 		static float distanceBetweenAddedPoints = 0.4f;
 		ImGui::InputFloat("distanceBetweenAddedPoints", &distanceBetweenAddedPoints);
 		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > distanceBetweenAddedPoints) {
@@ -409,27 +307,6 @@ void Renderer::update() {
 			linea.push_back(l);
 		}
 		line = linea;
-		static bool why = false;
-		ImGui::Checkbox("simplify", &why);
-		if (why) {
-			const auto wh = line;
-			line = polygonDouglassPeckerSimplify(wh, 0.015f);
-		}
-
-		if (line.size() > 0) {
-			static float v = 0.01f;
-			ImGui::InputFloat("simplify", &v);
-			std::vector<Vec2> r;
-			for (int i = 0; i < line.size() - 1; i++) {
-				auto a = line[i];
-				auto b = line[i + 1];
-				if (distance(a, b) > v) {
-					r.push_back(a);
-				}
-			}
-			r.push_back(line[line.size() - 1]);
-			line = r;
-		}
 
 		static bool showPoints = false;
 		ImGui::Checkbox("show points", &showPoints);
@@ -553,7 +430,7 @@ void Renderer::update() {
 	const auto transform = makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f));
 	vao.bind();
 	vbo.allocateData(vertices.data(), vertices.size() * sizeof(PtVertex));
-	static ShaderProgram& lineShader = createShader("./client/Shaders/line.vert", "./client/Shaders/line.frag");
+	static ShaderProgram& lineShader = ShaderManager::createShader("./client/Rendering/Shaders/line.vert", "./client/Rendering/Shaders/line.frag");
 	lineShader.use();
 	lineShader.set("transform", transform);
 	lineShader.set("color", color);
@@ -589,6 +466,9 @@ void Renderer::update() {
 	fontVao.bind();
 	textInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
 	textInstances.toDraw.clear();
+
+	Debug::drawCircle(camera.cursorPos(), 1.0f);
+	ImGui::Text("%g, %g", camera.cursorPos().x, camera.cursorPos().y);
 	drawDebugShapes();
 }
 
@@ -597,8 +477,8 @@ Mat3x2 Renderer::makeTransform(Vec2 pos, float rotation, Vec2 scale) {
 }
 
 void Renderer::drawText(std::string_view text) {
-	float x = 0.0;
-	float y = 0.0f;
+	float x = camera.cursorPos().x;
+	float y = camera.cursorPos().y;
 	static float size = 1.0f;
 	ImGui::InputFloat("size", &size);
 	for (const auto& c : text) {
@@ -664,62 +544,23 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 void Renderer::drawDebugShapes() {
 	for (const auto& circle : Debug::circles) {
 		const auto width = 0.003f * 1920.0f / Window::size().x * 5.0f;
+		/*return Mat3x2::rotate(rotation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ pos.x, pos.y * camera.aspectRatio }) * cameraTransform;*/
 		circleInstances.toDraw.push_back(CircleInstance{
-			.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			//.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			.transform = Mat3x2::rotate(0.0f) * Mat3x2::scale(Vec2(circle.radius)) * Mat3x2::translate(circle.pos),
 			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
 			.smoothing = width * (2.0f / 3.0f),
 			.width = width / circle.radius
 		});
+		/*circleInstances.toDraw.push_back(CircleInstance{
+			.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
+			.smoothing = width * (2.0f / 3.0f),
+			.width = width / circle.radius
+		});*/
 	}
 	Debug::circles.clear();
 	INSTANCED_DRAW_QUAD_PT(circle)
-}
-
-ShaderProgram& Renderer::createShader(std::string_view vertPath, std::string_view fragPath) {
-	shaders.push_back(ShaderEntry{ 
-		.vertPath = vertPath, 
-		.fragPath = fragPath, 
-		.program = ShaderProgram::create(vertPath, fragPath) 
-	});
-	auto& shader = shaders.back();
-	shader.vertPathLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
-	shader.fragPathLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
-	return shader.program;
-}
-
-void Renderer::reloadShaders() {
-	for (auto& entry : shaders) {
-		entry.tryReload();
-	}
-}
-void Renderer::ShaderEntry::tryReload() {
-	auto result = ShaderProgram::compile(vertPath, fragPath);
-	if (const auto error = std::get_if<ShaderProgram::Error>(&result)) {
-		std::cout << "tried to reload vert: " << vertPath << " frag: " << fragPath << '\n';
-		std::cout << error->toSingleMessage();
-	} else {
-		std::cout << "reloaded shader\n"
-			<< "vert: " << vertPath << '\n'
-			<< "frag: " << fragPath << '\n';
-		program = std::move(std::get<ShaderProgram>(result));
-	}
-}
-
-void Renderer::reloadChangedShaders() {
-	for (auto& shader : shaders) {
-		try {
-			const auto vertLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
-			const auto fragLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
-			if (shader.vertPathLastWriteTime == vertLastWriteTime && shader.fragPathLastWriteTime == fragLastWriteTime) {
-				continue;
-			}
-			shader.tryReload();
-			shader.vertPathLastWriteTime = vertLastWriteTime;
-			shader.fragPathLastWriteTime = fragLastWriteTime;
-		} catch (std::filesystem::filesystem_error) {
-
-		}
-	}
 }
 
 Vec2 Renderer::Sprite::scaledSize(float scale) const {

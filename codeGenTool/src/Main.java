@@ -9,6 +9,8 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+// TODO: rework how paths work, what are the inputs to the program (absolute / relative). Where is the working directory of the executable. etc. Slashes have to be escaped correctly.
+
 class GeneratedFilesPaths {
     public String dataFile;
 
@@ -38,6 +40,14 @@ class GeneratedFilesPaths {
         this.cppFilePath = Paths.get(Config.GENERATED_DIRECTORY, cppFileName).toString();
 
         this.hppFilePathRelativeToCppFile = Paths.get(Config.GENERATED_DIRECTORY).relativize(Paths.get(this.hppFilePath)).toString();
+    }
+
+    public String getVertPath(String shaderName) {
+        return Paths.get(directory, fileName + ".vert").toString();
+    }
+
+    public String getFragPath(String shaderName) {
+        return Paths.get(directory, fileName + ".frag").toString();
     }
 }
 
@@ -84,19 +94,30 @@ public class Main {
         writeStringToFile(filePath, newGenerated + source);
     }
 
+    static void createIfNotExistsElseMerge(ST st, String path) {
+        var file = new File(path);
+        if (file.exists() && file.isFile()) {
+            st.add("generatedForFirstTime", false);
+            mergeGenerated(path, st.render());
+        } else {
+            st.add("generatedForFirstTime", true);
+            writeStringToFile(path, st.render());
+        }
+    }
+
     static void processPath(Path path) {
         if (!isDataFile(path)) {
             return;
         }
         var file = path.toString();
+        var paths = new GeneratedFilesPaths(file);
 
         System.out.format("processing %s\n", file);
-        var optDataFile = readAndParseDataFile(file);
+        var optDataFile = readAndParseDataFile(file, paths);
         if (optDataFile.isEmpty()) {
             return;
         }
         var dataFile = optDataFile.get();
-        var paths = new GeneratedFilesPaths(file);
 
         {
             var group = new STGroupFile("dataFileHpp.stg");
@@ -130,29 +151,13 @@ public class Main {
             {
                 ST st = group.getInstanceOf("vert");
                 st.add("shader", shader);
-                var vertFilePath = Paths.get(paths.directory, paths.fileName + ".vert");
-                var vertFile = new File(vertFilePath.toString());
-                if (vertFile.exists() && vertFile.isFile()) {
-                    st.add("generatedForFirstTime", false);
-                    mergeGenerated(vertFilePath.toString(), st.render());
-                } else {
-                    st.add("generatedForFirstTime", true);
-                    writeStringToFile(vertFilePath.toString(), st.render());
-                }
+                createIfNotExistsElseMerge(st, shader.vertPath);
             }
 
             {
                 ST st = group.getInstanceOf("frag");
                 st.add("shader", shader);
-                var fragFilePath = Paths.get(paths.directory, paths.fileName + ".frag");
-                var vertFile = new File(fragFilePath.toString());
-                if (vertFile.exists() && vertFile.isFile()) {
-                    st.add("generatedForFirstTime", false);
-                    mergeGenerated(fragFilePath.toString(), st.render());
-                } else {
-                    st.add("generatedForFirstTime", true);
-                    writeStringToFile(fragFilePath.toString(), st.render());
-                }
+                createIfNotExistsElseMerge(st, shader.fragPath);
             }
         }
     }
@@ -166,14 +171,14 @@ public class Main {
         }
     }
 
-    static Optional<DataFile> readAndParseDataFile(String file) {
+    static Optional<DataFile> readAndParseDataFile(String file, GeneratedFilesPaths paths) {
         var optSource = tryReadFileToString(file);
         if (optSource.isEmpty()) {
             return Optional.empty();
         }
         String source = optSource.get();
 
-        var parser = new Parser(source);
+        var parser = new Parser(source, paths);
         DataFile dataFile;
         try {
             dataFile = parser.parse();

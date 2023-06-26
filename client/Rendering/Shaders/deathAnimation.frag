@@ -5,7 +5,6 @@ uniform vec4 color;
 in vec2 texturePosition; 
 
 in float time; 
-
 out vec4 fragColor;
 
 /*generated end*/

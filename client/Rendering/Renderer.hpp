@@ -7,9 +7,9 @@
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>
 #include <engine/Math/Vec4.hpp>
-#include <client/Shaders/deathAnimationData.hpp>
-#include <client/Shaders/circleData.hpp>
-#include <client/Shaders/textData.hpp>
+#include <client/Rendering/Shaders/deathAnimationData.hpp>
+#include <client/Rendering/Shaders/circleData.hpp>
+#include <client/Rendering/Shaders/textData.hpp>
 #include <filesystem>
 #include <ft2build.h>
 #include FT_FREETYPE_H  
@@ -83,7 +83,6 @@ public:
 	Sprite bullet3Sprite;
 
 	void playDeathAnimation(Vec2 position, int playerIndex);
-	void reloadChangedShaders();
 private:
 	ShaderProgram* backgroundShader;
 
@@ -110,17 +109,4 @@ private:
 	Vao circleVao;
 	CircleInstances circleInstances;
 	void drawDebugShapes();
-
-	ShaderProgram& createShader(std::string_view vertPath, std::string_view fragPath);
-	struct ShaderEntry {
-		std::string_view vertPath;
-		std::filesystem::file_time_type vertPathLastWriteTime;
-		std::string_view fragPath;
-		std::filesystem::file_time_type fragPathLastWriteTime;
-		ShaderProgram program;
-
-		void tryReload();
-	};
-	std::list<ShaderEntry> shaders;
-	void reloadShaders();
 };

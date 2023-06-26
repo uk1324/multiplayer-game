@@ -1,4 +1,4 @@
-#include <client/LineTriangulate.hpp>
+#include <client/Rendering/LineTriangulate.hpp>
 #include <imgui/imgui.h>
 #include <engine/Math/LineSegment.hpp>
 #include <engine/Math/Utils.hpp>

@@ -24,8 +24,8 @@ add_executable(
 	"../engine/Json/JsonParser.cpp"
 	"../shared/Gameplay.cpp" 
 	"../shared/WindowsUtils.cpp" 
-	"GameClient.cpp" "GameClientAdapter.cpp" "Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
- "Debug.cpp" "LineTriangulate.cpp" "TextRenderer.cpp")
+	"GameClient.cpp" "GameClientAdapter.cpp" "Rendering/Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
+ "Debug.cpp" "Rendering/LineTriangulate.cpp" "Rendering/Text.cpp" "Rendering/ShaderManager.cpp")
 
 target_link_libraries(client engine)
 target_link_libraries(client math)

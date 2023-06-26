@@ -1,6 +1,6 @@
 #pragma once
 
-#include <client/Renderer.hpp>
+#include <client/Rendering/Renderer.hpp>
 #include <optional>
 #include <shared/Networking.hpp>
 

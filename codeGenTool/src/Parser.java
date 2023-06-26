@@ -15,6 +15,8 @@ class ParserError extends Exception {
 
 public class Parser {
     String source;
+    GeneratedFilesPaths paths;
+
     Lexer lexer;
 
     boolean isAtEnd;
@@ -23,8 +25,9 @@ public class Parser {
 
     DataFile output = new DataFile();
 
-    Parser(String source) {
+    Parser(String source, GeneratedFilesPaths paths) {
         this.source = source;
+        this.paths = paths;
         this.lexer = new Lexer(source);
         isAtEnd = false;
     }
@@ -211,7 +214,7 @@ public class Parser {
             output.addIncludePath(Config.VAO_PATH);
             output.addCppIncludePath(Config.OPENGL_PATH);
 
-            return new Shader(name, instance, fragUniforms, vertUniforms, vertexFormat, instanceVertFields, instanceFragFields, vertOut);
+            return new Shader(name, instance, fragUniforms, vertUniforms, vertexFormat, instanceVertFields, instanceFragFields, vertOut, paths);
         } else if (match(TokenType.CPP)) {
             return new Cpp(previousToken.cppSource());
         }

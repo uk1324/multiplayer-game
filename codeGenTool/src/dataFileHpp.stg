@@ -90,6 +90,9 @@ struct <shader.name>Instances {
 
     void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
 };
+
+static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_VERT_PATH = "<shader.vertPathRelativeToWorkingDirectory>";
+static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_FRAG_PATH = "<shader.fragPathRelativeToWorkingDirectory>";
 >>
 
 networkSerialize(dataType, name) ::= <%

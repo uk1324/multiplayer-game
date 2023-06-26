@@ -4,36 +4,12 @@ in vec2 worldPos;
 
 out vec4 fragColor;
 
-uniform vec2 line[50];
-uniform int lineLength;
-
-float lineSegmentSdf(vec2 p, vec2 start, vec2 end) {
-    vec2 t = normalize(end - start);
-    vec2 n = vec2(-t.y, t.x);
-    float ld = dot(n, start);
-    float d = dot(p, n) - ld;
-    float dAlong = dot(p, t);
-    float dAlongStart = dot(start, t);
-    float dAlongEnd = dot(end, t);
-    float along = clamp(dAlong, dAlongStart, dAlongEnd);
-    vec2 cloestPointOnLine = along * t + ld * n;
-    return distance(p, cloestPointOnLine);
-}
-
-
-float distanceAlong(vec2 p, vec2 start, vec2 end) {
-    vec2 t = normalize(end - start);
-    vec2 n = vec2(-t.y, t.x);
-    float ld = dot(n, start);
-    float d = dot(p, n) - ld;
-    float dAlong = dot(p, t);
-    float dAlongStart = dot(start, t);
-    return dAlong - dAlongStart;
-}
-
-vec4 blend(vec4 src, vec4 dest)
-{
-	return vec4(src.a * src.rgb + (1 - src.a) * dest.rgb, 1);
+// '%' for netagive numbers is undefined.
+// https://www.gamedev.net/forums/topic/676242-glsl-modulo-strange-behavior-with-negative-number/5277715/
+// In this implementation it seems to work correctly only for negative values with are negated powers of 2.
+int rem(int x, int y) {
+	return abs(x) % y;
+	//return x - y * int(floor(float(x) / float(y)));
 }
 
 void main() {
@@ -55,14 +31,15 @@ void main() {
 	vec3 col0 = vec3(0.12, 0.12, 0.12);
 	vec3 col1 = col0 / 2.0;
 	ivec2 cellPos = ivec2(floor(pos / smallCellSize));
-	vec3 colVertical = (cellPos.x % 4 == 0) ? col0 : col1;
-	vec3 colHorizontal = (cellPos.y % 4 == 0) ? col0 : col1;
+	int smallCellsInABigCell = 5;
+	vec3 colVertical = (rem(cellPos.x, smallCellsInABigCell) == 0) ? col0 : col1;
+	vec3 colHorizontal = (rem(cellPos.y, smallCellsInABigCell) == 0) ? col0 : col1;
 	colVertical *= dVertical;
 	colHorizontal *= dHorizontal;
 
-	//fragColor = vec4(cameraPos, 0.0f, 1.0);
 	vec4 c = vec4(max(colVertical, colHorizontal), 1.0);
 	fragColor = vec4(max(colVertical, colHorizontal), 1.0);
+	//fragColor = vec4(vec3(-1 % 5), 1.0);
 
 	//vec2 p = worldPos;
 	//float d = 1000.0;

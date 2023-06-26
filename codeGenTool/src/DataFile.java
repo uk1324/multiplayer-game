@@ -1,3 +1,4 @@
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -176,12 +177,23 @@ class Shader extends Declaration {
     public List<Field> instanceFragFields;
     public List<Field> instanceVertFields;
     public List<Field> vertOut;
+    public String fragPath;
+    public String vertPath;
 
     public boolean getVertUniformsIsEmpty() {
         return vertUniforms.fields.isEmpty();
     }
 
-    Shader(String name, Struct instance, Struct fragUniforms, Struct vertUniforms, String vertexFormat, List<Field> instanceVertFields, List<Field> instanceFragFields, List<Field> vertOut) {
+    Shader(
+            String name,
+            Struct instance,
+            Struct fragUniforms,
+            Struct vertUniforms,
+            String vertexFormat,
+            List<Field> instanceVertFields,
+            List<Field> instanceFragFields,
+            List<Field> vertOut,
+            GeneratedFilesPaths paths) {
         // TODO: could support passing structs instead of a vertexFormat.
         int layout = 0;
         if (vertexFormat.equals("PT")) {
@@ -209,10 +221,23 @@ class Shader extends Declaration {
         this.instanceVertFields = instanceVertFields;
         this.instanceFragFields = instanceFragFields;
         this.vertOut = vertOut;
+        this.vertPath = paths.getVertPath(name).replace('\\', '/');
+        this.fragPath = paths.getFragPath(name).replace('\\', '/');
     }
 
-    String getNameFirstLetterLowercase() {
+    public String getVertPathRelativeToWorkingDirectory() {
+        return Paths.get("../").relativize(Paths.get(this.vertPath)).toString().replace('\\', '/');
+    }
+
+    public String getFragPathRelativeToWorkingDirectory() {
+        return Paths.get("../").relativize(Paths.get(this.fragPath)).toString().replace('\\', '/');
+    }
+
+    public String getNameFirstLetterLowercase() {
         return FormatUtils.firstLetterToLowercase(name);
+    }
+    public String getNameUpperSnakeCase() {
+        return FormatUtils.camelCaseToUpperSnakeCase(name);
     }
 }
 
