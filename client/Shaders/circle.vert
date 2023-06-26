@@ -18,6 +18,8 @@ void passToFragment() {
     smoothing = instanceSmoothing; 
     width = instanceWidth; 
 }
+
+
 /*generated end*/
 
 void main() {

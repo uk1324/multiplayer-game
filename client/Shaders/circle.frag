@@ -5,6 +5,7 @@ in vec2 position;
 in vec4 color; 
 in float smoothing; 
 in float width; 
+
 out vec4 fragColor;
 
 /*generated end*/

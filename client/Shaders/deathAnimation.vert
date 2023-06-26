@@ -12,6 +12,8 @@ out float time;
 void passToFragment() {
     time = instanceTime; 
 }
+
+
 /*generated end*/
 
 void main() {

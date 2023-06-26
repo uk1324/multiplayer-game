@@ -1,0 +1,12 @@
+shader Text {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+		Vec2 offsetInAtlas;
+		Vec2 sizeInAtlas;
+	};
+
+	vertOut = {
+		Vec2 texturePosition;
+	};
+}

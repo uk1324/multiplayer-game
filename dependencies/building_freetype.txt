@@ -1,0 +1,7 @@
+https://freetype.org/download.html // sourceforge had the never version
+goto builds\windows\vc2010
+compile (remember to choose the right configuration x64 or x86 debug or release.
+the output directory is rootFolder/objs/x64/Debug (there is also another freetype.dll in another directory but I don't konw what that is)
+link with freetype.lib
+freetype.dll must be in the main directory
+Copy the include folder contents into the include directory. ft2build.h must be in the main directory cannot put it in a subdirectory

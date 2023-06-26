@@ -9,7 +9,10 @@
 #include <engine/Math/Vec4.hpp>
 #include <client/Shaders/deathAnimationData.hpp>
 #include <client/Shaders/circleData.hpp>
+#include <client/Shaders/textData.hpp>
 #include <filesystem>
+#include <ft2build.h>
+#include FT_FREETYPE_H  
 
 struct Renderer {
 	struct Sprite {
@@ -57,6 +60,20 @@ private:
 		Vec4 color;
 	};
 	std::vector<SpriteToDraw> spritesToDraw;
+
+	struct Character {
+		Vec2T<int> atlasOffset;
+		Vec2T<int> size;
+		Vec2T<int> bearing;
+		Vec2T<int> advance;
+	};
+	std::unordered_map<char, Character> characters;
+	ShaderProgram* textShader;
+	void drawText(std::string_view text);
+	Vec2T<int> fontAtlasPixelSize;
+	Vao fontVao;
+	Texture fontAtlas;
+	TextInstances textInstances;
 public:
 	void drawSprite(Sprite sprite, Vec2 pos, float size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));
 	void drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));

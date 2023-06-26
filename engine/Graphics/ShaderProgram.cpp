@@ -30,7 +30,7 @@ std::variant<ShaderProgram, ShaderProgram::Error> ShaderProgram::compile(std::st
 ShaderProgram ShaderProgram::create(std::string_view vertexPath, std::string_view fragmentPath) {
 	auto shader = compile(vertexPath, fragmentPath);
 	if (const auto error = std::get_if<Error>(&shader)) {
-		LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), error->toSingleMessage());
+		LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), error->toSingleMessage().c_str());
 		return ShaderProgram(NULL);
 	}
 	return std::move(std::get<ShaderProgram>(shader));
@@ -164,7 +164,7 @@ std::string ShaderProgram::Error::toSingleMessage() const {
 		errorMessage << "vert error: " << vertexErrorMessage << '\n';
 	}
 	if (!linkerErrorMessage.empty()) {
-		errorMessage << "vert error: " << vertexErrorMessage << '\n';
+		errorMessage << "linker error: " << linkerErrorMessage << '\n';
 	}
 	return errorMessage.str();
 }

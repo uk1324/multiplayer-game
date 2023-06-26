@@ -1,7 +1,7 @@
 #include <Graphics/CubeMap.hpp>
 #include <Log/Log.hpp>
 
-#include <stb_image.h>
+#include <stb_image/stb_image.hpp>
 #include <glad/glad.h>
 
 CubeMap::CubeMap()

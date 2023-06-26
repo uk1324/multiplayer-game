@@ -1,38 +1,59 @@
 #pragma once
 
-#include "Color32.hpp"
+#include "Iter2d.hpp"
+#include <engine/Math/Vec4.hpp>
+#include <optional>
 
-#include <string_view>
+struct Pixel32 {
+	Pixel32(u8 r, u8 g, u8 b, u8 a = 255);
+	explicit Pixel32(u8 v, u8 a = 255);
+	Pixel32(const Vec4& color);
 
-class Image32
-{
-public:
-	Image32(const char* path);
-	Image32(size_t width, size_t height);
+	u8 r, g, b, a;
+};
 
+struct Image32 {
+	using IndexedPixelIterator = Iter2d<Pixel32>;
+	explicit Image32(const char* path);
+	explicit Image32(i64 width, i64 height);
+	explicit Image32(const Pixel32* data, i64 width, i64 height);
 	Image32(const Image32& other);
-	Image32& operator= (const Image32& other);
-
-	Image32(Image32&& other) noexcept; 
-	Image32& operator= (Image32&& other) noexcept;
-
+	Image32(Image32&& other) noexcept;
+	Image32& operator=(const Image32& other);
+	Image32& operator=(Image32&& other) noexcept;
 	~Image32();
 
-public:
-	void set(size_t x, size_t y, Color32 color);
-	Color32 get(size_t x, size_t y) const;
+	std::optional<Image32> fromFile(const char* path);
+	void saveToPng(const char* path) const;
+	void copyAndResize(const Image32& other);
 
-	size_t width() const;
-	size_t height() const;
-	uint32_t* data();
-	const uint32_t* data() const;
+	Pixel32& operator()(i64 x, i64 y);
+	const Pixel32& operator()(i64 x, i64 y) const;
+	Vec2T<i64> size() const;
+	i64 width() const;
+	i64 height() const;
+	Pixel32* data();
+	const Pixel32* data() const;
+	usize dataSizeBytes() const;
+	usize pixelCount() const;
 
-	void saveAsPpm(std::string_view path) const;
+	Pixel32* begin();
+	Pixel32* end();
+	const Pixel32* cbegin() const;
+	const Pixel32* cend() const;
 
+	struct IndexedPixelRange {
+		Image32& image;
+		IndexedPixelIterator begin();
+		IndexedPixelIterator end();
+	};
+	IndexedPixelRange indexed();
+	template<typename T>
+	void apply(T pixel32ToPixel32Function);
 private:
-	void* allocate(size_t size);
+	explicit Image32(const char* path, bool& loadedCorrectly);
 
-private:
-	size_t m_width, m_height;
-	uint32_t* m_data;
+protected:
+	Pixel32* data_;
+	Vec2T<i64> size_;
 };

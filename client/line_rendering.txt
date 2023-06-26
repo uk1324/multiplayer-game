@@ -99,6 +99,8 @@ sudo apt-get install freeglut3-dev https://github.com/Marxlp/pyFlightAnalysis/is
 On windows the whell packages need to have the right version of python. The version is in the filename. Was too lazy to make it work.
 Checked and the demo doesn't handle the case shown in figure 19 of "Folding Avoidance in Skeletal Strokes". Aslo the presented method like it says only works for polylines not other curves.
 
+Maybe push away the points where there is a fold to remove it.
+
 For most practical purposes the self intersections shouldn't be much of an issue for static objects like road marks the OIT method would work, because it makes sense that doubly covered marks (intersecting) could be removed. And for trails the paths usually don't loop (trajectories) or are too short too loop.
 
 This seems really good

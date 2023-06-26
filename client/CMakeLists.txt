@@ -10,7 +10,6 @@ project(client)
 add_executable(
 	client
 	"main.cpp" 
-	"../dependencies/stb_image/src/stb_image.c"
 	"../dependencies/imgui/imgui.cpp"
 	"../dependencies/imgui/imgui_draw.cpp"
 	"../dependencies/imgui/imgui_impl_glfw.cpp"
@@ -20,14 +19,13 @@ add_executable(
 	"../dependencies/imgui/imgui_impl_opengl3.h" 
 	"../dependencies/imgui/imgui_demo.cpp"
 	"../dependencies/glad/src/glad.c"
-	"../dependencies/stb_image/src/stb_image.c"
 	"../engine/Json/JsonValue.cpp"
 	"../engine/Json/JsonPrinter.cpp"
 	"../engine/Json/JsonParser.cpp"
 	"../shared/Gameplay.cpp" 
 	"../shared/WindowsUtils.cpp" 
 	"GameClient.cpp" "GameClientAdapter.cpp" "Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
- "Debug.cpp" "LineTriangulate.cpp")
+ "Debug.cpp" "LineTriangulate.cpp" "TextRenderer.cpp")
 
 target_link_libraries(client engine)
 target_link_libraries(client math)
@@ -38,3 +36,4 @@ set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
 targetAddGenerated(client "./")
 
 target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimbo.lib")
+target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")

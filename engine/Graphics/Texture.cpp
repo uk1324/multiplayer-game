@@ -1,27 +1,28 @@
 #include <Engine/Graphics/Texture.hpp>
 #include <Log/Log.hpp>
-#include <stb_image.h>
+#include <stb_image/stb_image.hpp>
 #include <glad/glad.h>
 
 Texture::Texture(uint32_t handle)
-	: m_handle(handle)
+	: handle_(handle)
 {}
 
-Texture::Texture(const Image32& img) {
-	glGenTextures(1, &m_handle);
-	bind();
-	glTexImage2D(TARGET, 0, GL_RGBA, img.width(), img.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, img.data());
+static constexpr u32 TARGET = GL_TEXTURE_2D;
 
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(TARGET, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(TARGET, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+Texture::Texture(const Image32& img, const Settings& settings) {
+	glGenTextures(1, &handle_);
+	bind();
+	glTexImage2D(TARGET, 0, GL_RGBA, img.width(), img.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, reinterpret_cast<const void*>(img.data()));
+
+	glTexParameteri(TARGET, GL_TEXTURE_WRAP_S, static_cast<GLint>(settings.wrapS));
+	glTexParameteri(TARGET, GL_TEXTURE_WRAP_T, static_cast<GLint>(settings.wrapT));
+	glTexParameteri(TARGET, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(settings.minFilter));
+	glTexParameteri(TARGET, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(settings.magFilter));
 
 	glGenerateMipmap(TARGET);
 }
 
-Texture::Texture(std::string_view path)
-{
+Texture::Texture(std::string_view path) {
 	int width, height, channelCount;
 	static constexpr int REQUIRED_CHANNEL_COUNT = 4;
 	void* data = stbi_load(path.data(), &width, &height, &channelCount, REQUIRED_CHANNEL_COUNT);
@@ -30,7 +31,7 @@ Texture::Texture(std::string_view path)
 		LOG_FATAL("failed to read texture file %s", path.data());
 	}
 
-	glGenTextures(1, &m_handle);
+	glGenTextures(1, &handle_);
 	bind();
 	glTexImage2D(TARGET, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
@@ -47,31 +48,31 @@ Texture::Texture(std::string_view path)
 
 Texture::~Texture()
 {
-	glDeleteTextures(1, &m_handle);
+	glDeleteTextures(1, &handle_);
 }
 
 Texture::Texture(Texture&& other) noexcept
-	: m_handle(other.m_handle)
+	: handle_(other.handle_)
 {
-	other.m_handle = NULL;
+	other.handle_ = NULL;
 }
 
 Texture& Texture::operator=(Texture&& other) noexcept
 {
-	glDeleteTextures(1, &m_handle);
-	m_handle = other.m_handle;
-	other.m_handle = NULL;
+	glDeleteTextures(1, &handle_);
+	handle_ = other.handle_;
+	other.handle_ = NULL;
 	return *this;
 }
 
 void Texture::bind() const
 {
-	glBindTexture(TARGET, m_handle);
+	glBindTexture(TARGET, handle_);
 }
 
 GLuint Texture::handle() const
 {
-	return m_handle;
+	return handle_;
 }
 
 Texture Texture::pixelArt(const char* path)

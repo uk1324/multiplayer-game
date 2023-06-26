@@ -1,125 +1,173 @@
 #include "Image32.hpp"
-#include <Log/Log.hpp>
-#include <stb_image.h>
-#include <Assertions.hpp>
+#include <stb_image/stb_image.hpp>
+#include <stb_image/stb_image_write.hpp>
+#include <stb_image/stb_image_resize.hpp>
 
-#include <fstream>
+Image32::Image32(const char* path, bool& loadedCorrectly) {
+	int x, y, channelCount;
+	data_ = reinterpret_cast<Pixel32*>(stbi_load(path, &x, &y, &channelCount, STBI_rgb_alpha));
+	loadedCorrectly = data_ != nullptr;
+	size_ = { static_cast<usize>(x), static_cast<usize>(y) };
+}
+
+static thread_local bool loadedCorrectly;
 
 Image32::Image32(const char* path)
-{
-	int channelCount;
-	int width, height;
-	m_data = reinterpret_cast<uint32_t*>(stbi_load(path, &width, &height, &channelCount, STBI_rgb_alpha));
-	if (m_data == nullptr)
-	{
-		LOG_FATAL("failed to load image");
-	}
-	m_width = width;
-	m_height = height;
+	: Image32{ path, loadedCorrectly } {
+	ASSERT(loadedCorrectly);
 }
 
-Image32::Image32(size_t width, size_t height)
-	: m_width(width)
-	, m_height(height)
-	, m_data(reinterpret_cast<uint32_t*>(allocate(width * height * sizeof(uint32_t))))
-{}
+Image32::~Image32() {
+	free(data_);
+}
+
+Image32::Image32(i64 width, i64 height)
+	: size_(width, height)
+	, data_(reinterpret_cast<Pixel32*>(malloc(4 * width * height))) {}
+
+Image32::Image32(const Pixel32* data, i64 width, i64 height)
+	: Image32(width, height) {
+	memcpy(data_, data, dataSizeBytes());
+}
 
 Image32::Image32(const Image32& other)
-	: m_width(other.m_width)
-	, m_height(other.m_height)
-	, m_data(reinterpret_cast<uint32_t*>(allocate(other.m_width * other.m_height * sizeof(uint32_t))))
-{
-	memcpy(m_data, other.m_data, other.m_width * other.m_height * sizeof(uint32_t));
-}
-
-Image32& Image32::operator=(const Image32& other)
-{
-	if (&other == this)
-		return *this;
-
-	stbi_image_free(m_data);
-	m_data = reinterpret_cast<uint32_t*>(allocate(other.m_width * other.m_height * sizeof(uint32_t)));
-	m_width = other.m_width;
-	m_height = other.m_height;
-	memcpy(m_data, other.m_data, other.m_width * other.m_height * sizeof(uint32_t));
-	return *this;
+	: size_{ other.size_ }
+	, data_{ reinterpret_cast<Pixel32*>(malloc(other.dataSizeBytes())) } {
+	if (data_ == nullptr) {
+		ASSERT_NOT_REACHED();
+		size_ = Vec2T<i64>{ 0 };
+		return;
+	}
+	memcpy(data_, other.data_, other.dataSizeBytes());
 }
 
 Image32::Image32(Image32&& other) noexcept
-	: m_width(other.m_width)
-	, m_height(other.m_height)
-	, m_data(other.m_data)
-{
-	other.m_data = nullptr;
+	: size_(other.size_)
+	, data_(other.data_) {
+	other.data_ = nullptr;
 }
 
-Image32& Image32::operator=(Image32&& other) noexcept
-{
-	m_width = other.m_width;
-	m_height = other.m_height;
-	m_data = other.m_data;
-	other.m_data = nullptr;
+Image32& Image32::operator=(const Image32& other) {
+	if (other.dataSizeBytes() > dataSizeBytes()) {
+		free(data_);
+		data_ = reinterpret_cast<Pixel32*>(malloc(other.dataSizeBytes()));
+		if (data_ == nullptr) {
+			size_ = Vec2T<i64>{ 0 };
+			ASSERT_NOT_REACHED();
+			return *this;
+		}
+	}
+	size_ = other.size_;
+	memcpy(data_, other.data_, other.dataSizeBytes());
 	return *this;
 }
 
-Image32::~Image32()
-{
-	stbi_image_free(m_data);
+Image32& Image32::operator=(Image32&& other) noexcept {
+	size_ = other.size_;
+	data_ = other.data_;
+	other.data_ = nullptr;
+	return *this;
 }
 
-// Images are loaded upside down so y is flipped upside down.
-void Image32::set(size_t x, size_t y, Color32 color)
-{
-	ASSERT(x < width());
-	ASSERT(y < height());
-	*reinterpret_cast<Color32*>(&m_data[(m_height - y - 1) * m_width + x]) = color;
+std::optional<Image32> Image32::fromFile(const char* path) {
+	bool isLoadedCorrectly = false;
+	const Image32 result{ path, isLoadedCorrectly };
+	if (isLoadedCorrectly)
+		return result;
+	return std::nullopt;
 }
 
-Color32 Image32::get(size_t x, size_t y) const
-{
-	ASSERT(x < width());
-	ASSERT(y < height());
-	return *reinterpret_cast<Color32*>(&m_data[(m_height - y - 1) * m_width + x]);
+void Image32::saveToPng(const char* path) const {
+	stbi_write_png(path, static_cast<int>(size_.x), static_cast<int>(size_.y), 4, data_, static_cast<int>(size_.x * 4));
 }
 
-size_t Image32::width() const
-{
-	return m_width;
+void Image32::copyAndResize(const Image32& other) {
+	stbir_resize_uint8(reinterpret_cast<u8*>(other.data_), static_cast<int>(other.size_.x), static_cast<int>(other.size_.y), 0, reinterpret_cast<u8*>(data_), static_cast<int>(size_.x), static_cast<int>(size_.y), 0, 4);
 }
 
-size_t Image32::height() const
-{
-	return m_height;
+Pixel32& Image32::operator()(i64 x, i64 y) {
+	ASSERT(x < size_.x);
+	ASSERT(y < size_.y);
+	ASSERT(x >= 0);
+	ASSERT(y >= 0);
+	return data_[y * size_.x + x];
 }
 
-uint32_t* Image32::data()
-{
-	return m_data;
+const Pixel32& Image32::operator()(i64 x, i64 y) const {
+	return const_cast<Image32*>(this)->operator()(x, y);
 }
 
-const uint32_t* Image32::data() const
-{
-	return m_data;
+Vec2T<i64> Image32::size() const  {
+	return size_;
 }
 
-void Image32::saveAsPpm(std::string_view path) const
-{
-	std::ofstream file(std::string(path), std::ios_base::binary);
-	file << "P6 " << m_width << ' ' << m_height << " 255\n";
-	for (uint32_t* ptr = m_data; ptr != m_data + (m_width * m_height); ptr++)
-	{
-		file.write(reinterpret_cast<const char*>(ptr), 3);
-	}
+i64 Image32::width() const {
+	return size_.x;
 }
 
-void* Image32::allocate(size_t size)
-{
-	// Using malloc so its compatible with stbi.
-	void* data = malloc(size);
-	if (data == nullptr)
-	{
-		LOG_FATAL("failed to allocate memory for image");
-	}
-	return data;
+i64 Image32::height() const {
+	return size_.y;
 }
 
+Pixel32* Image32::data() {
+	return data_;
+}
+
+const Pixel32* Image32::data() const {
+	return data_;
+}
+
+usize Image32::dataSizeBytes() const {
+	return 4 * size_.x * size_.y;
+}
+
+usize Image32::pixelCount() const {
+	return size_.x * size_.y;
+}
+
+Pixel32* Image32::begin() {
+	return data_;
+}
+
+Pixel32* Image32::end() {
+	return data_ + size_.x * size_.y;
+}
+
+const Pixel32* Image32::cbegin() const {
+	return data_;
+}
+
+const Pixel32* Image32::cend() const {
+	return data_ + size_.x * size_.y;
+}
+
+auto Image32::indexed() -> Image32::IndexedPixelRange {
+	return IndexedPixelRange{ *this };
+}
+
+
+Pixel32::Pixel32(u8 r, u8 g, u8 b, u8 a)
+	: r{ r }
+	, g{ g }
+	, b{ b }
+	, a{ a } {}
+
+Pixel32::Pixel32(u8 v, u8 a)
+	: r{ v }
+	, g{ v }
+	, b{ v }
+	, a{ a } {}
+
+Pixel32::Pixel32(const Vec4& color)
+	: r{ static_cast<u8>(std::clamp(color.x * 255.0f, 0.0f, 255.0f)) }
+	, g{ static_cast<u8>(std::clamp(color.y * 255.0f, 0.0f, 255.0f)) }
+	, b{ static_cast<u8>(std::clamp(color.z * 255.0f, 0.0f, 255.0f)) }
+	, a{ 255 } {}
+
+auto Image32::IndexedPixelRange::begin() -> IndexedPixelIterator {
+	return IndexedPixelIterator{ .pos = Vec2T{ 0 }, .data = image.data_, .rowWidth = static_cast<i64>(image.size_.x) };
+}
+
+auto Image32::IndexedPixelRange::end() -> IndexedPixelIterator {
+	return IndexedPixelIterator{ .pos = Vec2T{ 0 }, .data = image.data_ + image.size_.y * image.size_.x, .rowWidth = static_cast<i64>(image.size_.x) };
+}
