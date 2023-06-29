@@ -31,10 +31,6 @@ private:
 	static constexpr usize INSTANCES_VBO_BYTES_SIZE = 4096;
 	Vbo instancesVbo;
 
-	Mat3x2 screenScale;
-	Mat3x2 cameraTransform;
-	Mat3x2 makeTransform(Vec2 pos, float rotation, Vec2 scale);
-
 	Vao spriteVao;
 	Vbo fullscreenQuadPtVbo;
 	Ibo fullscreenQuadPtIbo;

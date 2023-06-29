@@ -36,7 +36,7 @@ auto Input::isMouseButtonHeld(MouseButton button) -> bool {
 	return isKeyHeld(static_cast<KeyCode>(button));
 }
 
-auto Input::windowSpaceToScreenSpace(Vec2 v) -> Vec2 {
+auto Input::windowSpaceToClipSpace(Vec2 v) -> Vec2 {
 	v /= (Window::size() / 2.0f);
 	v.y = -v.y;
 	v += Vec2{ -1.0f, 1.0f };
@@ -120,7 +120,7 @@ auto Input::onKeyUp(u16 virtualKeyCode) -> void {
 }
 
 auto Input::onMouseMove(Vec2 mousePos) -> void {
-	cursorPos_ = windowSpaceToScreenSpace(mousePos);
+	cursorPosClipSpace_ = windowSpaceToClipSpace(mousePos);
 	cursorPosWindowSpace_ = mousePos;
 }
 
@@ -141,7 +141,7 @@ std::unordered_map<int, bool> Input::buttonDownWithAutoRepeat;
 std::unordered_map<int, bool> Input::buttonUp;
 std::unordered_map<int, bool> Input::buttonHeld;
 
-Vec2 Input::cursorPos_;
+Vec2 Input::cursorPosClipSpace_;
 Vec2 Input::cursorPosWindowSpace_;
 float Input::scrollDelta_;
 bool Input::anyKeyPressed_;

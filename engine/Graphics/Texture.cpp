@@ -1,6 +1,6 @@
 #include <Engine/Graphics/Texture.hpp>
 #include <Log/Log.hpp>
-#include <stb_image/stb_image.hpp>
+#include <stb_image/stb_image.h>
 #include <glad/glad.h>
 
 Texture::Texture(uint32_t handle)

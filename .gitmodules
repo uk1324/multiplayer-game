@@ -1,0 +1,6 @@
+[submodule "dependencies/yojimbo"]
+	path = dependencies/yojimbo
+	url = https://github.com/networkprotocol/yojimbo.git
+[submodule "dependencies/glfw"]
+	path = dependencies/glfw
+	url = https://github.com/glfw/glfw.git

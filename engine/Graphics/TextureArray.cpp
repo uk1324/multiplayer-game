@@ -1,6 +1,6 @@
 #include <Engine/Graphics/TextureArray.hpp>
 #include <Log/Log.hpp>
-#include <stb_image/stb_image.hpp>
+#include <stb_image/stb_image.h>
 
 #include <memory>
 

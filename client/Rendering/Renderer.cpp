@@ -63,6 +63,7 @@ Renderer::Renderer()
 	deathAnimationVao.bind();
 	instancesVbo.bind();
 	addDeathAnimationInstanceAttributesToVao(deathAnimationVao);
+	
 	deathAnimationShader = &CREATE_GENERATED_SHADER(DEATH_ANIMATION);
 
 	circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
@@ -262,71 +263,10 @@ void Renderer::update() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	camera.aspectRatio = Window::aspectRatio();
-	cameraTransform = camera.cameraTransform();
-	screenScale = Mat3x2::scale(Vec2(1.0f, camera.aspectRatio));
-
-	static std::vector<Vec2> line;
-	static float time = 0;
-	{
-		time += 1.0f / 60.0f;
-		static std::vector<Vec2> linea = {
-			{ 0.0f, 0.0f}
-		};
-
-		if (linea.size() > 20) {
-			linea.erase(linea.begin());
-		}
-		
-		static float distanceBetweenAddedPoints = 0.4f;
-		ImGui::InputFloat("distanceBetweenAddedPoints", &distanceBetweenAddedPoints);
-		if (Input::isMouseButtonHeld(MouseButton::LEFT) && distance(linea.back(), camera.cursorPos()) > distanceBetweenAddedPoints) {
-			linea.push_back(camera.cursorPos());
-		}
-
-		static std::optional<int> grabbed;
-		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			for (int i = 0; i < linea.size(); i++) {
-				if (distance(camera.cursorPos(), linea[i]) < 0.05f) {
-					grabbed = i;
-					break;
-				}
-			}
-		}
-
-		if (grabbed.has_value()) {
-			linea[*grabbed] = camera.cursorPos();
-		}
-
-		if (Input::isMouseButtonUp(MouseButton::RIGHT)) {
-			grabbed = std::nullopt;
-		}
-
-		if (Input::isKeyDown(KeyCode::R)) {
-			const auto l = linea.back();
-			linea.clear();
-			linea.push_back(l);
-		}
-		line = linea;
-
-		static bool showPoints = false;
-		ImGui::Checkbox("show points", &showPoints);
-		if (showPoints) {
-			for (const auto& p : line) {
-				Debug::drawCircle(p, 0.02f);
-			}
-		}
-	}
 
 	{
 		backgroundShader->use();
-		const auto cameraToWorld = (screenScale * cameraTransform).inversed();
-		backgroundShader->set("cameraToWorld", cameraToWorld);
-		backgroundShader->set("lineLength", static_cast<int>(line.size()));
-		//backgroundShader->set("l", line);
-		for (int i = 0; i < line.size(); i++) {
-			backgroundShader->set("line[" + std::to_string(i) + "]", line[i]);
-		}
-
+		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());
 		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
 
@@ -347,7 +287,7 @@ void Renderer::update() {
 		for (int i = 0; i < spritesToDraw.size(); i++) {
 			const auto& sprite = spritesToDraw[i];
 			auto& quad = texturedQuadPerInstanceData[toDraw];
-			quad.transform = makeTransform(sprite.pos, sprite.rotation, sprite.size);
+			quad.transform = camera.makeTransform(sprite.pos, sprite.rotation, sprite.size);
 			quad.atlasOffset = sprite.sprite.offset;
 			quad.size = sprite.sprite.size;
 			quad.color = sprite.color;
@@ -402,7 +342,7 @@ void Renderer::update() {
 
 	for (const auto& animation : deathAnimations) {
 		deathAnimationInstances.toDraw.push_back(DeathAnimationInstance{
-			.transform = makeTransform(animation.position, 0.0f, Vec2{ 0.75f }),
+			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 0.75f }),
 			.time = animation.t,
 		});
 	}
@@ -419,7 +359,7 @@ void Renderer::update() {
 		return v;
 	}();
 
-	std::vector<PtVertex> vertices;
+	/*std::vector<PtVertex> vertices;
 	static float width = 0.2f;
 	ImGui::InputFloat("width", &width);
 	float len = triangulateLine(line, width, vertices);
@@ -440,7 +380,7 @@ void Renderer::update() {
 	ImGui::Checkbox("show wireframe", &test);
 	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	glDrawArrays(GL_TRIANGLES, 0, vertices.size());*/
 	//glEnable(GL_DEPTH_TEST);
 	//{
 	//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -453,7 +393,7 @@ void Renderer::update() {
 	//}
 	//glDisable(GL_DEPTH_TEST);
 	
-	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	//if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	drawText("The quick brown fox jumps over the lazy dog");
 
 	glActiveTexture(GL_TEXTURE0);
@@ -467,18 +407,13 @@ void Renderer::update() {
 	textInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
 	textInstances.toDraw.clear();
 
-	Debug::drawCircle(camera.cursorPos(), 1.0f);
-	ImGui::Text("%g, %g", camera.cursorPos().x, camera.cursorPos().y);
 	drawDebugShapes();
 }
 
-Mat3x2 Renderer::makeTransform(Vec2 pos, float rotation, Vec2 scale) {
-	return Mat3x2::rotate(rotation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ pos.x, pos.y * camera.aspectRatio }) * cameraTransform;
-}
-
 void Renderer::drawText(std::string_view text) {
-	float x = camera.cursorPos().x;
-	float y = camera.cursorPos().y;
+	const auto pos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+	float x = pos.x;
+	float y = pos.y;
 	static float size = 1.0f;
 	ImGui::InputFloat("size", &size);
 	for (const auto& c : text) {
@@ -495,28 +430,13 @@ void Renderer::drawText(std::string_view text) {
 		float w = info.size.x * scale;
 		float h = info.size.y * scale;
 		
-		// update VBO for each character
-		/*Vec2 vertices[] = {
-			Vec2(xpos, ypos + h),
-			Vec2(xpos, ypos),
-			Vec2(xpos + w, ypos),
-			Vec2(xpos + w, ypos + h)
-		};*/
-		//for (const auto& v : vertices) {
-		//	Debug::drawCircle(v, 0.02f);
-		//}
 		// now advance cursors for next glyph (note that advance is number of 1/64 pixels)
 		xpos += w / 2.0f;
 		ypos += h / 2.0f;
 
 		if (info.size.x != 0 && info.size.y != 0) {
 			textInstances.toDraw.push_back(TextInstance{
-				.transform = 
-					/*Mat3x2::scale(Vec2(scale, static_cast<float>(info.size.y) / static_cast<float>(info.size.x) * scale)) * */
-				/*Mat3x2::scale(Vec2(w, h)) *
-					screenScale * 
-					Mat3x2::translate(Vec2(xpos, ypos * camera.aspectRatio)),*/
-				makeTransform(Vec2(xpos, ypos), 0.0f, Vec2(w, h) / 2.0f),
+				.transform = camera.makeTransform(Vec2(xpos, ypos), 0.0f, Vec2(w, h) / 2.0f),
 				.offsetInAtlas = Vec2(info.atlasOffset) / Vec2(fontAtlasPixelSize),
 				.sizeInAtlas = Vec2(info.size) / Vec2(fontAtlasPixelSize),
 			});
@@ -541,23 +461,43 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 	});
 }
 
+
+
 void Renderer::drawDebugShapes() {
+	const auto pos = Vec2(0.5f);
+	ImGui::Text("%g, %g", pos.x, pos.y);
+	Debug::drawCircle(pos, 0.1f);
+	if (Input::isKeyHeld(KeyCode::W)) {
+		camera.pos.y += 0.01;
+	}
+	if (Input::isKeyHeld(KeyCode::S)) {
+		camera.pos.y -= 0.01;
+	}
+
+	if (Input::isKeyHeld(KeyCode::D)) {
+		camera.pos.x += 0.01;
+	}
+	if (Input::isKeyHeld(KeyCode::A)) {
+		camera.pos.x -= 0.01;
+	}
+
+	if (Input::isKeyHeld(KeyCode::J)) {
+		camera.zoom *= 1.02;
+	}
+	if (Input::isKeyHeld(KeyCode::K)) {
+		camera.zoom /= 1.02;
+	}
+
+	Debug::drawCircle(camera.pos, 0.1f);
+
 	for (const auto& circle : Debug::circles) {
 		const auto width = 0.003f * 1920.0f / Window::size().x * 5.0f;
-		/*return Mat3x2::rotate(rotation) * screenScale * Mat3x2::scale(scale) * Mat3x2::translate(Vec2{ pos.x, pos.y * camera.aspectRatio }) * cameraTransform;*/
 		circleInstances.toDraw.push_back(CircleInstance{
-			//.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
-			.transform = Mat3x2::rotate(0.0f) * Mat3x2::scale(Vec2(circle.radius)) * Mat3x2::translate(circle.pos),
+			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
 			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
 			.smoothing = width * (2.0f / 3.0f),
 			.width = width / circle.radius
 		});
-		/*circleInstances.toDraw.push_back(CircleInstance{
-			.transform = makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
-			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
-			.smoothing = width * (2.0f / 3.0f),
-			.width = width / circle.radius
-		});*/
 	}
 	Debug::circles.clear();
 	INSTANCED_DRAW_QUAD_PT(circle)

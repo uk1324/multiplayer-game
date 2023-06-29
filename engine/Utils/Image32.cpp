@@ -1,7 +1,7 @@
 #include "Image32.hpp"
-#include <stb_image/stb_image.hpp>
-#include <stb_image/stb_image_write.hpp>
-#include <stb_image/stb_image_resize.hpp>
+#include <stb_image/stb_image.h>
+#include <stb_image/stb_image_write.h>
+#include <stb_image/stb_image_resize.h>
 
 Image32::Image32(const char* path, bool& loadedCorrectly) {
 	int x, y, channelCount;

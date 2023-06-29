@@ -14,4 +14,6 @@ public class Config {
 
     public static String GENERATED_DIRECTORY = "../generated";
     public static String EXTENSION = ".data";
+
+    public static String WORKING_DIRECTORY = "../";
 }

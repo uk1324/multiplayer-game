@@ -4,6 +4,8 @@
 #include <optional>
 #include <shared/Networking.hpp>
 
+
+// TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
 class GameClient 
 {
 public:

@@ -56,8 +56,8 @@ void GameClient::update() {
 	}
 
 	auto processInput = [this]() {
-		const auto cursorPos = renderer.camera.screenSpaceToCameraSpace(Input::cursorPos());
-		const auto cursorRelativeToPlayer = cursorPos - playerTransform.position;
+		const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
+		const auto cursorRelativeToPlayer = cursorPosWorldSpace - playerTransform.position;
 		const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
 		const auto newInput = ClientInputMessage::Input{
 			.up = Input::isKeyHeld(KeyCode::W),

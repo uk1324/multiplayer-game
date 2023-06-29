@@ -34,8 +34,8 @@ public:
 	static auto isMouseButtonUp(MouseButton button) -> bool;
 	static auto isMouseButtonHeld(MouseButton button) -> bool;
 
-	static auto windowSpaceToScreenSpace(Vec2 v) -> Vec2;
-	static auto cursorPos() -> Vec2 { return cursorPos_; };
+	static auto windowSpaceToClipSpace(Vec2 v) -> Vec2;
+	static auto cursorPosClipSpace() -> Vec2 { return cursorPosClipSpace_; };
 	static auto cursorPosWindowSpace() -> Vec2 { return cursorPosWindowSpace_; };
 	static auto scrollDelta() -> float;
 	static auto anyKeyPressed() -> bool;
@@ -66,7 +66,7 @@ private:
 	static std::unordered_map<int, bool> buttonUp;
 	static std::unordered_map<int, bool> buttonHeld;
 
-	static Vec2 cursorPos_;
+	static Vec2 cursorPosClipSpace_;
 	static Vec2 cursorPosWindowSpace_;
 	static float scrollDelta_;
 	static bool anyKeyPressed_;

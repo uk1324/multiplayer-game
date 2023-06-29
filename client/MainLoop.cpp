@@ -7,11 +7,8 @@ MainLoop::MainLoop()
 	//connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
 }
 
-#include <client/TestData.hpp>
 #include <Gui.hpp>
 #include <engine/Json/JsonPrinter.hpp>
-#include <client/Test2Data.hpp>
-#include <shared/AData.hpp>
 #include <client/Debug.hpp>
 
 void MainLoop::update() {

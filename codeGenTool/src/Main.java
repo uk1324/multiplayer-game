@@ -59,11 +59,13 @@ public class Main {
             Config.GENERATED_DIRECTORY = args[1];
             processPath(Path.of(args[0]));
         } else if (args.length == 1) {
-            var path = args[0];
-            try (Stream<Path> files = Files.walk(Paths.get(path))) {
-                files.forEach(Main::processPath);
-            } catch (java.io.IOException v) {
-                System.err.println("path doesn't exist");
+            String paths[] = { "../client", "../server", "../shared" };
+            for (var path : paths) {
+                try (Stream<Path> files = Files.walk(Paths.get(path))) {
+                    files.forEach(Main::processPath);
+                } catch (java.io.IOException v) {
+                    System.err.println("path doesn't exist");
+                }
             }
         } else {
             System.err.println("wrong number of arguments");
