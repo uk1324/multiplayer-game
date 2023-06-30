@@ -12,63 +12,81 @@ import java.util.stream.Stream;
 // TODO: rework how paths work, what are the inputs to the program (absolute / relative). Where is the working directory of the executable. etc. Slashes have to be escaped correctly.
 
 class GeneratedFilesPaths {
-    public String dataFile;
-
-    public String hppFileName;
+    public String absoluteFilePath;
+    public String cppExecutableWorkingDirectory;
+    public String fileDirectory;
     public String hppFilePath;
-    public String cppFileName;
     public String cppFilePath;
-
-    public String directory;
-    public String fileName;
-
     public String hppFilePathRelativeToCppFile;
 
-    GeneratedFilesPaths(String file) {
-        this.dataFile = file;
-        var slashIndex = file.lastIndexOf('/');
-        var backSlashIndex = file.lastIndexOf('\\');
-        // Handles -1 correctly.
-        var fileNameStart = slashIndex > backSlashIndex ? slashIndex : backSlashIndex + 1;
-        this.fileName = file.substring(fileNameStart, file.length() - Config.EXTENSION.length());
-        this.directory = file.substring(0, fileNameStart);
+    GeneratedFilesPaths(String file, String generatedOutDirectory, String cppExecutableWorkingDirectory) {
+        this.cppExecutableWorkingDirectory = cppExecutableWorkingDirectory;
+        var absolutePath = Paths.get(file).toAbsolutePath();
+        this.absoluteFilePath = absolutePath.toString();
 
-        this.hppFileName = fileName + "Data.hpp";
-        this.cppFileName = fileName + "DataGenerated.cpp";
+        var fileNameWithExtension = absolutePath.getFileName().toString();
+        var extensionStart = fileNameWithExtension.lastIndexOf(".");
+        // When equal to 0 then leave it for example .gitignore would remain the same.
+        var fileNameWithoutExtension = extensionStart > 0 ? fileNameWithExtension.substring(0, extensionStart) : fileNameWithExtension;
 
-        this.hppFilePath = Paths.get(this.directory, this.hppFileName).toString();
-        this.cppFilePath = Paths.get(Config.GENERATED_DIRECTORY, cppFileName).toString();
+        var fileDirectoryPathObject = absolutePath.getParent();
+        if (fileDirectoryPathObject == null) {
+            throw new RuntimeException("absolute path has no directory");
+        }
+        this.fileDirectory = fileDirectoryPathObject.toString();
 
-        this.hppFilePathRelativeToCppFile = Paths.get(Config.GENERATED_DIRECTORY).relativize(Paths.get(this.hppFilePath)).toString();
+        this.hppFilePath = Paths.get(fileDirectory, fileNameWithoutExtension + "Data.hpp").normalize().toString();
+        this.cppFilePath = Paths.get(generatedOutDirectory, fileNameWithoutExtension + "DataGenerated.cpp").normalize().toString();
+        this.hppFilePathRelativeToCppFile = Paths.get(generatedOutDirectory).relativize(Paths.get(this.hppFilePath)).toString();
     }
 
     public String getVertPath(String shaderName) {
-        return Paths.get(directory, fileName + ".vert").toString();
+        return Paths.get(fileDirectory, FormatUtils.firstLetterToLowercase(shaderName) + ".vert").normalize().toString();
     }
 
     public String getFragPath(String shaderName) {
-        return Paths.get(directory, fileName + ".frag").toString();
+        return Paths.get(fileDirectory, FormatUtils.firstLetterToLowercase(shaderName) + ".frag").normalize().toString();
     }
 }
 
 public class Main {
+    static String thisProgramWorkingDirectory = System.getProperty("user.dir");
+
     public static void main(String[] args) {
-        if (args.length == 2) {
-            System.out.println(args[0]);
-            System.out.println(args[1]);
-            Config.GENERATED_DIRECTORY = args[1];
-            processPath(Path.of(args[0]));
-        } else if (args.length == 1) {
-            String paths[] = { "../client", "../server", "../shared" };
-            for (var path : paths) {
+//        System.out.println(Paths.get("../client").toAbsolutePath());
+//        System.out.println(Paths.get("../client").toFile().isDirectory());
+//        boolean watch = false;
+//        if (args.length >= 1 && args[0].equals("watch")) {
+//
+//        }
+
+        if (args.length < 3) {
+            System.err.println("wrong number of arguments");
+            System.out.println("usage: workingDirectory generatedOutDirectory folderToProcessRecursivelyOrFile...");
+            return;
+        }
+//
+        var cppExecutableWorkingDirectory = Paths.get(args[0]).toAbsolutePath().toString();
+        var generatedOutDirectory = Paths.get(args[1]).toAbsolutePath().toString();
+
+        for (int i = 2; i < args.length; i++) {
+            var path = args[i];
+            var file = new File(path);
+            if (file.isFile()) {
+                processDataFile(path, generatedOutDirectory, cppExecutableWorkingDirectory);
+            } else if (file.isDirectory()) {
                 try (Stream<Path> files = Files.walk(Paths.get(path))) {
-                    files.forEach(Main::processPath);
+                    files.forEach((Path filePath) -> {
+                        if (isDataFile(filePath)) {
+                            processDataFile(filePath.toString(), generatedOutDirectory, cppExecutableWorkingDirectory);
+                        }
+                    });
                 } catch (java.io.IOException v) {
                     System.err.println("path doesn't exist");
                 }
+            } else {
+                System.err.format("invalid path %s", path);
             }
-        } else {
-            System.err.println("wrong number of arguments");
         }
     }
 
@@ -81,7 +99,7 @@ public class Main {
     }
 
     static void mergeGenerated(String filePath, String newGenerated) {
-        var optSource = tryReadFileToString(filePath.toString());
+        var optSource = tryReadFileToString(filePath);
         if (optSource.isEmpty()) {
             return;
         }
@@ -92,7 +110,7 @@ public class Main {
             System.err.format("'%s' contains no '%s'", filePath, GENERATED_END);
             return;
         }
-        source = source.substring(split + GENERATED_END.length(), source.length());
+        source = source.substring(split + GENERATED_END.length());
         writeStringToFile(filePath, newGenerated + source);
     }
 
@@ -107,15 +125,15 @@ public class Main {
         }
     }
 
-    static void processPath(Path path) {
-        if (!isDataFile(path)) {
-            return;
-        }
-        var file = path.toString();
-        var paths = new GeneratedFilesPaths(file);
+    // Just for readability of the outputted generated paths.
+    static String relativeToThisProgramWorkingDirectory(String path) {
+        return Paths.get(thisProgramWorkingDirectory).relativize(Paths.get(path)).toString();
+    }
 
-        System.out.format("processing %s\n", file);
-        var optDataFile = readAndParseDataFile(file, paths);
+    static void processDataFile(String inputPath, String generatedOutDirectory, String cppExecutableWorkingDirectory) {
+        var paths = new GeneratedFilesPaths(inputPath, generatedOutDirectory, cppExecutableWorkingDirectory);
+        System.out.format("processing %s\n", inputPath);
+        var optDataFile = readAndParseDataFile(paths.absoluteFilePath, paths);
         if (optDataFile.isEmpty()) {
             return;
         }
@@ -125,7 +143,7 @@ public class Main {
             var group = new STGroupFile("dataFileHpp.stg");
             ST st = group.getInstanceOf("dataFile");
             st.add("dataFile", dataFile);
-            System.out.format("generating %s\n", paths.hppFilePath);
+            System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(paths.hppFilePath));
             writeStringToFile(paths.hppFilePath, st.render());
         }
 
@@ -135,11 +153,11 @@ public class Main {
             st.add("dataFile", dataFile);
             st.add("hppPath", paths.hppFilePathRelativeToCppFile);
             try {
-                Files.createDirectories(Paths.get(Config.GENERATED_DIRECTORY));
+                Files.createDirectories(Paths.get(generatedOutDirectory));
             } catch (IOException e) {
-                System.err.format("failed to create directory '%s'\n", Config.GENERATED_DIRECTORY);
+                System.err.format("failed to create directory '%s'\n", generatedOutDirectory);
             }
-            System.out.format("generating %s\n", paths.cppFilePath);
+            System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(paths.cppFilePath));
             writeStringToFile(paths.cppFilePath, st.render());
         }
 
@@ -153,12 +171,14 @@ public class Main {
             {
                 ST st = group.getInstanceOf("vert");
                 st.add("shader", shader);
+                System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.vertPath));
                 createIfNotExistsElseMerge(st, shader.vertPath);
             }
 
             {
                 ST st = group.getInstanceOf("frag");
                 st.add("shader", shader);
+                System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.fragPath));
                 createIfNotExistsElseMerge(st, shader.fragPath);
             }
         }

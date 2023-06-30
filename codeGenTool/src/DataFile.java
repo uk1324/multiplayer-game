@@ -8,11 +8,11 @@ import java.util.Optional;
 
 public class DataFile {
     public List<Declaration> declarations = new ArrayList<>();
-    private List<IncludePath> includePaths = new ArrayList<>();
-    private List<IncludePath> cppIncludePaths = new ArrayList<>();
+    private final List<IncludePath> hppIncludePaths = new ArrayList<>();
+    private final List<IncludePath> cppIncludePaths = new ArrayList<>();
 
-    public List<IncludePath> getIncludePaths() {
-        return includePaths;
+    public List<IncludePath> getHppIncludePaths() {
+        return hppIncludePaths;
     }
 
     public List<IncludePath> getCppIncludePaths() {
@@ -29,7 +29,7 @@ public class DataFile {
     }
 
     public void addIncludePath(IncludePath newPath) {
-        addUnique(includePaths, newPath);
+        addUnique(hppIncludePaths, newPath);
     }
 
     public void addCppIncludePath(IncludePath newPath) {
@@ -150,7 +150,7 @@ class Enum extends Declaration {
 
 class EnumDefinition {
     public String name;
-    // If you are using things like toStr it should ignore the COUNT. Could automatically calculate count or max_value of the enum, but this would require evaulating the int expressions.
+    // If you are using things like toStr it should ignore the COUNT. Could automatically calculate count or max_value of the enum, but this would require evaluating the int expressions.
     public Optional<String> initializerCppSource;
 
     EnumDefinition(String name, Optional<String> initializerCppSource) {
@@ -179,6 +179,8 @@ class Shader extends Declaration {
     public List<Field> vertOut;
     public String fragPath;
     public String vertPath;
+    public String vertPathRelativeToWorkingDirectory;
+    public String fragPathRelativeToWorkingDirectory;
 
     public boolean getVertUniformsIsEmpty() {
         return vertUniforms.fields.isEmpty();
@@ -221,16 +223,10 @@ class Shader extends Declaration {
         this.instanceVertFields = instanceVertFields;
         this.instanceFragFields = instanceFragFields;
         this.vertOut = vertOut;
-        this.vertPath = paths.getVertPath(name).replace('\\', '/');
-        this.fragPath = paths.getFragPath(name).replace('\\', '/');
-    }
-
-    public String getVertPathRelativeToWorkingDirectory() {
-        return Paths.get("../").relativize(Paths.get(this.vertPath)).toString().replace('\\', '/');
-    }
-
-    public String getFragPathRelativeToWorkingDirectory() {
-        return Paths.get("../").relativize(Paths.get(this.fragPath)).toString().replace('\\', '/');
+        this.vertPath = paths.getVertPath(name);
+        this.fragPath = paths.getFragPath(name);
+        this.vertPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(vertPath)).toString().replace('\\', '/');
+        this.fragPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(fragPath)).toString().replace('\\', '/');
     }
 
     public String getNameFirstLetterLowercase() {
@@ -271,7 +267,7 @@ class Cpp extends Declaration {
     }
 }
 
-// Maybe allow normal declarations inside structs This would allows things like creating nested enums. Is this worth it? Would also require having to make the enums outside the class which shouldn't be that much of an issue.
+// Maybe allow normal declarations inside structs This would allow things like creating nested enums. Is this worth it? Would also require having to make the enums outside the class which shouldn't be that much of an issue.
 // Namespaces are also not supported.
 class DeclarationInStruct {
     public boolean getIsField() {
@@ -364,7 +360,7 @@ abstract class DataType {
     }
     public boolean getIsMat3x2() {
         return getName().equals("Mat3x2");
-    };
+    }
 }
 
 class FloatDataType extends DataType {

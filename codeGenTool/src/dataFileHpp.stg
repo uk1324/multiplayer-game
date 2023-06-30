@@ -2,7 +2,7 @@ import "shared.stg"
 
 dataFile(dataFile) ::= <<
 #pragma once
-<includePaths(dataFile.includePaths)>
+<includePaths(dataFile.hppIncludePaths)>
 
 <dataFile.declarations : { declaration | <declaration(declaration)> }>
 >>

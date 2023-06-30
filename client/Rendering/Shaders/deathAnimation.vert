@@ -13,7 +13,6 @@ void passToFragment() {
     time = instanceTime; 
 }
 
-
 /*generated end*/
 
 void main() {

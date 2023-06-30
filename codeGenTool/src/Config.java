@@ -12,7 +12,7 @@ public class Config {
     public static IncludePath OPENGL_PATH = new IncludePath("glad/glad.h");
     public static IncludePath VAO_PATH = new IncludePath("engine/Graphics/Vao.hpp");
 
-    public static String GENERATED_DIRECTORY = "../generated";
+//    public static String GENERATED_DIRECTORY = "../generated";
     public static String EXTENSION = ".data";
 
     public static String WORKING_DIRECTORY = "../";

@@ -18,7 +18,7 @@ vert(shader, generatedForFirstTime) ::= <<
 
 void passToFragment() {
     <shader.instanceFragFields : { variable | <variable.name> = instance<variable.nameFirstLetterToUppercase>; }; separator="\n">
-}
+}<\\>
 <endif><\\>
 
 

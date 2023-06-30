@@ -19,7 +19,6 @@ void passToFragment() {
     width = instanceWidth; 
 }
 
-
 /*generated end*/
 
 void main() {
