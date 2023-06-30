@@ -5,6 +5,15 @@
 #include <Types.hpp>
 
 struct Texture {
+	enum class Format {
+		DEPTH = 0x1902,
+		DEPTH_STENCIL = 0x84F9,
+		R = 0x1903,
+		RG = 0x8227,
+		RGB = 0x1907,
+		RGBA = 0x1908,
+	};
+
 	enum class Filter {
 		NEAREST = 0x2600,
 		LINEAR = 0x2601
@@ -16,6 +25,7 @@ struct Texture {
 	};
 
 	struct Settings {
+		Format format = Format::RGBA;
 		Filter magFilter = Filter::LINEAR;
 		Filter minFilter = Filter::LINEAR;
 		Wrap wrapS = Wrap::REPEAT;

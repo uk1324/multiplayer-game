@@ -58,6 +58,8 @@ void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value);
 declarationInStruct(declaration) ::= <%
 <if(declaration.isField)>
     <field(declaration)>
+<elseif(declaration.isCppInStruct)>
+    <declaration.cppSource>
 <else>
     error
 <endif>

@@ -25,7 +25,7 @@ add_executable(
 	"../shared/Gameplay.cpp" 
 	"../shared/WindowsUtils.cpp" 
 	"GameClient.cpp" "GameClientAdapter.cpp" "Rendering/Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
- "Debug.cpp" "Rendering/LineTriangulate.cpp" "Rendering/Text.cpp" "Rendering/ShaderManager.cpp")
+ "Debug.cpp" "Rendering/LineTriangulate.cpp" "Rendering/Font.cpp" "Rendering/ShaderManager.cpp")
 
 target_link_libraries(client engine)
 target_link_libraries(client math)

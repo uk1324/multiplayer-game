@@ -209,9 +209,9 @@ public class Parser {
 
             List<Field> vertOut = optVertOut.orElse(new ArrayList<>());
 
-            output.addIncludePath(Config.SHADER_PROGRAM_PATH);
-            output.addIncludePath(new IncludePath("vector"));
-            output.addIncludePath(Config.VAO_PATH);
+            output.addHppIncludePath(Config.SHADER_PROGRAM_PATH);
+            output.addHppIncludePath(new IncludePath("vector"));
+            output.addHppIncludePath(Config.VAO_PATH);
             output.addCppIncludePath(Config.OPENGL_PATH);
 
             return new Shader(name, instance, fragUniforms, vertUniforms, vertexFormat, instanceVertFields, instanceFragFields, vertOut, paths);
@@ -264,18 +264,19 @@ public class Parser {
 
     StructAttribute structAttribute() throws LexerError, ParserError {
         if (matchIdentifier("NetworkSerialize")) {
-            output.addIncludePath(Config.NETWORKING_PATH);
-            output.addIncludePath(Config.NETWORKING_UTILS_PATH);
+            output.addHppIncludePath(Config.NETWORKING_PATH);
+            output.addHppIncludePath(Config.NETWORKING_UTILS_PATH);
             return new StructAttributeNetworkSerialize();
         } else if (matchIdentifier("Gui")) {
             output.addCppIncludePath(Config.GUI_PATH);
             return new StructAttributeGui();
         } else if (matchIdentifier("Json")) {
-            output.addIncludePath(Config.JSON_PATH);
+            output.addHppIncludePath(Config.JSON_PATH);
+            output.addCppIncludePath(Config.JSON_UTILS_PATH);
             return new StructAttributeJson();
         } else if (matchIdentifier("NetworkMessage")) {
-            output.addIncludePath(Config.NETWORKING_PATH);
-            output.addIncludePath(Config.NETWORKING_UTILS_PATH);
+            output.addHppIncludePath(Config.NETWORKING_PATH);
+            output.addHppIncludePath(Config.NETWORKING_UTILS_PATH);
             return new StructAttributeNetworkMessage();
         }
         throw new ParserError("expected struct attribute");
@@ -317,12 +318,12 @@ public class Parser {
         if (matchIdentifier("float")) {
             return new FloatDataType();
         } else if (matchIdentifier("i32")) {
-            output.addIncludePath(Config.TYPES_PATH);
+            output.addHppIncludePath(Config.TYPES_PATH);
             return new I32DataType();
         } else if (matchIdentifier("bool")) {
             return new BoolDataType();
         } else if (matchIdentifier("color")) {
-            output.addIncludePath(Config.VEC4_PATH);
+            output.addHppIncludePath(Config.VEC4_PATH);
             return new ColorDataType();
         } else if (matchIdentifier("ranged_int")) {
             expect(TokenType.LESS_THAN);
@@ -336,7 +337,7 @@ public class Parser {
             var max = previousToken.cppSource();
 
             expect(TokenType.MORE_THAN);
-            output.addIncludePath(Config.TYPES_PATH);
+            output.addHppIncludePath(Config.TYPES_PATH);
             return new RangedSignedIntDataType(min, max);
         } else if (matchIdentifier("vector")) {
             expect(TokenType.LESS_THAN);
@@ -355,10 +356,12 @@ public class Parser {
             var max = previousToken.floatValue();
             expect(TokenType.MORE_THAN);
             return new RangedFloatDataType(min, max);
-        } else {
-            expect(TokenType.IDENTIFIER);
+        } else if (match(TokenType.IDENTIFIER)) {
             return new IdentifierDataType(previousToken.text);
+        } else if (match(TokenType.CPP_TYPE)) {
+            return new IdentifierDataType(previousToken.cppType());
         }
+        throw new ParserError("expected data type");
     }
 
     void eat() throws LexerError {

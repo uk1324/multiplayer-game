@@ -10,8 +10,9 @@ namespace Json
 	class Value
 	{
 	public:
-		class InvalidTypeAccess : public std::exception {};
-		class OutOfRangeAccess : public std::exception {};
+		class Exception : public std::exception {};
+		class InvalidTypeAccess : public Exception {};
+		class OutOfRangeAccess : public Exception {};
 
 		using StringType = std::string;
 		using ArrayType = std::vector<Value>;

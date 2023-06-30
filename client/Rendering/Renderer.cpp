@@ -1,4 +1,4 @@
-#include <client/Rendering/Renderer.hpp>
+﻿#include <client/Rendering/Renderer.hpp>
 #include <Engine/Window.hpp>
 #include <Engine/Input/Input.hpp>
 #include <engine/Math/Utils.hpp>
@@ -12,6 +12,7 @@
 #include <client/Rendering/LineTriangulate.hpp>
 #include <engine/Utils/Timer.hpp>
 #include <client/Rendering/ShaderManager.hpp>
+#include <engine/Log/Log.hpp>
 #include <iostream>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
@@ -39,15 +40,41 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 	return vao;
 }
 
-struct Character {
-	Vec2 size;
-	Vec2 bearing;
-	float advance;
-};
-
 #define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
 
-Renderer::Renderer() 
+// https://character-table.netlify.app/polish/#unicode-ranges
+std::pair<char32_t, char32_t> characterRangesToLoad[]{
+	{ 0, 127 },
+	//{ 0x104, 0x107 },
+	{ 0x20, 0x5F },
+	{ 0x61, 0x70 },
+	{ 0x72, 0x75 },
+	{ 0x77, 0x77 },
+	{ 0x79, 0x7E },
+	{ 0xA0, 0xA0 },
+	{ 0xA7, 0xA7 },
+	{ 0xA9, 0xA9 },
+	{ 0xAB, 0xAB },
+	{ 0xB0, 0xB0 },
+	{ 0xBB, 0xBB },
+	{ 0xD3, 0xD3 },
+	{ 0xF3, 0xF3 },
+	{ 0x104, 0x107 },
+	{ 0x118, 0x119 },
+	{ 0x141, 0x144 },
+	{ 0x15A, 0x15B },
+	{ 0x179, 0x17C },
+	{ 0x2010, 0x2011 },
+	{ 0x2013, 0x2014 },
+	{ 0x201D, 0x201E },
+	{ 0x2020, 0x2021 },
+	{ 0x2026, 0x2026 },
+	{ 0x2030, 0x2030 },
+	{ 0x2032, 0x2033 },
+	{ 0x20AC, 0x20AC },
+};
+
+Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
@@ -56,9 +83,21 @@ Renderer::Renderer()
 	, deathAnimationVao(Vao::null())
 	, circleVao(Vao::null())
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
-	, fontAtlas(Texture::null())
 	, fontVao(Vao::null())
-{
+	, font([]() {
+		auto font = fontLoadSdfWithCaching(
+			"assets/fonts/RobotoMono-Regular.ttf",
+			"generated/font.png",
+			"generated/fontInfo.json",
+			characterRangesToLoad,
+			64
+		);
+		if (font.has_value()) {
+			return std::move(*font);
+		}
+		LOG_FATAL("failed to load font %s", font.error().message.c_str());
+	}()) {
+
 	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
 	instancesVbo.bind();
@@ -119,9 +158,10 @@ Renderer::Renderer()
 		ADD_TO_ATLAS(bullet3, "bullet3.png")
 
 		auto [nameToPos, image] = generateTextureAtlas(textureAtlasImages);
-		Texture::Settings settings;
-		settings.wrapS = Texture::Wrap::CLAMP_TO_EDGE;
-		settings.wrapT = Texture::Wrap::CLAMP_TO_EDGE;
+		const Texture::Settings settings {
+			.wrapS = Texture::Wrap::CLAMP_TO_EDGE,
+			.wrapT = Texture::Wrap::CLAMP_TO_EDGE,
+		};
 		atlasTexture = Texture(image, settings);
 		const auto atlasTextureSize = Vec2(Vec2T<int>(image.width(), image.height()));
 
@@ -140,101 +180,6 @@ Renderer::Renderer()
 		backgroundShader = &ShaderManager::createShader("client/background.vert", "client/background.frag");
 	}
 	camera.zoom /= 3.0f;
-
-	FT_Library ft;
-	if (FT_Init_FreeType(&ft)) {
-		//LOG_FATAL()
-		std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
-		return;
-	}
-
-	FT_Face face;
-	if (FT_New_Face(ft, "assets/fonts/RobotoMono-Regular.ttf", 0, &face)) {
-		std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
-		return;
-	}
-
-	FT_Set_Pixel_Sizes(face, 0, 64);
-
-
-	/*if (FT_Load_Char(face, 'H', FT_LOAD_RENDER))
-	{
-		std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-		return;
-	}*/
-
-	std::vector<TextureAtlasInputImage> glyphs;
-	Timer timer;
-	for (unsigned char character = 0; character < 128; character++) {
-		const auto glyphIndex = FT_Get_Char_Index(face, character);
-
-		if (FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT))
-		{
-			std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-			return;
-		}
-
-		/*if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL))
-		{
-			std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-			return;
-		}*/
-
-		if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_SDF))
-		{
-			std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-			return;
-		}
-
-		const FT_Bitmap& bitmap = face->glyph->bitmap;
-		characters[character] = Character{
-			.atlasOffset = Vec2T<int>(0), // Set later
-			.size = { static_cast<int>(bitmap.width), static_cast<int>(bitmap.rows) },
-			.bearing = { face->glyph->bitmap_left, face->glyph->bitmap_top },
-			.advance = { face->glyph->advance.x, face->glyph->advance.y },
-		};
-
-		if (bitmap.rows == 0 || bitmap.width == 0)
-			continue;
-
-		Image32 image(bitmap.width, bitmap.rows);
-
-		for (unsigned int y = 0; y < bitmap.rows; y++) {
-			for (unsigned int x = 0; x < bitmap.width; x++) {
-				const auto value = bitmap.buffer[y * bitmap.pitch + x];
-				image(x, y) = Pixel32{ value };
-			}
-		}
-
-		char name[2];
-		name[0] = character;
-		name[1] = '\0';
-		glyphs.push_back(TextureAtlasInputImage{ .name = name, .image = std::move(image) });
-		//image.saveToPng("test.png");
-	}
-	std::cout << timer.elapsedMilliseconds() << '\n';
-	auto output = generateTextureAtlas(glyphs);
-
-	FT_Done_Face(face);
-	FT_Done_FreeType(ft);
-
-	Texture::Settings settings;
-	settings.wrapS = Texture::Wrap::CLAMP_TO_EDGE;
-	settings.wrapT = Texture::Wrap::CLAMP_TO_EDGE;
-	fontAtlas = Texture(output.atlasImage, settings);
-	fontAtlasPixelSize = Vec2T<int>(output.atlasImage.size());
-
-	std::string c;
-	for (auto& [character, info] : characters) {
-		c.clear();
-		c += character;
-		const auto atlasInfo = output.nameToPos.find(c);
-		if (atlasInfo == output.nameToPos.end()) {
-			continue;
-		}
-			
-		info.atlasOffset = atlasInfo->second.offset;
-	}
 
 	{
 		textShader = &CREATE_GENERATED_SHADER(TEXT);
@@ -394,10 +339,11 @@ void Renderer::update() {
 	//glDisable(GL_DEPTH_TEST);
 	
 	//if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	drawText("The quick brown fox jumps over the lazy dog");
+	//drawText("The quick brown fox jumps over the lazy dog");
+	drawText(U"1234567890Pchnąć w tę łódź jeża lub ośm skrzyń fig");	
 
 	glActiveTexture(GL_TEXTURE0);
-	fontAtlas.bind();
+	font.fontAtlas.bind();
 	textShader->use();
 	textShader->setTexture("fontAtlas", 0);
 	static float elapsed = 0.0f;
@@ -410,20 +356,22 @@ void Renderer::update() {
 	drawDebugShapes();
 }
 
-void Renderer::drawText(std::string_view text) {
+void Renderer::drawText(std::basic_string_view<char32_t> text) {
 	const auto pos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
 	float x = pos.x;
 	float y = pos.y;
 	static float size = 1.0f;
 	ImGui::InputFloat("size", &size);
 	for (const auto& c : text) {
-		const auto& characterIt = characters.find(c);
-		if (characterIt == characters.end()) {
+		const auto& characterIt = font.glyphs.find(c);
+		if (characterIt == font.glyphs.end()) {
 			continue;
 		}
 		const auto& info = characterIt->second;
 
-		float scale = 0.005f * size;
+		/*float scale = 0.005f * size;*/
+		/*float scale = 0.005f * size;*/
+		float scale = size * (1.0f / font.pixelHeight);
 		float xpos = x + info.bearing.x * scale;
 		float ypos = y - (info.size.y - info.bearing.y) * scale;
 
@@ -434,11 +382,11 @@ void Renderer::drawText(std::string_view text) {
 		xpos += w / 2.0f;
 		ypos += h / 2.0f;
 
-		if (info.size.x != 0 && info.size.y != 0) {
+		if (info.isVisible()) {
 			textInstances.toDraw.push_back(TextInstance{
 				.transform = camera.makeTransform(Vec2(xpos, ypos), 0.0f, Vec2(w, h) / 2.0f),
-				.offsetInAtlas = Vec2(info.atlasOffset) / Vec2(fontAtlasPixelSize),
-				.sizeInAtlas = Vec2(info.size) / Vec2(fontAtlasPixelSize),
+				.offsetInAtlas = Vec2(info.atlasOffset) / Vec2(font.fontAtlasPixelSize),
+				.sizeInAtlas = Vec2(info.size) / Vec2(font.fontAtlasPixelSize),
 			});
 		}
 		x += (info.advance.x >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64)

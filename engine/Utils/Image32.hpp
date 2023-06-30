@@ -23,7 +23,7 @@ struct Image32 {
 	Image32& operator=(Image32&& other) noexcept;
 	~Image32();
 
-	std::optional<Image32> fromFile(const char* path);
+	static std::optional<Image32> fromFile(const char* path);
 	void saveToPng(const char* path) const;
 	void copyAndResize(const Image32& other);
 

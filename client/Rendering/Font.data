@@ -1,0 +1,10 @@
+struct [[Json]] Glyph {
+	$Vec2T<int>$ atlasOffset;
+	$Vec2T<int>$ size;
+	$Vec2T<int>$ bearing;
+	$Vec2T<int>$ advance;
+
+	`
+	bool isVisible() const;
+	`
+}

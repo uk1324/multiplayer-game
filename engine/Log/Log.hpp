@@ -5,7 +5,7 @@ namespace Log
 	void info(const char* filename, int line, const char* format, ...);
 	void warning(const char* filename, int line, const char* format, ...);
 	void error(const char* filename, int line, const char* format, ...);
-	void fatal(const char* filename, int line, const char* format, ...);
+	[[noreturn]] void fatal(const char* filename, int line, const char* format, ...);
 	void debug(const char* filename, int line, const char* format, ...);
 }
 

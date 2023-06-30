@@ -12,6 +12,7 @@ enum TokenType {
     SEMICOLON,
     EQUALS,
     CPP,
+    CPP_TYPE,
     INT,
     FLOAT
 }
@@ -31,6 +32,12 @@ class Token {
 
     String cppSource() {
         if (type != TokenType.CPP)
+            return "";
+        return text.substring(1, text.length() - 1);
+    }
+
+    String cppType() {
+        if (type != TokenType.CPP_TYPE)
             return "";
         return text.substring(1, text.length() - 1);
     }
@@ -98,6 +105,15 @@ public class Lexer {
                 while (!isAtEnd()) {
                     if (match('`')) {
                         return Optional.of(makeToken(TokenType.CPP));
+                    }
+                    eat();
+                }
+                break;
+
+            case '$':
+                while (!isAtEnd()) {
+                    if (match('$')) {
+                        return Optional.of(makeToken(TokenType.CPP_TYPE));
                     }
                     eat();
                 }

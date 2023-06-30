@@ -10,9 +10,8 @@
 #include <client/Rendering/Shaders/deathAnimationData.hpp>
 #include <client/Rendering/Shaders/circleData.hpp>
 #include <client/Rendering/Shaders/textData.hpp>
+#include <client/Rendering/Font.hpp>
 #include <filesystem>
-#include <ft2build.h>
-#include FT_FREETYPE_H  
 
 struct Renderer {
 	struct Sprite {
@@ -57,18 +56,10 @@ private:
 	};
 	std::vector<SpriteToDraw> spritesToDraw;
 
-	struct Character {
-		Vec2T<int> atlasOffset;
-		Vec2T<int> size;
-		Vec2T<int> bearing;
-		Vec2T<int> advance;
-	};
-	std::unordered_map<char, Character> characters;
+	Font font;
 	ShaderProgram* textShader;
-	void drawText(std::string_view text);
-	Vec2T<int> fontAtlasPixelSize;
+	void drawText(std::basic_string_view<char32_t> text);
 	Vao fontVao;
-	Texture fontAtlas;
 	TextInstances textInstances;
 public:
 	void drawSprite(Sprite sprite, Vec2 pos, float size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));

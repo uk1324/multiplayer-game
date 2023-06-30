@@ -25,7 +25,7 @@ public class DataFile {
         list.add(newPath);
     }
 
-    public void addIncludePath(IncludePath newPath) {
+    public void addHppIncludePath(IncludePath newPath) {
         addUnique(hppIncludePaths, newPath);
     }
 
@@ -303,7 +303,7 @@ class Field extends DeclarationInStruct {
 }
 
 class CppInStruct extends DeclarationInStruct {
-    String cppSource;
+    public String cppSource;
 
     CppInStruct(String source) {
         this.cppSource = source;

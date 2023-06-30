@@ -12,7 +12,17 @@ static constexpr u32 TARGET = GL_TEXTURE_2D;
 Texture::Texture(const Image32& img, const Settings& settings) {
 	glGenTextures(1, &handle_);
 	bind();
-	glTexImage2D(TARGET, 0, GL_RGBA, img.width(), img.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, reinterpret_cast<const void*>(img.data()));
+	glTexImage2D(
+		TARGET, 
+		0, 
+		GL_RGBA, 
+		img.width(), 
+		img.height(), 
+		0, 
+		static_cast<GLenum>(settings.format), 
+		GL_UNSIGNED_BYTE, 
+		reinterpret_cast<const void*>(img.data())
+	);
 
 	glTexParameteri(TARGET, GL_TEXTURE_WRAP_S, static_cast<GLint>(settings.wrapS));
 	glTexParameteri(TARGET, GL_TEXTURE_WRAP_T, static_cast<GLint>(settings.wrapT));
