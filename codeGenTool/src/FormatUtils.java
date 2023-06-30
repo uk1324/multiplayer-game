@@ -53,11 +53,7 @@ public class FormatUtils {
                 result += transformer.run(c);
             }
 
-            if (Character.isDigit(c)) {
-                previousCharIsDigit = true;
-            } else {
-                previousCharIsDigit = false;
-            }
+            previousCharIsDigit = Character.isDigit(c);
         }
         return result;
     }

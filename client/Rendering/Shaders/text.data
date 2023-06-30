@@ -5,7 +5,9 @@ shader Text {
 		Vec2 offsetInAtlas;
 		Vec2 sizeInAtlas;
 	};
-
+	fragInstance = {
+		float smoothing;
+	};
 	vertOut = {
 		Vec2 texturePosition;
 	};

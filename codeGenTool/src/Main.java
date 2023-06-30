@@ -3,9 +3,9 @@ import org.stringtemplate.v4.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -20,7 +20,8 @@ class GeneratedFilesPaths {
     public String hppFilePathRelativeToCppFile;
 
     GeneratedFilesPaths(String file, String generatedOutDirectory, String cppExecutableWorkingDirectory) {
-        this.cppExecutableWorkingDirectory = cppExecutableWorkingDirectory;
+        generatedOutDirectory = Paths.get(generatedOutDirectory).toAbsolutePath().toString();
+        this.cppExecutableWorkingDirectory = Paths.get(cppExecutableWorkingDirectory).toAbsolutePath().toString();
         var absolutePath = Paths.get(file).toAbsolutePath();
         this.absoluteFilePath = absolutePath.toString();
 
@@ -53,21 +54,22 @@ public class Main {
     static String thisProgramWorkingDirectory = System.getProperty("user.dir");
 
     public static void main(String[] args) {
-//        System.out.println(Paths.get("../client").toAbsolutePath());
-//        System.out.println(Paths.get("../client").toFile().isDirectory());
-//        boolean watch = false;
-//        if (args.length >= 1 && args[0].equals("watch")) {
-//
-//        }
+        if (args.length >= 1 && args[0].equals("watch")) {
+            watchProgram(args);
+        } else {
+            compilerProgram(args);
+        }
+    }
 
+    static void compilerProgram(String[] args) {
         if (args.length < 3) {
             System.err.println("wrong number of arguments");
-            System.out.println("usage: workingDirectory generatedOutDirectory folderToProcessRecursivelyOrFile...");
+            System.out.println("usage: <cppExecutableWorkingDirectory> <generatedOutDirectory> <folderToProcessRecursivelyOrFile...>");
             return;
         }
-//
-        var cppExecutableWorkingDirectory = Paths.get(args[0]).toAbsolutePath().toString();
-        var generatedOutDirectory = Paths.get(args[1]).toAbsolutePath().toString();
+
+        var cppExecutableWorkingDirectory = args[0];
+        var generatedOutDirectory = args[1];
 
         for (int i = 2; i < args.length; i++) {
             var path = args[i];
@@ -87,6 +89,25 @@ public class Main {
             } else {
                 System.err.format("invalid path %s", path);
             }
+        }
+    }
+
+    static void watchProgram(String[] args) {
+        if (args.length < 4) {
+            System.err.println("wrong number of arguments");
+            System.out.println("usage: watch <cppExecutableWorkingDirectory> <generatedOutDirectory> <directoryToRecursivelyToWatch...>");
+        }
+        var cppExecutableWorkingDirectory = args[1];
+        var generatedOutDirectory = args[2];
+
+        List<Path> directoryPaths = new ArrayList<>();
+        for (int i = 3; i < args.length; i++) {
+            directoryPaths.add(Paths.get(args[i]));
+        }
+        try {
+            new Watcher(directoryPaths, cppExecutableWorkingDirectory, generatedOutDirectory).processEvents();
+        } catch (IOException e) {
+            System.err.format("watcher error: %s\n", e.getMessage());
         }
     }
 

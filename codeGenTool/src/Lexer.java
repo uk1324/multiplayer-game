@@ -144,23 +144,17 @@ public class Lexer {
     void skipWhitespace() {
         while (!isAtEnd()) {
             switch (peek()) {
-                case ' ':
-                case '\t':
-                case '\r':
-                case '\f':
-                case '\n':
-                    eat();
-                    break;
-                case '/':
+                case ' ', '\t', '\r', '\f', '\n' -> eat();
+                case '/' -> {
                     if (peekNext() == '/') {
                         while (!isAtEnd() && peek() != '\n')
                             eat();
                     }
-                    break;
-
-                default:
+                }
+                default -> {
                     tokenStartIndex = currentIndex;
                     return;
+                }
             }
         }
     }

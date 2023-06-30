@@ -1,8 +1,5 @@
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 // Remember to set everything to public.
 
@@ -21,7 +18,7 @@ public class DataFile {
 
     static private void addUnique(List<IncludePath> list, IncludePath newPath) {
         for (var path : list) {
-            if (path.isRelative == newPath.isRelative && path.path == newPath.path) {
+            if (path.isRelative == newPath.isRelative && Objects.equals(path.path, newPath.path)) {
                 return;
             }
         }
@@ -87,7 +84,6 @@ class Struct extends Declaration {
     public static Struct empty(String name) {
         return new Struct(name, new ArrayList<>(), new ArrayList<>());
     }
-
 
     public Iterator<Field> getFields() {
         var stream = declarations
@@ -345,13 +341,13 @@ abstract class DataType {
     }
     public boolean getIsVec2() {
         return getName().equals("Vec2");
-    };
+    }
     public boolean getIsVec3() {
         return getName().equals("Vec3");
-    };
+    }
     public boolean getIsVec4() {
         return getName().equals("Vec4");
-    };
+    }
     public boolean getIsVector() {
         return this instanceof VectorDataType;
     }

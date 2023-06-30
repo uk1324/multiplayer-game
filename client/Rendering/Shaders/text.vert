@@ -5,12 +5,20 @@ layout(location = 1) in vec2 vertexTexturePosition;
 layout(location = 2) in mat3x2 instanceTransform; 
 layout(location = 5) in vec2 instanceOffsetInAtlas; 
 layout(location = 6) in vec2 instanceSizeInAtlas; 
+layout(location = 7) in float instanceSmoothing; 
 
 out vec2 texturePosition; 
+
+out float smoothing; 
+
+void passToFragment() {
+    smoothing = instanceSmoothing; 
+}
 
 /*generated end*/
 
 void main() {
+	passToFragment();
 	texturePosition = vertexTexturePosition;
 	texturePosition.y = 1.0 - texturePosition.y;
 	texturePosition *= instanceSizeInAtlas;

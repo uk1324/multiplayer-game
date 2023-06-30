@@ -88,7 +88,7 @@ public class Parser {
                 var key = previousToken.text;
                 Optional<String> value = Optional.empty();
                 if (match(TokenType.EQUALS)) {
-                    // Maybe instead of cpp tokens skip untill there is a comma and then add the string together. This will not always work but might be better. Macros might break it or constexpr functions.
+                    // Maybe instead of cpp tokens skip until there is a comma and then add the string together. This will not always work but might be better. Macros might break it or constexpr functions.
                     expect(TokenType.CPP);
                     value = Optional.of(previousToken.cppSource());
                 }
