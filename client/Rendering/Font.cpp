@@ -43,7 +43,7 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	const char* fontPath,
 	const char* cachedSdfPath,
 	const char* cachedFontInfoPath,
-	std::span<std::pair<char32_t, char32_t>> rangesToLoad,
+	std::span<const std::pair<char32_t, char32_t>> rangesToLoad,
 	int fontPixelHeight) {
 	const Texture::Settings atlasTextureSettings{
 		.format = Texture::Format::RGBA,

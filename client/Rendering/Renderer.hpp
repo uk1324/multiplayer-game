@@ -4,6 +4,7 @@
 #include <Engine/Graphics/Vao.hpp>
 #include <Engine/Graphics/Ibo.hpp>
 #include <Engine/Graphics/Texture.hpp>
+#include <Engine/Graphics/Fbo.hpp>
 #include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>
 #include <engine/Math/Vec4.hpp>
@@ -23,6 +24,7 @@ struct Renderer {
 	};
 
 	Renderer();
+	void onResize();
 	void update();
 
 	Camera camera;
@@ -85,6 +87,17 @@ public:
 private:
 	ShaderProgram* backgroundShader;
 
+	Fbo postProcessFbo0;
+	Texture postprocessTexture0;
+	Fbo postProcessFbo1;
+	Texture postprocessTexture1;
+
+	int currentFboIndex = 0;
+	Fbo& currentWriteFbo();
+	Texture& currentReadTexture();
+	void swapFbos();
+
+	ShaderProgram& postprocessShader;
 public:
 	struct DeathAnimation {
 		Vec2 position;

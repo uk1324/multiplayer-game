@@ -4,8 +4,9 @@
 #include <glfw/glfw3.h>
 
 static GLFWwindow* windowHandle = nullptr;
+static bool resizedThisFrame = true;
 
-void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+static void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
 		Input::onKeyDown(key, false);
 	} else if (action == GLFW_RELEASE) {
@@ -13,11 +14,11 @@ void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int
 	}
 }
 
-void mouseMoveCallback(GLFWwindow* window, double mouseX, double mouseY) {
+static void mouseMoveCallback(GLFWwindow* window, double mouseX, double mouseY) {
 	Input::onMouseMove(Vec2(static_cast<float>(mouseX), static_cast<float>(mouseY)));
 }
 
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	// @Hack: Assumes the button ids don't conflinct with keyboard ids.
 	if (action == GLFW_PRESS) {
 		Input::onKeyDown(button, false);
@@ -26,8 +27,12 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	}
 }
 
-void mouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
+static void mouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
 	Input::onMouseScroll(static_cast<float>(yOffset));
+}
+
+static void windowResizeCallback(GLFWwindow* window, int width, int height) {
+	resizedThisFrame = true;
 }
 
 void Window::init(int width, int height, std::string_view title) {
@@ -45,6 +50,7 @@ void Window::init(int width, int height, std::string_view title) {
 	glfwSetCursorPosCallback(windowHandle, mouseMoveCallback);
 	glfwSetMouseButtonCallback(windowHandle, mouseButtonCallback);
 	glfwSetScrollCallback(windowHandle, mouseScrollCallback);
+	glfwSetWindowSizeCallback(windowHandle, windowResizeCallback);
 }
 
 void Window::terminate() {
@@ -63,6 +69,7 @@ float Window::aspectRatio() {
 }
 
 void Window::update() {
+	resizedThisFrame = false;
 	glfwSwapBuffers(windowHandle);
 }
 
@@ -96,6 +103,10 @@ void Window::hideCursor() {
 
 void Window::showCursor() {
 	glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+bool Window::resized() {
+	return resizedThisFrame;
 }
 
 bool Window::shouldClose() {

@@ -18,6 +18,7 @@
 #include <engine/Utils/Put.hpp>
 #include <numeric>
 #include <engine/Math/Color.hpp>
+#include <client/Rendering/Shaders/Postprocess/bloomData.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -44,39 +45,9 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 	return vao;
 }
 
-#define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
+#define SHADERS_PATH "client/Rendering/Shaders/"
 
-// https://character-table.netlify.app/polish/#unicode-ranges
-std::pair<char32_t, char32_t> characterRangesToLoad[]{
-	{ 0, 127 },
-	//{ 0x104, 0x107 },
-	{ 0x20, 0x5F },
-	{ 0x61, 0x70 },
-	{ 0x72, 0x75 },
-	{ 0x77, 0x77 },
-	{ 0x79, 0x7E },
-	{ 0xA0, 0xA0 },
-	{ 0xA7, 0xA7 },
-	{ 0xA9, 0xA9 },
-	{ 0xAB, 0xAB },
-	{ 0xB0, 0xB0 },
-	{ 0xBB, 0xBB },
-	{ 0xD3, 0xD3 },
-	{ 0xF3, 0xF3 },
-	{ 0x104, 0x107 },
-	{ 0x118, 0x119 },
-	{ 0x141, 0x144 },
-	{ 0x15A, 0x15B },
-	{ 0x179, 0x17C },
-	{ 0x2010, 0x2011 },
-	{ 0x2013, 0x2014 },
-	{ 0x201D, 0x201E },
-	{ 0x2020, 0x2021 },
-	{ 0x2026, 0x2026 },
-	{ 0x2030, 0x2030 },
-	{ 0x2032, 0x2033 },
-	{ 0x20AC, 0x20AC },
-};
+#define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
 
 Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
@@ -95,7 +66,7 @@ Renderer::Renderer()
 			"assets/fonts/RobotoMono-Regular.ttf",
 			"generated/font.png",
 			"generated/fontInfo.json",
-			characterRangesToLoad,
+			POLISH_CHARACTER_RANGES,
 			64
 		);
 		put("font loading took %", timer.elapsedMilliseconds());
@@ -103,7 +74,12 @@ Renderer::Renderer()
 			return std::move(*font);
 		}
 		LOG_FATAL("failed to load font %s", font.error().message.c_str());
-	}()) {
+	}())
+	, postProcessFbo0(Fbo::generate())
+	, postProcessFbo1(Fbo::generate())
+	, postprocessTexture0(Texture::generate())
+	, postprocessTexture1(Texture::generate())
+	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag")) {
 
 	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
@@ -201,6 +177,35 @@ Renderer::Renderer()
 		instancesVbo.bind();
 		addTextInstanceAttributesToVao(fontVao);
 	}
+
+	{
+		auto initializePostProcessFbo = [](Fbo& fbo, Texture& color) {
+			fbo.bind();
+			color.bind();
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color.handle(), 0);
+			Fbo::unbind();
+		};
+		initializePostProcessFbo(postProcessFbo0, postprocessTexture0);
+		initializePostProcessFbo(postProcessFbo1, postprocessTexture1);
+	}
+}
+
+void Renderer::onResize() {
+	const auto newSize = Window::size();
+	put("resized window size: %", newSize);
+	auto updatePostprocessTexture = [&newSize](Texture& texture) {
+		texture.bind();
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F /* Not sure why this format */, newSize.x, newSize.y, 0, GL_RGB, GL_FLOAT, nullptr);
+	};
+
+	updatePostprocessTexture(postprocessTexture0);
+	updatePostprocessTexture(postprocessTexture1);
+
+	glViewport(0, 0, newSize.x, newSize.y);
 }
 
 #define INSTANCED_DRAW_QUAD_PT(instanceName) \
@@ -215,13 +220,16 @@ void Renderer::update() {
 		ShaderManager::reloadAllShaders();
 	}
 
-	glViewport(0, 0, Window::size().x, Window::size().y);
+	// Thechnically this is incorrect, because this uses the window resize function not the framebuffer resize function, but it shouldn't matter on most system. On windows and on the x window manager it is exacly the same thing. The function to get framebuffer calls the function to get the window size on those systems.
+	if (Window::resized()) {
+		onResize();
+	}
+	currentWriteFbo().bind();
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	camera.aspectRatio = Window::aspectRatio();
-
 	{
 		backgroundShader->use();
 		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());
@@ -306,18 +314,6 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	static Vec2 vertices[] = {
-		{ 0.0f, 0.0f },
-		{ 0.0f, 1.0f },
-		{ 1.0f, 1.0f },
-		{ 1.0f, 0.0f },
-	};
-	for (auto& p : vertices) {
-		Debug::dragablePoint(p);
-		Debug::drawText(p, p.roundedToDecimalDigits(2));
-	}
-	Debug::drawPolygon(vertices, Color3::GREEN);
-
 	drawDebugShapes();
 
 	glActiveTexture(GL_TEXTURE0);
@@ -329,6 +325,24 @@ void Renderer::update() {
 	textInstances.toDraw.clear();
 
 	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed.
+
+	{
+		static BloomFragUniforms uniforms{
+			.color = Color3::WHITE
+		};
+		GUI_PROPERTY_EDITOR(gui(uniforms));
+		shaderSetUniforms(postprocessShader, uniforms);
+
+	}
+
+	swapFbos();
+	Fbo::unbind();
+	postprocessShader.use();
+	glActiveTexture(GL_TEXTURE0);
+	currentReadTexture().bind();
+	postprocessShader.setTexture("colorBuffer", 0);
+	spriteVao.bind();
+	glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 }
 
 Vec2 Renderer::getQuadPixelSize(Vec2 scale) const {
@@ -434,30 +448,43 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 	});
 }
 
+Fbo& Renderer::currentWriteFbo() {
+	if (currentFboIndex = 0) {
+		return postProcessFbo0;
+	} else {
+		return postProcessFbo1;
+	}
+}
+
+Texture& Renderer::currentReadTexture() {
+	if (currentFboIndex = 0) {
+		return postprocessTexture0;
+	} else {
+		return postprocessTexture1;
+	}
+}
+
+void Renderer::swapFbos() {
+	if (currentFboIndex == 0) {
+		currentFboIndex = 1;
+	} else {
+		currentFboIndex = 0;
+	}
+}
+
 void Renderer::drawDebugShapes() {
 	for (const auto& line : Debug::lines) {
-		//const auto pixelSize = getQuadPixelSizeY(circle.radius);
 		const auto vector = line.end - line.start;
 		const auto direction = vector.normalized();
 		const auto width = line.width.has_value() ? *line.width : 20.0f / Window::size().y;
-		/*ImGui::Text("%g", vector.length());
-		ImGui::Text("%g", vector.length() + line.width * 2.0f);*/
 		const auto pixelWidth = getQuadPixelSizeY(width);
 		lineInstances.toDraw.push_back(LineInstance{
-			/*.transform = camera.makeTransform(line.start + vector / 2.0f - direction * line.width, vector.angle(), Vec2(vector.length() / 2.0f, line.width + line.width * 2.0f)),*/
 			.transform = camera.makeTransform(line.start + vector / 2.0f, vector.angle(), Vec2(vector.length() / 2.0f + width, width)),
 			.color = Vec4(line.color, 1.0f),
 			.smoothing = 3.0f / pixelWidth,
 			.lineWidth = width,
 			.lineLength = vector.length() + width * 2.0f,
-			//.transform = camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f)),
 		});
-		/*const auto pixelSize = getQuadPixelSizeY(circle.radius);
-		circleInstances.toDraw.push_back(CircleInstance{
-			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
-			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
-			.smoothing = 5.0f / pixelSize,
-		});*/
 	}
 	INSTANCED_DRAW_QUAD_PT(line);
 

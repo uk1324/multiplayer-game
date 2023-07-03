@@ -177,11 +177,11 @@ class Shader extends Declaration {
     public String vertPath;
     public String vertPathRelativeToWorkingDirectory;
     public String fragPathRelativeToWorkingDirectory;
+    public boolean generateVert;
 
     public boolean getVertUniformsIsEmpty() {
         return vertUniforms.fields.isEmpty();
     }
-
     Shader(
             String name,
             Struct instance,
@@ -191,7 +191,8 @@ class Shader extends Declaration {
             List<Field> instanceVertFields,
             List<Field> instanceFragFields,
             List<Field> vertOut,
-            GeneratedFilesPaths paths) {
+            GeneratedFilesPaths paths,
+            boolean generateVert) {
         // TODO: could support passing structs instead of a vertexFormat.
         int layout = 0;
         if (vertexFormat.equals("PT")) {
@@ -223,6 +224,7 @@ class Shader extends Declaration {
         this.fragPath = paths.getFragPath(name);
         this.vertPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(vertPath)).toString().replace('\\', '/');
         this.fragPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(fragPath)).toString().replace('\\', '/');
+        this.generateVert = generateVert;
     }
 
     public String getNameFirstLetterLowercase() {

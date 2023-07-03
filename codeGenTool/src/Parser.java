@@ -104,117 +104,7 @@ public class Parser {
                 }
             }
         } else if (matchIdentifier("shader")) {
-            expect(TokenType.IDENTIFIER);
-            var name = previousToken.text;
-            expect(TokenType.LEFT_BRACE);
-
-            String instanceStructName = name + "Instance";
-            String vertUniformsStructName = name + "VertUniforms";
-            String fragUniformsStructName = name + "FragUniforms";
-
-            Optional<String> optVertexFormat = Optional.empty();
-            Optional<List<StructAttribute>> optInstanceAttributes = Optional.empty();
-            Optional<List<DeclarationInStruct>> optVertInstanceDeclarations = Optional.empty();
-            Optional<List<DeclarationInStruct>> optFragInstanceDeclarations = Optional.empty();
-            Optional<Struct> optVertUniforms = Optional.empty();
-            Optional<Struct> optFragUniforms = Optional.empty();
-            Optional<List<Field>> optVertOut = Optional.empty();
-            while (!isAtEnd && !match(TokenType.RIGHT_BRACE)) {
-                expect(TokenType.IDENTIFIER);
-                if (previousToken.text.equals("vertInstance")) {
-                    if (optVertInstanceDeclarations.isPresent()) {
-                        throw new ParserError("vertInstance already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optVertInstanceDeclarations = Optional.of(structDeclarationsBlock());
-                    expect(TokenType.SEMICOLON);
-                } else if (previousToken.text.equals("fragInstance")) {
-                    if (optFragInstanceDeclarations.isPresent()) {
-                        throw new ParserError("fragInstance already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optFragInstanceDeclarations = Optional.of(structDeclarationsBlock());
-                    expect(TokenType.SEMICOLON);
-                } else if (previousToken.text.equals("instanceAttributes")) {
-                    if (optInstanceAttributes.isPresent()) {
-                        throw new ParserError("instanceAttributes already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optInstanceAttributes = Optional.of(structAttributes());
-                    expect(TokenType.SEMICOLON);
-                }  else if (previousToken.text.equals("vertexFormat")) {
-                    if (optVertexFormat.isPresent()) {
-                        throw new ParserError("vertexFormat already specified");
-                    }
-                    expect(TokenType.EQUALS);
-
-                    expect(TokenType.IDENTIFIER);
-                    optVertexFormat = Optional.of(previousToken.text);
-                    expect(TokenType.SEMICOLON);
-                } else if (previousToken.text.equals("vertUniforms")) {
-                    if (optVertUniforms.isPresent()) {
-                        throw new ParserError("vertUniforms already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optVertUniforms = Optional.of(structBody(vertUniformsStructName));
-                    expect(TokenType.SEMICOLON);
-                } else if (previousToken.text.equals("fragUniforms")) {
-                    if (optFragUniforms.isPresent()) {
-                        throw new ParserError("fragUniforms already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optFragUniforms = Optional.of(structBody(fragUniformsStructName));
-                    expect(TokenType.SEMICOLON);
-                } else if (previousToken.text.equals("vertOut")) {
-                    if (optVertOut.isPresent()) {
-                        throw new ParserError("vertOut already specified");
-                    }
-                    expect(TokenType.EQUALS);
-                    optVertOut = Optional.of(structFieldsBlock());
-                    expect(TokenType.SEMICOLON);
-                } else {
-                    throw new ParserError(String.format("invalid field %s", previousToken.text));
-                }
-            }
-
-            String vertexFormat;
-            if (optVertexFormat.isPresent()) {
-                vertexFormat = optVertexFormat.get();
-            } else {
-                throw new ParserError("vertexFormat must be specified");
-            }
-
-            List<DeclarationInStruct> instanceDeclarations = new ArrayList<>();
-            List<Field> instanceFragFields = new ArrayList<>();
-            List<Field> instanceVertFields = new ArrayList<>();
-            if (optVertInstanceDeclarations.isPresent()) {
-                instanceDeclarations.addAll(optVertInstanceDeclarations.get());
-                instanceVertFields = filterKeepOnlyFields(optVertInstanceDeclarations.get());
-            }
-            if (optFragInstanceDeclarations.isPresent()) {
-                instanceDeclarations.addAll(optFragInstanceDeclarations.get());
-                instanceFragFields = filterKeepOnlyFields(optFragInstanceDeclarations.get());
-            }
-
-            List<StructAttribute> instanceAttributes = optInstanceAttributes.orElse(new ArrayList<>());
-            Struct instance = new Struct(instanceStructName, instanceDeclarations, instanceAttributes);
-
-            Struct vertUniforms;
-            vertUniforms = optVertUniforms.orElseGet(() -> Struct.empty(vertUniformsStructName));
-            vertUniforms.attributes.add(new StructAttributeUniform());
-
-            Struct fragUniforms;
-            fragUniforms = optFragUniforms.orElseGet(() -> Struct.empty(fragUniformsStructName));
-            fragUniforms.attributes.add(new StructAttributeUniform());
-
-            List<Field> vertOut = optVertOut.orElse(new ArrayList<>());
-
-            output.addHppIncludePath(Config.SHADER_PROGRAM_PATH);
-            output.addHppIncludePath(new IncludePath("vector"));
-            output.addHppIncludePath(Config.VAO_PATH);
-            output.addCppIncludePath(Config.OPENGL_PATH);
-
-            return new Shader(name, instance, fragUniforms, vertUniforms, vertexFormat, instanceVertFields, instanceFragFields, vertOut, paths);
+            return shader();
         } else if (match(TokenType.CPP)) {
             return new Cpp(previousToken.cppSource());
         }
@@ -314,6 +204,132 @@ public class Parser {
         }
     }
 
+    Shader shader()  throws LexerError, ParserError {
+        expect(TokenType.IDENTIFIER);
+        var name = previousToken.text;
+        expect(TokenType.LEFT_BRACE);
+
+        String instanceStructName = name + "Instance";
+        String vertUniformsStructName = name + "VertUniforms";
+        String fragUniformsStructName = name + "FragUniforms";
+
+        Optional<String> optVertexFormat = Optional.empty();
+        Optional<List<StructAttribute>> optInstanceAttributes = Optional.empty();
+        Optional<List<DeclarationInStruct>> optVertInstanceDeclarations = Optional.empty();
+        Optional<List<DeclarationInStruct>> optFragInstanceDeclarations = Optional.empty();
+        Optional<Struct> optVertUniforms = Optional.empty();
+        Optional<Struct> optFragUniforms = Optional.empty();
+        Optional<List<Field>> optVertOut = Optional.empty();
+
+        boolean generateVert = true;
+
+        while (!isAtEnd && !match(TokenType.RIGHT_BRACE)) {
+            expect(TokenType.IDENTIFIER);
+            if (previousToken.text.equals("vertInstance")) {
+                if (optVertInstanceDeclarations.isPresent()) {
+                    throw new ParserError("vertInstance already specified");
+                }
+                expect(TokenType.EQUALS);
+                optVertInstanceDeclarations = Optional.of(structDeclarationsBlock());
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("fragInstance")) {
+                if (optFragInstanceDeclarations.isPresent()) {
+                    throw new ParserError("fragInstance already specified");
+                }
+                expect(TokenType.EQUALS);
+                optFragInstanceDeclarations = Optional.of(structDeclarationsBlock());
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("instanceAttributes")) {
+                if (optInstanceAttributes.isPresent()) {
+                    throw new ParserError("instanceAttributes already specified");
+                }
+                expect(TokenType.EQUALS);
+                optInstanceAttributes = Optional.of(structAttributes());
+                expect(TokenType.SEMICOLON);
+            }  else if (previousToken.text.equals("vertexFormat")) {
+                if (optVertexFormat.isPresent()) {
+                    throw new ParserError("vertexFormat already specified");
+                }
+                expect(TokenType.EQUALS);
+
+                expect(TokenType.IDENTIFIER);
+                optVertexFormat = Optional.of(previousToken.text);
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("vertUniforms")) {
+                if (optVertUniforms.isPresent()) {
+                    throw new ParserError("vertUniforms already specified");
+                }
+                expect(TokenType.EQUALS);
+                optVertUniforms = Optional.of(structBody(vertUniformsStructName));
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("fragUniforms")) {
+                if (optFragUniforms.isPresent()) {
+                    throw new ParserError("fragUniforms already specified");
+                }
+                expect(TokenType.EQUALS);
+                optFragUniforms = Optional.of(structBody(fragUniformsStructName));
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("vertOut")) {
+                if (optVertOut.isPresent()) {
+                    throw new ParserError("vertOut already specified");
+                }
+                expect(TokenType.EQUALS);
+                optVertOut = Optional.of(structFieldsBlock());
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("fragOnly")) {
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("generateVert")) {
+                expect(TokenType.EQUALS);
+                generateVert = bool();
+                expect(TokenType.SEMICOLON);
+            } else {
+                throw new ParserError(String.format("invalid field %s", previousToken.text));
+            }
+        }
+
+        String vertexFormat;
+        if (optVertexFormat.isPresent()) {
+            vertexFormat = optVertexFormat.get();
+        } else if (generateVert) {
+            throw new ParserError("vertexFormat must be specified");
+        } else {
+            // @Hack
+            vertexFormat = "PT";
+        }
+
+        List<DeclarationInStruct> instanceDeclarations = new ArrayList<>();
+        List<Field> instanceFragFields = new ArrayList<>();
+        List<Field> instanceVertFields = new ArrayList<>();
+        if (optVertInstanceDeclarations.isPresent()) {
+            instanceDeclarations.addAll(optVertInstanceDeclarations.get());
+            instanceVertFields = filterKeepOnlyFields(optVertInstanceDeclarations.get());
+        }
+        if (optFragInstanceDeclarations.isPresent()) {
+            instanceDeclarations.addAll(optFragInstanceDeclarations.get());
+            instanceFragFields = filterKeepOnlyFields(optFragInstanceDeclarations.get());
+        }
+
+        List<StructAttribute> instanceAttributes = optInstanceAttributes.orElse(new ArrayList<>());
+        Struct instance = new Struct(instanceStructName, instanceDeclarations, instanceAttributes);
+
+        Struct vertUniforms;
+        vertUniforms = optVertUniforms.orElseGet(() -> Struct.empty(vertUniformsStructName));
+        vertUniforms.attributes.add(new StructAttributeUniform());
+
+        Struct fragUniforms;
+        fragUniforms = optFragUniforms.orElseGet(() -> Struct.empty(fragUniformsStructName));
+        fragUniforms.attributes.add(new StructAttributeUniform());
+
+        List<Field> vertOut = optVertOut.orElse(new ArrayList<>());
+
+        output.addHppIncludePath(Config.SHADER_PROGRAM_PATH);
+        output.addHppIncludePath(new IncludePath("vector"));
+        output.addHppIncludePath(Config.VAO_PATH);
+        output.addCppIncludePath(Config.OPENGL_PATH);
+
+        return new Shader(name, instance, fragUniforms, vertUniforms, vertexFormat, instanceVertFields, instanceFragFields, vertOut, paths, generateVert);
+    }
+
     DataType dataType() throws LexerError, ParserError {
         if (matchIdentifier("float")) {
             return new FloatDataType();
@@ -362,6 +378,16 @@ public class Parser {
             return new IdentifierDataType(previousToken.cppType());
         }
         throw new ParserError("expected data type");
+    }
+
+    boolean bool() throws LexerError, ParserError {
+        if (matchIdentifier("true")) {
+            return true;
+        } else if (matchIdentifier("false")) {
+            return false;
+        } else {
+            throw new ParserError("expected boolean");
+        }
     }
 
     void eat() throws LexerError {

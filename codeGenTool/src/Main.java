@@ -189,7 +189,7 @@ public class Main {
             var shader = (Shader)declaration;
             var group = new STGroupFile("shader.stg");
 
-            {
+            if (shader.generateVert) {
                 ST st = group.getInstanceOf("vert");
                 st.add("shader", shader);
                 System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.vertPath));

@@ -23,6 +23,8 @@ public:
 	static void hideCursor();
 	static void showCursor();
 
+	static bool resized();
+
 	static bool shouldClose();
 
 	static void* handle();
