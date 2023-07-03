@@ -4,7 +4,7 @@
 
 template<typename T>
 struct Vec3T {
-	constexpr Vec3T(const T& v);
+	explicit constexpr Vec3T(const T& v);
 	constexpr Vec3T(const T& x, const T& y, const T& z);
 	template<typename U>
 	constexpr Vec3T(const Vec3T<U>& v);

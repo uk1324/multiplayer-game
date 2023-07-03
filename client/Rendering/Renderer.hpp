@@ -9,6 +9,7 @@
 #include <engine/Math/Vec4.hpp>
 #include <client/Rendering/Shaders/deathAnimationData.hpp>
 #include <client/Rendering/Shaders/circleData.hpp>
+#include <client/Rendering/Shaders/lineData.hpp>
 #include <client/Rendering/Shaders/textData.hpp>
 #include <client/Rendering/Font.hpp>
 #include <filesystem>
@@ -27,6 +28,10 @@ struct Renderer {
 	Camera camera;
 
 private:
+	Vec2 getQuadPixelSize(Vec2 scale) const;
+	float getQuadPixelSizeX(float scale) const;
+	float getQuadPixelSizeY(float scale) const;
+	// For performance could reuse the memory used to store instances for example for debug shapes.
 	static constexpr usize INSTANCES_VBO_BYTES_SIZE = 4096;
 	Vbo instancesVbo;
 
@@ -102,5 +107,9 @@ private:
 	ShaderProgram* circleShader;
 	Vao circleVao;
 	CircleInstances circleInstances;
+
+	ShaderProgram* lineShader;
+	Vao lineVao;
+	LineInstances lineInstances;
 	void drawDebugShapes();
 };

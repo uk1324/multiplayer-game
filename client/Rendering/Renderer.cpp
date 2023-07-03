@@ -17,6 +17,7 @@
 #include <engine/Utils/Utf8.hpp>
 #include <engine/Utils/Put.hpp>
 #include <numeric>
+#include <engine/Math/Color.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -77,8 +78,6 @@ std::pair<char32_t, char32_t> characterRangesToLoad[]{
 	{ 0x20AC, 0x20AC },
 };
 
-static int mode = 0;
-
 Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
@@ -87,6 +86,7 @@ Renderer::Renderer()
 	, spriteVao(Vao::generate())
 	, deathAnimationVao(Vao::null())
 	, circleVao(Vao::null())
+	, lineVao(Vao::null())
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
 	, fontVao(Vao::null())
 	, font([]() {
@@ -117,6 +117,13 @@ Renderer::Renderer()
 	instancesVbo.bind();
 	addCircleInstanceAttributesToVao(circleVao);
 	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);
+
+	lineVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	lineVao.bind();
+	instancesVbo.bind();
+	addLineInstanceAttributesToVao(lineVao);
+	lineShader = &CREATE_GENERATED_SHADER(LINE);
+
 	spriteVao.bind();
 	{
 		fullscreenQuadPtVbo.bind();
@@ -299,52 +306,42 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
-	static float scale = 1.0f;
-	Debug::scrollInput(scale);
-	/*const char* text = reinterpret_cast<const char*>(u8"Pchnąć w tę łódź jeża lub ośm skrzyń fig");*/
-	/*const char* text = reinterpret_cast<const char*>(u8"Pchnąć w tę łódź jeża lub ośm skrzyń fig");*/
-	ImGui::Combo("mode", &mode, "constant smoothstep based on quad size in pixels\0derivatives of distance\0derivatives of texture position\0show derivatives of distance\0show derivatives of texture position\0derivatives of texture position v2\0\0");
-	if (mode == 3) {
-		ImGui::Text("zoom out to see");
+	static Vec2 vertices[] = {
+		{ 0.0f, 0.0f },
+		{ 0.0f, 1.0f },
+		{ 1.0f, 1.0f },
+		{ 1.0f, 0.0f },
+	};
+	for (auto& p : vertices) {
+		Debug::dragablePoint(p);
+		Debug::drawText(p, p.roundedToDecimalDigits(2));
 	}
-	static char text[1024] = "Sample text";
-	ImGui::InputText("text", text, sizeof(text));
-	//const char* text = reinterpret_cast<const char*>(u8"e");
-	//const char* text = reinterpret_cast<const char*>(u8"g");
-	const auto textInfo = getTextInfo(font, scale, text);
-	//cursorPos = Vec2(0.0f);
-	// Move the bottom y to the cursor pos.
-	cursorPos.y -= textInfo.bottomY;
-	cursorPos -= textInfo.size / 2.0f;
-	//cursorPos.y -= scale / 2.0f;
-	addTextToDraw(textInstances, font, cursorPos, scale, text);
+	Debug::drawPolygon(vertices, Color3::GREEN);
+
+	drawDebugShapes();
 
 	glActiveTexture(GL_TEXTURE0);
 	font.fontAtlas.bind();
 	textShader->use();
 	textShader->setTexture("fontAtlas", 0);
-	static bool showOutlineSize = false;
-	if (mode == 0) {
-		ImGui::Checkbox("showOutlineSize", &showOutlineSize);
-		//chkbox(showOutlineSize)
-	}
-	
-	textShader->set("mode", mode);
-	textShader->set("show", showOutlineSize);
-	static float elapsed = 0.0f;
-	elapsed += 1 / 60.0f;
-	textShader->set("time", elapsed);
 	fontVao.bind();
 	textInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
 	textInstances.toDraw.clear();
 
-	drawDebugShapes();
-
 	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed.
 }
 
-static float outlineSize = 15.0f;
+Vec2 Renderer::getQuadPixelSize(Vec2 scale) const {
+	return Vec2(getQuadPixelSizeX(scale.x), getQuadPixelSizeX(scale.y));
+}
+
+float Renderer::getQuadPixelSizeX(float scale) const {
+	return scale * camera.zoom * Window::size().x;
+}
+
+float Renderer::getQuadPixelSizeY(float scale) const {
+	return scale * camera.zoom * Window::size().y;
+}
 
 Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character) {
 	const auto& characterIt = font.glyphs.find(character);
@@ -358,17 +355,14 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 	const auto size = Vec2(info.sizeInAtlas) * scale;
 	centerPos += size / 2.0f;
 
-	camera.zoom = 1.0f;
 	if (info.isVisible()) {
-		const auto pixelSize = maxHeight * camera.zoom * Window::size().y;
-		//ImGui::Text("%g", pixelSize);
+		const auto pixelSize = getQuadPixelSizeY(maxHeight);
 		textInstances.toDraw.push_back(TextInstance{
 			.transform = camera.makeTransform(centerPos, 0.0f, size / 2.0f),
 			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
 			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),
 			// This value is incorrect because it uses pixel size of the quad and not the size of the sdf outline. This looks good enough, but might vary between fonts.
-			.smoothing = outlineSize / pixelSize
-			//.smoothing = 15.0f / pixelSize
+			.smoothing = 15.0f / pixelSize
 		});
 	}
 
@@ -377,8 +371,6 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 }
 
 void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text) {
-	if (mode == 0)
-		ImGui::InputFloat("outlineSize", &outlineSize);
 	const char* current = utf8Text.data();
 	const char* end = utf8Text.data() + utf8Text.size();
 	while (const auto codepoint = Utf8::readCodePoint(current, end)) {
@@ -443,16 +435,49 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 }
 
 void Renderer::drawDebugShapes() {
-	for (const auto& circle : Debug::circles) {
-		const auto width = 0.003f * 1920.0f / Window::size().x * 5.0f;
+	for (const auto& line : Debug::lines) {
+		//const auto pixelSize = getQuadPixelSizeY(circle.radius);
+		const auto vector = line.end - line.start;
+		const auto direction = vector.normalized();
+		const auto width = line.width.has_value() ? *line.width : 20.0f / Window::size().y;
+		/*ImGui::Text("%g", vector.length());
+		ImGui::Text("%g", vector.length() + line.width * 2.0f);*/
+		const auto pixelWidth = getQuadPixelSizeY(width);
+		lineInstances.toDraw.push_back(LineInstance{
+			/*.transform = camera.makeTransform(line.start + vector / 2.0f - direction * line.width, vector.angle(), Vec2(vector.length() / 2.0f, line.width + line.width * 2.0f)),*/
+			.transform = camera.makeTransform(line.start + vector / 2.0f, vector.angle(), Vec2(vector.length() / 2.0f + width, width)),
+			.color = Vec4(line.color, 1.0f),
+			.smoothing = 3.0f / pixelWidth,
+			.lineWidth = width,
+			.lineLength = vector.length() + width * 2.0f,
+			//.transform = camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f)),
+		});
+		/*const auto pixelSize = getQuadPixelSizeY(circle.radius);
 		circleInstances.toDraw.push_back(CircleInstance{
 			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
 			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
-			.smoothing = width * (2.0f / 3.0f),
-			.width = width / circle.radius
+			.smoothing = 5.0f / pixelSize,
+		});*/
+	}
+	INSTANCED_DRAW_QUAD_PT(line);
+
+	for (const auto& circle : Debug::circles) {
+		const auto pixelSize = getQuadPixelSizeY(circle.radius);
+		circleInstances.toDraw.push_back(CircleInstance{
+			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
+			.smoothing = 5.0f / pixelSize,
 		});
 	}
-	INSTANCED_DRAW_QUAD_PT(circle)
+	INSTANCED_DRAW_QUAD_PT(circle);
+
+	for (const auto& text : Debug::texts) {
+		const auto info = getTextInfo(font, text.height, text.text);
+		Vec2 pos = text.pos;
+		pos.y -= info.bottomY;
+		pos -= info.size / 2.0f;
+		addTextToDraw(textInstances, font, pos, text.height, text.text);
+	}
 }
 
 Vec2 Renderer::Sprite::scaledSize(float scale) const {

@@ -78,6 +78,18 @@ void Window::setPos(Vec2 pos) {
 	glfwSetWindowPos(windowHandle, static_cast<int>(pos.x), static_cast<int>(pos.y));
 }
 
+void Window::enableWindowedFullscreen() {
+	//    if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED))
+	//    {
+	//        glfwRestoreWindow(engine.window().handle());
+	//    }
+	//    else
+	//    {
+	//        glfwMaximizeWindow(engine.window().handle());
+	//    }
+	glfwMaximizeWindow(windowHandle);
+}
+
 void Window::hideCursor() {
 	glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }

@@ -32,6 +32,8 @@ struct Vec2T {
 	auto scaledAround(const Vec2T& point, const Vec2T& scale) const -> Vec2T;
 	auto xOverY() const -> float; // This should return a float not T.
 	auto flippedY() const -> Vec2T;
+	T distanceTo(Vec2T p) const;
+	Vec2T roundedToDecimalDigits(int digitsCount) const;
 
 	auto operator+(const Vec2T& v) const -> Vec2T;
 	auto operator+=(const Vec2T& v) -> Vec2T&;
@@ -205,6 +207,17 @@ auto Vec2T<T>::xOverY() const -> float {
 template<typename T>
 auto Vec2T<T>::flippedY() const -> Vec2T {
 	return Vec2T{ x, -y };
+}
+
+template<typename T>
+T Vec2T<T>::distanceTo(Vec2T p) const {
+	return distance(*this, p);
+}
+
+template<typename T>
+Vec2T<T> Vec2T<T>::roundedToDecimalDigits(int digitsCount) const {
+	const auto scale = pow(10.0f, digitsCount);
+	return (*this * scale).applied(floor) / scale;
 }
 
 template<typename T>

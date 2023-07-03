@@ -15,7 +15,11 @@ public:
 	static void close();
 
 	static void setTitle(const char* title);
+
 	static void setPos(Vec2 pos);
+
+	static void enableWindowedFullscreen();
+
 	static void hideCursor();
 	static void showCursor();
 

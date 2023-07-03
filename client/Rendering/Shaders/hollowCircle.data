@@ -1,4 +1,4 @@
-shader Circle {
+shader HolowCircle {
 	vertexFormat = PT;
 	vertInstance = {
 		Mat3x2 transform;
@@ -6,6 +6,7 @@ shader Circle {
 	fragInstance = {
 		color color;
 		float smoothing;
+		float width;
 	};
 	vertOut = {
 		Vec2 position;

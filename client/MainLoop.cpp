@@ -1,10 +1,13 @@
 #include <client/MainLoop.hpp>
 #include <imgui/imgui.h>
+#include <engine/Window.hpp>
+#include <engine/Input/Input.hpp>
 
 MainLoop::MainLoop()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0)
 	, game(client, renderer) {
 	//connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
+	Window::enableWindowedFullscreen();
 }
 
 #include <Gui.hpp>
@@ -14,7 +17,13 @@ MainLoop::MainLoop()
 void MainLoop::update() {
 	client.AdvanceTime(client.GetTime() + FRAME_DT);
 	client.ReceivePackets();
-	Debug::update(FRAME_DT);
+
+	if (Input::isKeyDown(KeyCode::X)) {
+		Window::close();
+		return;
+	}
+
+	Debug::update(renderer.camera, FRAME_DT);
 	if (client.IsConnected()) {
 		processMessages();
 		if (game.joinedGame()) {
