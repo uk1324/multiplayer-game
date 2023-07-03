@@ -13,14 +13,14 @@
 class ShaderProgram {
 public:
 	struct Error {
-		std::string vertexErrorMessage;
-		std::string fragmentErrorMessage;
-		std::string linkerErrorMessage;
+		std::optional<Shader::Error> vertexError;
+		std::optional<Shader::Error> fragmentError;
+		std::optional<std::string> linkerErrorMessage;
 
 		std::string toSingleMessage() const;
 	};
 
-	static std::variant<ShaderProgram, Error> compile(std::string_view vertexPath, std::string_view fragmentPath);
+	static std::expected<ShaderProgram, Error> compile(std::string_view vertexPath, std::string_view fragmentPath);
 	static ShaderProgram create(std::string_view vertexPath, std::string_view fragmentPath);
 	~ShaderProgram();
 

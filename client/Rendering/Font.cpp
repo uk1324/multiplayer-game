@@ -121,10 +121,14 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 			}
 
 			const FT_Bitmap& bitmap = face->glyph->bitmap;
+
+			
 			glyphs[character] = Glyph{
-				.atlasOffset = Vec2T<int>(0), // Set after the atlas is constructed
-				.size = { static_cast<int>(bitmap.width), static_cast<int>(bitmap.rows) },
-				.bearing = { face->glyph->bitmap_left, face->glyph->bitmap_top },
+				.offsetInAtlas = Vec2T<int>(0), // Set after the atlas is constructed
+				.sizeInAtlas = { static_cast<int>(bitmap.width), static_cast<int>(bitmap.rows) },
+				.visibleSize = { static_cast<int>(face->glyph->metrics.width) >> 6, static_cast<int>(face->glyph->metrics.height) >> 6  },
+				.bearingRelativeToOffsetInAtlas = { face->glyph->bitmap_left, face->glyph->bitmap_top },
+				.visibleBearing = { static_cast<int>(face->glyph->metrics.horiBearingX) >> 6, static_cast<int>(face->glyph->metrics.horiBearingY) >> 6  },
 				.advance = { face->glyph->advance.x, face->glyph->advance.y },
 			};
 
@@ -155,7 +159,6 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	FT_Done_Face(face);
 	FT_Done_FreeType(ft);
 
-	Texture fontAtlas(output.atlasImage, atlasTextureSettings);
 	Vec2T<int> fontAtlasPixelSize(output.atlasImage.size());
 
 	for (auto& [character, info] : glyphs) {
@@ -165,7 +168,7 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 			continue;
 		}
 
-		info.atlasOffset = atlasInfo->second.offset;
+		info.offsetInAtlas = atlasInfo->second.offset;
 	}
 
 	auto info = Json::Value::emptyObject();
@@ -176,12 +179,13 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	output.atlasImage.saveToPng(cachedSdfPath);
 
 	return Font{
-		.fontAtlas = std::move(fontAtlas),
+		.pixelHeight = fontPixelHeight,
+		.fontAtlas = Texture(output.atlasImage, atlasTextureSettings),
 		.fontAtlasPixelSize = Vec2T<int>(output.atlasImage.size()),
 		.glyphs = std::move(glyphs) 
 	};
 }
 
 bool Glyph::isVisible() const {
-	return size.x > 0 && size.y > 0;
+	return visibleSize.x > 0 && visibleSize.y > 0;
 }

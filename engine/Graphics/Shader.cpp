@@ -3,12 +3,16 @@
 #include <Log/Log.hpp>
 #include <glad/glad.h>
 #include <filesystem>
+#include <format>
 
-std::variant<Shader, Shader::Error> Shader::compile(std::string_view path, ShaderType type) {
+std::expected<Shader, Shader::Error> Shader::compile(std::string_view path, ShaderType type) {
 	const auto handle = glCreateShader(static_cast<GLenum>(type));
-	std::string source = preprocess(path);
-	const char* src = source.c_str();
-	const auto length = static_cast<GLint>(source.length());
+	auto source = preprocess(path);
+	if (!source.has_value()) {
+		return std::unexpected(Error{ Error::Type::PREPROCESS, std::move(source.error().message) });
+	}
+	const char* src = source->c_str();
+	const auto length = static_cast<GLint>(source->length());
 	glShaderSource(handle, 1, &src, &length);
 	glCompileShader(handle);
 	GLint status;
@@ -16,7 +20,7 @@ std::variant<Shader, Shader::Error> Shader::compile(std::string_view path, Shade
 	if (status == GL_FALSE) {
 		char infoLog[512];
 		glGetShaderInfoLog(handle, sizeof(infoLog), nullptr, infoLog);
-		return Error{ infoLog };
+		return std::unexpected(Error{ Error::Type::COMPILE, infoLog });
 	}
 	return Shader(handle);
 }
@@ -44,41 +48,49 @@ GLuint Shader::handle() const {
 Shader::Shader(u32 handle)
 	: handle_(handle){}
 
-std::string Shader::preprocess(std::string_view path, int depth) {
+std::expected<std::string, Shader::PreprocessError> Shader::preprocess(std::string_view path, int depth) {
 	if (depth > 5) {
+		// TODO: Maybe use std::variant error type.
 		LOG_FATAL("max include depth exceeded");
 	}
-	auto sourceString = stringFromFile(path);
-	std::string source = sourceString;
+	auto source = tryLoadStringFromFile(path);
+	if (!source.has_value()) {
+		return std::unexpected(Shader::PreprocessError{ std::format("cannot open '{}'", path) });
+	}
+	std::string_view sourceView = *source;
 	auto sourceFolder = std::filesystem::path(path).parent_path();
 
 	size_t offset = 0;
 	std::vector<std::string> parts;
 	for (;;) {
 		std::string_view includeString = "#include \"";
-		auto pathStart = source.find(includeString, offset);
+		auto pathStart = sourceView.find(includeString, offset);
 		if (pathStart == std::string::npos)
 			break;
 		pathStart += includeString.size();
 
-		auto pathEnd = source.find('"', pathStart);
+		auto pathEnd = sourceView.find('"', pathStart);
 		if (pathEnd == std::string::npos)
 			break;
 
-		auto pathRelativeToSourceFolder = source.substr(pathStart, pathEnd - pathStart);
+		auto pathRelativeToSourceFolder = sourceView.substr(pathStart, pathEnd - pathStart);
 		auto pathRelativeToWorkspace = sourceFolder / pathRelativeToSourceFolder;
 		auto pathString = pathRelativeToWorkspace.string();
 
-		parts.push_back(std::string(source.substr(offset, pathStart - includeString.size() - offset)));
-		parts.push_back(preprocess(pathString, depth + 1));
+		parts.push_back(std::string(sourceView.substr(offset, pathStart - includeString.size() - offset)));
+		auto optSource = preprocess(pathString, depth + 1);
+		if (!optSource.has_value()) {
+			return std::unexpected(std::move(optSource.error()));
+		}
+		parts.push_back(*optSource);
 
 		offset = pathEnd + 1;
 	}
 
 	if (parts.empty())
-		return sourceString;
+		return std::move(*source);
 
-	parts.push_back(std::string(source.substr(offset)));
+	parts.push_back(std::string(sourceView.substr(offset)));
 
 	std::string output;
 	for (const auto& part : parts)

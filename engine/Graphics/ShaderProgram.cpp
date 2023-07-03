@@ -3,37 +3,32 @@
 #include <glad/glad.h>
 #include <sstream>
 
-std::variant<ShaderProgram, ShaderProgram::Error> ShaderProgram::compile(std::string_view vertexPath, std::string_view fragmentPath) {
-	const auto vertex = Shader::compile(vertexPath, ShaderType::Vertex);
-	const auto fragment = Shader::compile(fragmentPath, ShaderType::Fragment);
-	const auto& vertexError = std::get_if<Shader::Error>(&vertex);
-	const auto& fragmentError = std::get_if<Shader::Error>(&fragment);
-	if (vertexError != nullptr || fragmentError != nullptr) {
-		return Error{ 
-			.vertexErrorMessage = vertexError ? vertexError->message : "",
-			.fragmentErrorMessage = fragmentError ? fragmentError->message : "",
-		};
+std::expected<ShaderProgram, ShaderProgram::Error> ShaderProgram::compile(std::string_view vertexPath, std::string_view fragmentPath) {
+	auto vertex = Shader::compile(vertexPath, ShaderType::Vertex);
+	auto fragment = Shader::compile(fragmentPath, ShaderType::Fragment);
+	if (!vertex.has_value() || !fragment.has_value()) {
+		return std::unexpected(Error{ 
+			.vertexError = !vertex.has_value() ? std::optional(std::move(vertex.error())) : std::nullopt,
+			.fragmentError = !fragment.has_value() ? std::optional(std::move(fragment.error())) : std::nullopt,
+		});
 	}
-	const auto& vert = std::get<Shader>(vertex);
-	const auto& frag = std::get<Shader>(fragment);
 
 	ShaderProgram program(glCreateProgram());
-	program.addShader(vert);
-	program.addShader(frag);
+	program.addShader(*vertex);
+	program.addShader(*fragment);
 	auto linkerError = program.link();
 	if (linkerError.has_value()) {
-		return Error{ .linkerErrorMessage = std::move(*linkerError) };
+		return std::unexpected(Error{ .linkerErrorMessage = std::move(*linkerError) });
 	}
 	return program;
 }
 
 ShaderProgram ShaderProgram::create(std::string_view vertexPath, std::string_view fragmentPath) {
 	auto shader = compile(vertexPath, fragmentPath);
-	if (const auto error = std::get_if<Error>(&shader)) {
-		LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), error->toSingleMessage().c_str());
-		return ShaderProgram(NULL);
+	if (shader.has_value()) {
+		return std::move(*shader);
 	}
-	return std::move(std::get<ShaderProgram>(shader));
+	LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), shader.error().toSingleMessage().c_str());
 }
 
 ShaderProgram::~ShaderProgram() {
@@ -157,14 +152,14 @@ int ShaderProgram::getUniformLocation(std::string_view name) {
 
 std::string ShaderProgram::Error::toSingleMessage() const {
 	std::stringstream errorMessage;
-	if (!fragmentErrorMessage.empty()) {
-		errorMessage << "frag error: " << fragmentErrorMessage << '\n';
+	if (vertexError.has_value()) {
+		errorMessage << "vert error: " << vertexError->message << '\n';
 	}
-	if (!fragmentErrorMessage.empty()) {
-		errorMessage << "vert error: " << vertexErrorMessage << '\n';
+	if (fragmentError.has_value()) {
+		errorMessage << "frag error: " << fragmentError->message << '\n';
 	}
-	if (!linkerErrorMessage.empty()) {
-		errorMessage << "linker error: " << linkerErrorMessage << '\n';
+	if (linkerErrorMessage.has_value()) {
+		errorMessage << "linker error: " << *linkerErrorMessage << '\n';
 	}
 	return errorMessage.str();
 }

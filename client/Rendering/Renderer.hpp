@@ -58,9 +58,16 @@ private:
 
 	Font font;
 	ShaderProgram* textShader;
-	void drawText(std::basic_string_view<char32_t> text);
 	Vao fontVao;
 	TextInstances textInstances;
+	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character);
+	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text);
+	/*void addTextToDrawCenteredX(TextInstances& instances, const Font& font, Vec2 pos, float height, std::string_view utf8Text);*/
+	struct TextInfo {
+		Vec2 size;
+		float bottomY;
+	};
+	TextInfo getTextInfo(const Font& font, float height, std::string_view utf8Text);
 public:
 	void drawSprite(Sprite sprite, Vec2 pos, float size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));
 	void drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));

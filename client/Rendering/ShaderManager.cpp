@@ -11,14 +11,15 @@ struct ShaderEntry {
 
 	void tryReload() {
 		auto result = ShaderProgram::compile(vertPath, fragPath);
-		if (const auto error = std::get_if<ShaderProgram::Error>(&result)) {
-			std::cout << "tried to reload vert: " << vertPath << " frag: " << fragPath << '\n';
-			std::cout << error->toSingleMessage();
-		} else {
+		if (result.has_value()) {
 			std::cout << "reloaded shader\n"
 				<< "vert: " << vertPath << '\n'
 				<< "frag: " << fragPath << '\n';
-			program = std::move(std::get<ShaderProgram>(result));
+			program = std::move(*result);
+		} else {
+			std::cout << '\a';
+			std::cout << "tried to reload vert: " << vertPath << " frag: " << fragPath << '\n';
+			std::cout << result.error().toSingleMessage();
 		}
 	}
 };

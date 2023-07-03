@@ -14,6 +14,7 @@ MainLoop::MainLoop()
 void MainLoop::update() {
 	client.AdvanceTime(client.GetTime() + FRAME_DT);
 	client.ReceivePackets();
+	Debug::update(FRAME_DT);
 	if (client.IsConnected()) {
 		processMessages();
 		if (game.joinedGame()) {

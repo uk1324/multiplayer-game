@@ -37,6 +37,7 @@ public:
 	static auto windowSpaceToClipSpace(Vec2 v) -> Vec2;
 	static auto cursorPosClipSpace() -> Vec2 { return cursorPosClipSpace_; };
 	static auto cursorPosWindowSpace() -> Vec2 { return cursorPosWindowSpace_; };
+	// Number of times scrolled this frame. If normal scrolling then 1 if fast then more.
 	static auto scrollDelta() -> float;
 	static auto anyKeyPressed() -> bool;
 

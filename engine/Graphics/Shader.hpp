@@ -2,7 +2,7 @@
 
 #include <Types.hpp>
 #include <string_view>
-#include <variant>
+#include <expected>
 
 enum class ShaderType {
 	Vertex = 0x8B31,
@@ -13,9 +13,15 @@ enum class ShaderType {
 class Shader {
 public:
 	struct Error {
+		enum class Type {
+			// Maybe slipt preprocess to cannot open file and file doesn't exist then try to reload again if cannot open file but the file exists. This might make it go into a long loop if something is actually blocking the reading of the file.
+			PREPROCESS,
+			COMPILE
+		};
+		Type type;
 		std::string message;
 	};
-	static std::variant<Shader, Error> compile(std::string_view path, ShaderType type);
+	static std::expected<Shader, Error> compile(std::string_view path, ShaderType type);
 	~Shader();
 
 	Shader(const Shader&) = delete;
@@ -28,7 +34,11 @@ public:
 
 private:
 	Shader(u32 handle);
-	static std::string preprocess(std::string_view path, int depth = 0);
+
+	struct PreprocessError {
+		std::string message;
+	};
+	static std::expected<std::string, PreprocessError> preprocess(std::string_view path, int depth = 0);
 
 	u32 handle_;
 };

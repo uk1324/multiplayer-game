@@ -9,6 +9,8 @@
 #include <client/MainLoop.hpp>
 #include <glad/glad.h>
 #include <glfw/glfw3.h>
+#include <engine/Utils/Timer.hpp>
+#include <engine/Utils/Put.hpp>
 
 bool Engine::run(int fps)
 {
@@ -21,7 +23,9 @@ bool Engine::run(int fps)
 	double accumulatedTime = 0.0;
 	const double updateTime = 1.0 / fps;
 
+	Timer timer;
 	MainLoop game;
+	put("MainLoop initialization took: %", timer.elapsedMilliseconds());
 
 	while (Window::shouldClose() == false)
 	{
@@ -65,9 +69,15 @@ void Engine::stop() {
 
 void Engine::init(int windowWidth, int windowHeight, std::string_view windowTitle)
 {
+	Timer timer;
+	put("Engine::init start");
 	initGlfw();
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-	Window::init(windowWidth, windowHeight, windowTitle);
+	{
+		Timer timer;
+		Window::init(windowWidth, windowHeight, windowTitle);
+		put("Window::init took: %", timer.elapsedMilliseconds());
+	}
 	initOpenGl();
 	initImGui();
 
@@ -76,6 +86,7 @@ void Engine::init(int windowWidth, int windowHeight, std::string_view windowTitl
 	}
 	yojimbo_log_level(YOJIMBO_LOG_LEVEL_INFO);
 	srand((unsigned int)time(NULL));
+	put("Engine::init took: %", timer.elapsedMilliseconds());
 }
 
 void Engine::terminate()

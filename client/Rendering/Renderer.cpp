@@ -14,6 +14,9 @@
 #include <client/Rendering/ShaderManager.hpp>
 #include <engine/Log/Log.hpp>
 #include <iostream>
+#include <engine/Utils/Utf8.hpp>
+#include <engine/Utils/Put.hpp>
+#include <numeric>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -74,6 +77,8 @@ std::pair<char32_t, char32_t> characterRangesToLoad[]{
 	{ 0x20AC, 0x20AC },
 };
 
+static int mode = 0;
+
 Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
@@ -85,6 +90,7 @@ Renderer::Renderer()
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
 	, fontVao(Vao::null())
 	, font([]() {
+		Timer timer;
 		auto font = fontLoadSdfWithCaching(
 			"assets/fonts/RobotoMono-Regular.ttf",
 			"generated/font.png",
@@ -92,6 +98,7 @@ Renderer::Renderer()
 			characterRangesToLoad,
 			64
 		);
+		put("font loading took %", timer.elapsedMilliseconds());
 		if (font.has_value()) {
 			return std::move(*font);
 		}
@@ -110,7 +117,6 @@ Renderer::Renderer()
 	instancesVbo.bind();
 	addCircleInstanceAttributesToVao(circleVao);
 	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);
-
 	spriteVao.bind();
 	{
 		fullscreenQuadPtVbo.bind();
@@ -293,59 +299,39 @@ void Renderer::update() {
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
 
-	static Vbo vbo = Vbo::generate();
-	static Ibo ibo = Ibo::generate();
-	static const auto vao = [&]() {
-		auto v = Vao::generate();
-		v.bind();
-		vbo.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 3, offsetof(PtVertex, pos), sizeof(PtVertex), false);
-		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex), false);
-		return v;
-	}();
-
-	/*std::vector<PtVertex> vertices;
-	static float width = 0.2f;
-	ImGui::InputFloat("width", &width);
-	float len = triangulateLine(line, width, vertices);
-
-	static bool color = true;
-	ImGui::Checkbox("color", &color);
-
-	const auto transform = makeTransform(Vec2(0.0f), 0.0f, Vec2(1.0f));
-	vao.bind();
-	vbo.allocateData(vertices.data(), vertices.size() * sizeof(PtVertex));
-	static ShaderProgram& lineShader = ShaderManager::createShader("./client/Rendering/Shaders/line.vert", "./client/Rendering/Shaders/line.frag");
-	lineShader.use();
-	lineShader.set("transform", transform);
-	lineShader.set("color", color);
-	lineShader.set("time", time);
-	lineShader.set("len", len);
-	static bool test = false;
-	ImGui::Checkbox("show wireframe", &test);
-	if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());*/
-	//glEnable(GL_DEPTH_TEST);
-	//{
-	//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	//	glDepthFunc(GL_LEQUAL);
-	//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	//	glDepthFunc(GL_LESS);
-	//}
-	//glDisable(GL_DEPTH_TEST);
-	
-	//if (test) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	//drawText("The quick brown fox jumps over the lazy dog");
-	drawText(U"1234567890Pchnąć w tę łódź jeża lub ośm skrzyń fig");	
+	auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+	static float scale = 1.0f;
+	Debug::scrollInput(scale);
+	/*const char* text = reinterpret_cast<const char*>(u8"Pchnąć w tę łódź jeża lub ośm skrzyń fig");*/
+	/*const char* text = reinterpret_cast<const char*>(u8"Pchnąć w tę łódź jeża lub ośm skrzyń fig");*/
+	ImGui::Combo("mode", &mode, "constant smoothstep based on quad size in pixels\0derivatives of distance\0derivatives of texture position\0show derivatives of distance\0show derivatives of texture position\0derivatives of texture position v2\0\0");
+	if (mode == 3) {
+		ImGui::Text("zoom out to see");
+	}
+	static char text[1024] = "Sample text";
+	ImGui::InputText("text", text, sizeof(text));
+	//const char* text = reinterpret_cast<const char*>(u8"e");
+	//const char* text = reinterpret_cast<const char*>(u8"g");
+	const auto textInfo = getTextInfo(font, scale, text);
+	//cursorPos = Vec2(0.0f);
+	// Move the bottom y to the cursor pos.
+	cursorPos.y -= textInfo.bottomY;
+	cursorPos -= textInfo.size / 2.0f;
+	//cursorPos.y -= scale / 2.0f;
+	addTextToDraw(textInstances, font, cursorPos, scale, text);
 
 	glActiveTexture(GL_TEXTURE0);
 	font.fontAtlas.bind();
 	textShader->use();
 	textShader->setTexture("fontAtlas", 0);
+	static bool showOutlineSize = false;
+	if (mode == 0) {
+		ImGui::Checkbox("showOutlineSize", &showOutlineSize);
+		//chkbox(showOutlineSize)
+	}
+	
+	textShader->set("mode", mode);
+	textShader->set("show", showOutlineSize);
 	static float elapsed = 0.0f;
 	elapsed += 1 / 60.0f;
 	textShader->set("time", elapsed);
@@ -354,44 +340,91 @@ void Renderer::update() {
 	textInstances.toDraw.clear();
 
 	drawDebugShapes();
+
+	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed.
 }
 
-void Renderer::drawText(std::basic_string_view<char32_t> text) {
-	const auto pos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
-	float x = pos.x;
-	float y = pos.y;
-	static float size = 1.0f;
-	ImGui::InputFloat("size", &size);
-	for (const auto& c : text) {
-		const auto& characterIt = font.glyphs.find(c);
+static float outlineSize = 15.0f;
+
+Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character) {
+	const auto& characterIt = font.glyphs.find(character);
+	if (characterIt == font.glyphs.end()) {
+		return pos;
+	}
+	const auto& info = characterIt->second;
+
+	float scale = maxHeight * (1.0f / font.pixelHeight);
+	auto centerPos = pos + Vec2(info.bearingRelativeToOffsetInAtlas.x, -(info.sizeInAtlas.y - info.bearingRelativeToOffsetInAtlas.y)) * scale;
+	const auto size = Vec2(info.sizeInAtlas) * scale;
+	centerPos += size / 2.0f;
+
+	camera.zoom = 1.0f;
+	if (info.isVisible()) {
+		const auto pixelSize = maxHeight * camera.zoom * Window::size().y;
+		//ImGui::Text("%g", pixelSize);
+		textInstances.toDraw.push_back(TextInstance{
+			.transform = camera.makeTransform(centerPos, 0.0f, size / 2.0f),
+			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
+			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),
+			// This value is incorrect because it uses pixel size of the quad and not the size of the sdf outline. This looks good enough, but might vary between fonts.
+			.smoothing = outlineSize / pixelSize
+			//.smoothing = 15.0f / pixelSize
+		});
+	}
+
+	// Advance values are stored as 1/64 of a pixel.
+	return Vec2(pos.x + (info.advance.x >> 6) * scale, pos.y);
+}
+
+void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text) {
+	if (mode == 0)
+		ImGui::InputFloat("outlineSize", &outlineSize);
+	const char* current = utf8Text.data();
+	const char* end = utf8Text.data() + utf8Text.size();
+	while (const auto codepoint = Utf8::readCodePoint(current, end)) {
+		current = codepoint->next;
+		pos = addCharacterToDraw(instances, font, pos, maxHeight, codepoint->codePoint);
+	}
+}
+
+Renderer::TextInfo Renderer::getTextInfo(const Font& font, float maxHeight, std::string_view utf8Text) {
+	const auto scale = maxHeight * (1.0f / font.pixelHeight);
+
+	float width = 0.0f;
+	float minY = std::numeric_limits<float>::infinity();
+	float maxY = 0.0f;
+
+	const char* current = utf8Text.data();
+	const char* end = utf8Text.data() + utf8Text.size();
+	while (const auto codepoint = Utf8::readCodePoint(current, end)) {
+		current = codepoint->next;
+		const auto& characterIt = font.glyphs.find(codepoint->codePoint);
 		if (characterIt == font.glyphs.end()) {
 			continue;
 		}
 		const auto& info = characterIt->second;
-
-		/*float scale = 0.005f * size;*/
-		/*float scale = 0.005f * size;*/
-		float scale = size * (1.0f / font.pixelHeight);
-		float xpos = x + info.bearing.x * scale;
-		float ypos = y - (info.size.y - info.bearing.y) * scale;
-
-		float w = info.size.x * scale;
-		float h = info.size.y * scale;
-		
-		// now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-		xpos += w / 2.0f;
-		ypos += h / 2.0f;
-
-		if (info.isVisible()) {
-			textInstances.toDraw.push_back(TextInstance{
-				.transform = camera.makeTransform(Vec2(xpos, ypos), 0.0f, Vec2(w, h) / 2.0f),
-				.offsetInAtlas = Vec2(info.atlasOffset) / Vec2(font.fontAtlasPixelSize),
-				.sizeInAtlas = Vec2(info.size) / Vec2(font.fontAtlasPixelSize),
-			});
-		}
-		x += (info.advance.x >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64)
-
+		const auto advance = (info.advance.x >> 6) * scale;
+		width += advance;
+		const auto bottomY = -(info.visibleSize.y - info.visibleBearing.y);
+		const auto topY = bottomY + info.visibleSize.y;
+		minY = std::min(minY, bottomY * scale);
+		maxY = std::max(maxY, topY * scale);
 	}
+	// Don't have only add width istead of advance if it is the last character, because of how advance works.
+	// In the glyph metrics image you can see that the character is offset from the origin.
+	// https://learnopengl.com/In-Practice/Text-Rendering
+	// This might not be correct, but I think it is.
+	// You can test it works by for example writing "oo"
+
+	float height = maxY - minY;
+	if (isnan(height)) {
+		height = 0.0f;
+	}
+
+	return TextInfo{
+		.size = Vec2(width, height),
+		.bottomY = minY
+	};
 }
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
@@ -409,35 +442,7 @@ void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
 	});
 }
 
-
-
 void Renderer::drawDebugShapes() {
-	const auto pos = Vec2(0.5f);
-	ImGui::Text("%g, %g", pos.x, pos.y);
-	Debug::drawCircle(pos, 0.1f);
-	if (Input::isKeyHeld(KeyCode::W)) {
-		camera.pos.y += 0.01;
-	}
-	if (Input::isKeyHeld(KeyCode::S)) {
-		camera.pos.y -= 0.01;
-	}
-
-	if (Input::isKeyHeld(KeyCode::D)) {
-		camera.pos.x += 0.01;
-	}
-	if (Input::isKeyHeld(KeyCode::A)) {
-		camera.pos.x -= 0.01;
-	}
-
-	if (Input::isKeyHeld(KeyCode::J)) {
-		camera.zoom *= 1.02;
-	}
-	if (Input::isKeyHeld(KeyCode::K)) {
-		camera.zoom /= 1.02;
-	}
-
-	Debug::drawCircle(camera.pos, 0.1f);
-
 	for (const auto& circle : Debug::circles) {
 		const auto width = 0.003f * 1920.0f / Window::size().x * 5.0f;
 		circleInstances.toDraw.push_back(CircleInstance{
@@ -447,7 +452,6 @@ void Renderer::drawDebugShapes() {
 			.width = width / circle.radius
 		});
 	}
-	Debug::circles.clear();
 	INSTANCED_DRAW_QUAD_PT(circle)
 }
 

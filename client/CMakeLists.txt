@@ -35,5 +35,6 @@ targetAddGenerated(client "../shared")
 set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
 targetAddGenerated(client "./")
 
-target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimbo.lib")
+target_link_libraries(client debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
+target_link_libraries(client optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
 target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")
