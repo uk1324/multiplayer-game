@@ -17,6 +17,8 @@ public:
 	bool joinedGame();
 	void disconnect();
 
+	float elapsed = 0.0f;
+
 	struct FirstUpdate {
 		int serverSequenceNumber;
 		int sequenceNumber;
@@ -92,6 +94,8 @@ public:
 		bool isRendered = true;
 		Vec2 position;
 	};
+
+	Vec3 getPlayerColor(int id);
 
 	std::unordered_map<int, Player> players;
 	//std::unordered_map<i32, LeaderboardEntry> playerIdToLeaderboardEntry;

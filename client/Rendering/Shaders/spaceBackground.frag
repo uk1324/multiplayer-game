@@ -22,8 +22,7 @@ float hash2to1(vec2 p) {
 vec3 star(vec2 p, float size) {
 	vec3 col;
 	float circle = max(0.0, 0.6 - distance(p, vec2(0.0)));
-	float d = 1.0 - abs(p.x) * abs(p.y) * 100.0;
-	d = size / distance(p, vec2(0.0));
+	float d = size / distance(p, vec2(0.0));
 	d *= circle;
 	col = vec3(d);
 	return max(col, 0.0);

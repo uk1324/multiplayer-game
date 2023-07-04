@@ -6,6 +6,7 @@
 #include <shared/Networking.hpp>
 #include <Types.hpp>
 #include <shared/Gameplay.hpp>
+#include <engine/Math/Color.hpp>
 #include <RefOptional.hpp>
 
 template<typename Key, typename Value>
@@ -54,6 +55,8 @@ void GameClient::update() {
 		disconnect();
 		return;
 	}
+
+	elapsed += FRAME_DT;
 
 	auto processInput = [this]() {
 		const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
@@ -156,6 +159,8 @@ void GameClient::update() {
 	};
 
 	auto render = [this]() {
+		renderer.camera.pos = playerTransform.position;
+
 		for (auto& bullet : predictedBullets) {
 			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
 		}
@@ -170,27 +175,56 @@ void GameClient::update() {
 			players[animation.playerIndex].isRendered = true;
 		}
 
+		const auto drawPlayer = [this](Vec2 pos, Vec3 color, Vec2 sizeScale) {
+			renderer.playerInstances.toDraw.push_back(PlayerInstance{
+				.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
+				.time = elapsed,
+				.color = color,
+			});
+		};
+
 		for (const auto& [playerIndex, player] : players) {
 			if (!player.isRendered)
 				continue;
 
 			const auto& sprite = renderer.bulletSprite;
-			Vec2 size = sprite.scaledSize(PLAYER_HITBOX_RADIUS * 2.0f);
-			Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+			Vec2 sizeScale(1.0f);
+			float opacity = 1.0f;
+			//Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 			for (const auto& animation : renderer.spawnAnimations) {
 				if (playerIndex == animation.playerIndex) {
 					auto t = animation.t;
-					const auto l0 = 0.5f;
-					if (animation.t < l0) {
-						t /= l0;
-						size.y *= lerp(3.0f, 1.0f, t);
-						size.x *= lerp(0.0f, 1.0f, t); // Identity function lol
-						color.w = t;
-					}
+					sizeScale.y *= lerp(2.0f, 1.0f, t);
+					sizeScale.x *= lerp(0.0f, 1.0f, t); // Identity function lol
+					opacity = t;
 					break;
 				}
 			}	
-			renderer.drawSprite(sprite, player.position, size, 0.0f, color);
+			//renderer.drawSprite(sprite, player.position, size, 0.0f, color);
+			const auto SNEAKING_ANIMATION_DURATION = 0.3f;
+			static std::optional<float> sneakingElapsed;
+			if (Input::isKeyHeld(KeyCode::LEFT_SHIFT)) {
+				if (!sneakingElapsed.has_value()) {
+					sneakingElapsed = 0.0f;
+				} else {
+					*sneakingElapsed += FRAME_DT;
+					sneakingElapsed = std::min(*sneakingElapsed, SNEAKING_ANIMATION_DURATION);
+				}
+			} else {
+				if (sneakingElapsed.has_value()) {
+					*sneakingElapsed -= FRAME_DT;
+					if (sneakingElapsed <= 0.0f) {
+						sneakingElapsed = std::nullopt;
+					}
+				}
+			}
+			{
+				float t = sneakingElapsed.has_value() ? std::clamp(*sneakingElapsed / SNEAKING_ANIMATION_DURATION, 0.0f, 1.0f) : 0.0f;
+				t = smoothstep(t);
+				auto color = getPlayerColor(playerIndex);
+				color = lerp(color, color / 2.0f, t);
+				drawPlayer(player.position, color, sizeScale);
+			}
 		}
 
 		auto calculateBulletOpacity = [](int aliveFramesLeft) {
@@ -203,8 +237,6 @@ void GameClient::update() {
 		//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
 		//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
 		//}
-		renderer.camera.pos = playerTransform.position;
-		
 	};
 
 	if (isAlive) {
@@ -380,7 +412,11 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				
 				if (const auto died = player->leaderboard.deaths != entry.deaths) {
 					//std::cout << "died: " << entry.playerIndex << '\n';
-					renderer.playDeathAnimation(player->position, entry.playerIndex);
+					renderer.deathAnimations.push_back(Renderer::DeathAnimation{
+						.position = player->position,
+						.color = getPlayerColor(entry.playerIndex),
+						.playerIndex = entry.playerIndex,
+					});
 					if (entry.playerIndex == clientPlayerIndex) {
 						isAlive = false;
 					}
@@ -423,6 +459,14 @@ bool GameClient::joinedGame() {
 void GameClient::disconnect() {
 	client.Disconnect();
 	clientPlayerIndex = -1;
+}
+
+Vec3 GameClient::getPlayerColor(int id) {
+	if (id == clientPlayerIndex) {
+		return Vec3(0.0f, 1.0f, 1.0f);
+	} else {
+		return Vec3(1.0f, 0.0f, 0.0f);
+	}
 }
 
 void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {

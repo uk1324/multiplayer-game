@@ -25,6 +25,7 @@ Vec4 Color::scientificColoring(float v, float minV, float maxV) {
 }
 
 Vec4 Color::fromHsv(float h, float s, float v) {
+	h = fmodf(h, 1.0f);
 	float hue = h * 360.f;
 
 	float C = s * v;

@@ -27,7 +27,15 @@ auto cubicHermite(T a, T va, T b, T vb, U t) -> T {
 		+ (t3 - t2) * vb;
 }
 
-
+template<typename T>
+T smoothstep(T x) {
+	if (x > 1.0f) {
+		x = 1.0f;
+	} else if (x < 0.0f) {
+		x = 0.0f;
+	}
+	return x * x * (3.0f - 2.0f * x);
+}
 
 struct PosAndZoom {
 	Vec2 pos;

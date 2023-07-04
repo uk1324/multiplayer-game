@@ -23,6 +23,7 @@
 #include <engine/Utils/FileIo.hpp>
 #include <engine/Json/JsonPrinter.hpp>
 #include <engine/Json/JsonParser.hpp>
+#include <shared/Gameplay.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -84,7 +85,9 @@ Renderer::Renderer()
 	, postprocessTexture0(Texture::generate())
 	, postprocessTexture1(Texture::generate())
 	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag"))
-	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND)) {
+	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND))
+	, playerShader(CREATE_GENERATED_SHADER(PLAYER))
+	, playerVao(Vao::null()) {
 
 	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
@@ -104,6 +107,11 @@ Renderer::Renderer()
 	instancesVbo.bind();
 	addLineInstanceAttributesToVao(lineVao);
 	lineShader = &CREATE_GENERATED_SHADER(LINE);
+
+	playerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	playerVao.bind();
+	instancesVbo.bind();
+	addPlayerInstanceAttributesToVao(playerVao);
 
 	spriteVao.bind();
 	{
@@ -254,7 +262,7 @@ void Renderer::update() {
 		uniforms.color0 = { 0.0f, 0.279424f, 0.509652f };
 		uniforms.time += 1.0 / 60.0f;
 		// {"scale1":2,"color0":{"x":0.104247,"y":0.450098,"z":1},"color1":{"x":0.366795,"y":0.625945,"z":1},"scale0":0.3}
-		GUI_PROPERTY_EDITOR(gui(uniforms));
+		//GUI_PROPERTY_EDITOR(gui(uniforms));
 		shaderSetUniforms(spaceBackgroundShader, uniforms);
 		if (ImGui::Button("copy to clipboard")) {
 			StringStream stream;
@@ -333,22 +341,29 @@ void Renderer::update() {
 		} \
 	} while (false)
 
+	
+	static float time = 0.0f;
+	time += 1.0 / 60.0f;
+	playerShader.use(); 
+	playerVao.bind(); 
+	playerInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); 
+	playerInstances.toDraw.clear();
 
-	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0 });
-	ANIMATION_UPDATE(deathAnimations, 0.025f);
+	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .color = Vec3(1.0f, 0.0f, 0.0f), .t = 0.0f, .playerIndex = 0});
+	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
-	ANIMATION_UPDATE(spawnAnimations, 0.02f);
+	ANIMATION_UPDATE(spawnAnimations, 0.05f);
 
 	for (const auto& animation : deathAnimations) {
 		deathAnimationInstances.toDraw.push_back(DeathAnimationInstance{
-			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 0.75f }),
+			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 7.0f * PLAYER_HITBOX_RADIUS }),
+			//.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 60.0f * PLAYER_HITBOX_RADIUS }),
+			.color = animation.color,
 			.time = animation.t,
 		});
 	}
 	INSTANCED_DRAW_QUAD_PT(deathAnimation);
-
-	drawDebugShapes();
 
 	glActiveTexture(GL_TEXTURE0);
 	font.fontAtlas.bind();
@@ -377,6 +392,8 @@ void Renderer::update() {
 	postprocessShader.setTexture("colorBuffer", 0);
 	spriteVao.bind();
 	glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
+
+	drawDebugShapes();
 }
 
 Vec2 Renderer::getQuadPixelSize(Vec2 scale) const {
@@ -473,13 +490,6 @@ void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, V
 
 void Renderer::drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation, Vec4 color) {
 	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation, color });
-}
-
-void Renderer::playDeathAnimation(Vec2 position, int playerIndex) {
-	deathAnimations.push_back(DeathAnimation{
-		.position = position,
-		.playerIndex = playerIndex
-	});
 }
 
 Fbo& Renderer::currentWriteFbo() {
