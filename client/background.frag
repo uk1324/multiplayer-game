@@ -12,6 +12,8 @@ int rem(int x, int y) {
 	//return x - y * int(floor(float(x) / float(y)));
 }
 
+#include "Rendering/Shaders/Utils/noise.glsl"
+
 void main() {
 	float cameraZoom = 0.5;
 	float smallCellSize = 0.1;
@@ -39,25 +41,4 @@ void main() {
 
 	vec4 c = vec4(max(colVertical, colHorizontal), 1.0);
 	fragColor = vec4(max(colVertical, colHorizontal), 1.0);
-	//fragColor = vec4(vec3(-1 % 5), 1.0);
-
-	//vec2 p = worldPos;
-	//float d = 1000.0;
-	//float distanceAlong;
-	//for (int i = 0; i < lineLength - 1; i++) {
-	//	vec2 current = line[i].xy;
-	//	vec2 next = line[i + 1].xy;
-	//	d = min(d, lineSegmentSdf(p, current, next));
-	//	//d = min(d, distance(current, p));
-	//}
-	////float ad = smoothstep(0.0, 0.01, d - 0.1);
-	////ad = 1.0 - ad;
-	////d = ad;
-	//d;
-	//d = smoothstep(0.0, 0.4, d);
-	//d = 1.0 - d;
-	//
-	//vec4 col = vec4(vec3(d), d);
-	////fragColor = vec4(vec3(d), 1.0);
-	//fragColor = col;
 }

@@ -86,6 +86,7 @@ public:
 	void playDeathAnimation(Vec2 position, int playerIndex);
 private:
 	ShaderProgram* backgroundShader;
+	ShaderProgram& spaceBackgroundShader;
 
 	Fbo postProcessFbo0;
 	Texture postprocessTexture0;

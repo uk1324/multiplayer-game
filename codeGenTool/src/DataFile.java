@@ -341,6 +341,9 @@ abstract class DataType {
     public boolean getIsColor() {
         return this instanceof ColorDataType;
     }
+    public boolean getIsColor3() {
+        return this instanceof Color3DataType;
+    }
     public boolean getIsVec2() {
         return getName().equals("Vec2");
     }
@@ -400,6 +403,13 @@ class ColorDataType extends DataType {
     @Override
     public String getName() {
         return "Vec4";
+    }
+}
+
+class Color3DataType extends DataType {
+    @Override
+    public String getName() {
+        return "Vec3";
     }
 }
 

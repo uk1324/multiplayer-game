@@ -68,6 +68,14 @@ float Window::aspectRatio() {
 	return size.x / size.y;
 }
 
+const char* Window::getClipboard() {
+	return glfwGetClipboardString(windowHandle);
+}
+
+void Window::setClipboard(const char* string) {
+	glfwSetClipboardString(windowHandle, string);
+}
+
 void Window::update() {
 	resizedThisFrame = false;
 	glfwSwapBuffers(windowHandle);

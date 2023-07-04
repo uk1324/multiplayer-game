@@ -56,6 +56,24 @@ void Debug::scrollInput(float& value, float scalePerSecond) {
 		value /= pow(scalePerSecond, dt);
 }
 
+void Debug::keyboardMovementInput(Vec2& pos, float speed) {
+	Vec2 direction(0.0f);
+	if (Input::isKeyHeld(KeyCode::W)) {
+		direction.y += 1.0f;
+	} 
+	if (Input::isKeyHeld(KeyCode::S)) {
+		direction.y -= 1.0f;
+	}
+	if (Input::isKeyHeld(KeyCode::D)) {
+		direction.x += 1.0f;
+	}
+	if (Input::isKeyHeld(KeyCode::A)) {
+		direction.x -= 1.0f;
+	}
+	direction = direction.normalized();
+	pos += direction * speed * dt;
+}
+
 void Debug::dragablePoint(Vec2& point) {
 	const auto cursorPos = Input::cursorPosClipSpace() * clipSpaceToWorldSpace;
 	Debug::drawPoint(point, Vec3(1.0f, 0.0f, 0.0f));

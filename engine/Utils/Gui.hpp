@@ -17,6 +17,7 @@ void inputVec2(const char* name, Vec2& value);
 void inputVec3(const char* name, Vec3& value);
 void checkbox(const char* name, bool& value);
 void inputColor(const char* name, Vec4& value);
+void inputColor(const char* name, Vec3& value);
 
 bool beginPropertyEditor();
 void endPropertyEditor();

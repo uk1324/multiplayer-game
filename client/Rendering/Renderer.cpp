@@ -19,6 +19,10 @@
 #include <numeric>
 #include <engine/Math/Color.hpp>
 #include <client/Rendering/Shaders/Postprocess/bloomData.hpp>
+#include <client/Rendering/Shaders/spaceBackgroundData.hpp>
+#include <engine/Utils/FileIo.hpp>
+#include <engine/Json/JsonPrinter.hpp>
+#include <engine/Json/JsonParser.hpp>
 
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
@@ -79,7 +83,8 @@ Renderer::Renderer()
 	, postProcessFbo1(Fbo::generate())
 	, postprocessTexture0(Texture::generate())
 	, postprocessTexture1(Texture::generate())
-	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag")) {
+	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag"))
+	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND)) {
 
 	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
@@ -229,10 +234,39 @@ void Renderer::update() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//Debug::keyboardMovementInput(camera.pos, 2.0f);
 	camera.aspectRatio = Window::aspectRatio();
 	{
-		backgroundShader->use();
-		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());
+		/*backgroundShader->use();
+		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());*/
+		spaceBackgroundShader.use();
+		shaderSetUniforms(spaceBackgroundShader, SpaceBackgroundVertUniforms{ 
+			/*.clipToWorld = (Mat3x2::translate(-camera.pos / 5.0f) * Mat3x2::scale(Vec2(camera.zoom)) * camera.toNdc()).inversed()*/
+			.clipToWorld = camera.clipSpaceToWorldSpace()
+		});
+		/*static auto uniforms = fromJson<SpaceBackgroundFragUniforms>(Json::parse(R"({"color":{"x":0.109804,"y":0.356863,"z":0.490196}})"));*/
+		static SpaceBackgroundFragUniforms uniforms{
+			.color0 = { 0.109804, 0.356863, 0.490196 },
+			.scale0 = 1.0f,
+			.color1 = { 0.109804, 0.356863, 0.490196 },
+			.scale1 = 1.0f,
+		};
+		uniforms.color0 = { 0.0f, 0.279424f, 0.509652f };
+		uniforms.time += 1.0 / 60.0f;
+		// {"scale1":2,"color0":{"x":0.104247,"y":0.450098,"z":1},"color1":{"x":0.366795,"y":0.625945,"z":1},"scale0":0.3}
+		GUI_PROPERTY_EDITOR(gui(uniforms));
+		shaderSetUniforms(spaceBackgroundShader, uniforms);
+		if (ImGui::Button("copy to clipboard")) {
+			StringStream stream;
+			Json::print(stream, toJson(uniforms));
+			Window::setClipboard(stream.string().c_str());
+		}
+		/*spriteVao.bind();
+		glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);*/
+
+		/*backgroundShader->use();
+		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());*/
+
 		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
 

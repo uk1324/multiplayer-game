@@ -1,0 +1,16 @@
+shader SpaceBackground {
+	vertexFormat = PT;
+	vertUniforms = {
+		Mat3x2 clipToWorld;
+	};
+	vertOut = {
+		Vec2 worldPosition;
+	};
+	fragUniforms = [[Gui, Json]] {
+		float time;
+		color3 color0;
+		float scale0;
+		color3 color1;
+		float scale1;
+	};
+}

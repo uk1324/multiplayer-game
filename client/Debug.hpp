@@ -23,6 +23,7 @@ namespace Debug {
 	auto drawText(Vec2 pos, const T& value, const Vec3& color = DEFAULT_COLOR, float height = 0.1f) -> void;
 
 	void scrollInput(float& value, float scalePerSecond = 10.0f);
+	void keyboardMovementInput(Vec2& pos, float speed = 1.0f);
 	// Cannot use the source location, because things like functions and loops have the same source location for all iterations and calls.
 	void dragablePoint(Vec2& point);
 

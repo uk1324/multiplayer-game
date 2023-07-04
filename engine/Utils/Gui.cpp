@@ -62,6 +62,11 @@ void Gui::inputColor(const char* name, Vec4& value) {
 	ImGui::ColorEdit4(prependWithHashHash(name), value.data());
 }
 
+void Gui::inputColor(const char* name, Vec3& value) {
+	leafNodeBegin(name);
+	ImGui::ColorEdit3(prependWithHashHash(name), value.data());
+}
+
 bool Gui::beginPropertyEditor() {
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
 	return ImGui::BeginTable("split", 2, ImGuiTableFlags_Resizable);

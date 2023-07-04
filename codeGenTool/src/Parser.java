@@ -341,6 +341,9 @@ public class Parser {
         } else if (matchIdentifier("color")) {
             output.addHppIncludePath(Config.VEC4_PATH);
             return new ColorDataType();
+        } else if (matchIdentifier("color3")) {
+            output.addHppIncludePath(Config.VEC3_PATH);
+            return new Color3DataType();
         } else if (matchIdentifier("ranged_int")) {
             expect(TokenType.LESS_THAN);
 

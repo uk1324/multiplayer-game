@@ -66,7 +66,7 @@ sliderFloat("<displayedName>", <name>, <dataType.min>, <dataType.max>);
 inputFloat("<displayedName>", <name>);
 <elseif(dataType.isBool)><\\>
 checkbox("<displayedName>", <name>);
-<elseif(dataType.isColor)><\\>
+<elseif(dataType.isColor || dataType.isColor3)><\\>
 inputColor("<displayedName>", <name>);
 <elseif(dataType.isVec2)><\\>
 inputVec2("<displayedName>", <name>);
