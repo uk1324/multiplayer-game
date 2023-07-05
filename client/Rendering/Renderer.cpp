@@ -258,11 +258,15 @@ void Renderer::update() {
 			.scale0 = 1.0f,
 			.color1 = { 0.109804, 0.356863, 0.490196 },
 			.scale1 = 1.0f,
+			.borderColor = { 0.0f, 0.26073f, 0.637066f },
+			.borderRadius = 1.0,
 		};
+		Debug::drawLine(Vec2(0.0f), Vec2(uniforms.borderRadius, 0.0f));
 		uniforms.color0 = { 0.0f, 0.279424f, 0.509652f };
 		uniforms.time += 1.0 / 60.0f;
+		//spaceBackgroundShader()
 		// {"scale1":2,"color0":{"x":0.104247,"y":0.450098,"z":1},"color1":{"x":0.366795,"y":0.625945,"z":1},"scale0":0.3}
-		//GUI_PROPERTY_EDITOR(gui(uniforms));
+		GUI_PROPERTY_EDITOR(gui(uniforms));
 		shaderSetUniforms(spaceBackgroundShader, uniforms);
 		if (ImGui::Button("copy to clipboard")) {
 			StringStream stream;
@@ -349,8 +353,8 @@ void Renderer::update() {
 	playerInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); 
 	playerInstances.toDraw.clear();
 
-	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .color = Vec3(1.0f, 0.0f, 0.0f), .t = 0.0f, .playerIndex = 0});
-	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
+	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .color = Vec3(1.0f, 0.0f, 0.0f), .t = 0.0f, .playerIndex = 0});
+	ANIMATION_UPDATE(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
 	ANIMATION_UPDATE(spawnAnimations, 0.05f);

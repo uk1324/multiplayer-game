@@ -12,5 +12,7 @@ shader SpaceBackground {
 		float scale0;
 		color3 color1;
 		float scale1;
+		color3 borderColor;
+		float borderRadius;
 	};
 }
