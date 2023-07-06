@@ -13,6 +13,8 @@
 #include <client/Rendering/Shaders/lineData.hpp>
 #include <client/Rendering/Shaders/textData.hpp>
 #include <client/Rendering/Shaders/playerData.hpp>
+#include <client/Rendering/Shaders/bulletData.hpp>
+#include <client/Rendering/Shaders/spaceBackgroundData.hpp>
 #include <client/Rendering/Font.hpp>
 #include <filesystem>
 
@@ -68,6 +70,10 @@ struct Renderer {
 	ShaderProgram& playerShader;
 	Vao playerVao;
 
+	BulletInstances bulletInstances;
+	ShaderProgram& bulletShader;
+	Vao bulletVao;
+
 	Font font;
 	ShaderProgram* textShader;
 	Vao fontVao;
@@ -90,6 +96,11 @@ struct Renderer {
 
 	ShaderProgram* backgroundShader;
 	ShaderProgram& spaceBackgroundShader;
+	SpaceBackgroundFragUniforms spaceBackgroundUniforms{
+		.color0 = { 0.0f, 0.279424f, 0.509652f },
+		.borderColor = { 0.0f, 0.26073f, 0.637066f },
+		.borderRadius = 100.0,
+	};
 
 	Fbo postProcessFbo0;
 	Texture postprocessTexture0;

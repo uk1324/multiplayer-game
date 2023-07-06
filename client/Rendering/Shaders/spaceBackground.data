@@ -9,9 +9,6 @@ shader SpaceBackground {
 	fragUniforms = [[Gui, Json]] {
 		float time;
 		color3 color0;
-		float scale0;
-		color3 color1;
-		float scale1;
 		color3 borderColor;
 		float borderRadius;
 	};

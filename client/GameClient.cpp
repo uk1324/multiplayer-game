@@ -7,6 +7,8 @@
 #include <Types.hpp>
 #include <shared/Gameplay.hpp>
 #include <engine/Math/Color.hpp>
+#include <client/Debug.hpp>
+#include <engine/Utils/Put.hpp>
 #include <RefOptional.hpp>
 
 template<typename Key, typename Value>
@@ -56,7 +58,13 @@ void GameClient::update() {
 		return;
 	}
 
+	/*if (!receivedWorldUpdateThisFrame) {
+		put("didn't receive update %", sequenceNumber);
+	}
+	receivedWorldUpdateThisFrame = false;*/
 	elapsed += FRAME_DT;
+	sequenceNumber = (time() - joinTime) / FRAME_DT;
+	//std::cout << sequenceNumber << '\n';
 
 	auto processInput = [this]() {
 		const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
@@ -107,7 +115,8 @@ void GameClient::update() {
 			auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
 				const auto direction = velocity.normalized();
 				predictedBullets.push_back(PredictedBullet{
-					.position = pos + PLAYER_HITBOX_RADIUS * direction,
+					/*.position = pos + PLAYER_HITBOX_RADIUS * direction,*/
+					.position = pos,
 					.velocity = velocity,
 					.spawnSequenceNumber = sequenceNumber,
 					.frameSpawnIndex = thisFrameSpawnIndexCounter,
@@ -158,11 +167,25 @@ void GameClient::update() {
 		}
 	};
 
+
 	auto render = [this]() {
 		renderer.camera.pos = playerTransform.position;
 
+		//renderer.bulletInstances.toDraw.push_back(BulletInstance{
+		//	.transform = renderer.camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 20.0f),
+		//	.color = getPlayerColor(110),
+		//});
+
 		for (auto& bullet : predictedBullets) {
-			renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+			const auto growingDuration = 0.1f;
+			float scale = std::clamp(bullet.timeElapsed / growingDuration, 0.0f, 1.0f);
+			scale = smoothstep(scale);
+			renderer.bulletInstances.toDraw.push_back(BulletInstance{
+				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(scale * BULLET_HITBOX_RADIUS * 1.4f)),
+				.color = getPlayerColor(110),
+			});
+			//Debug::drawRay(bullet.position, Vec2(BULLET_HITBOX_RADIUS, 0.0f), Vec3(0.0f, 1.0f, 0.0f), 0.001f);
+			//renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
 		}
 
 		for (const auto& animation : renderer.deathAnimations) {
@@ -247,6 +270,7 @@ void GameClient::update() {
 			client.SendMessage(GameChannel::RELIABLE, message);
 		}
 	}
+	Debug::scrollInput(renderer.camera.zoom);
 
 	// Debug
 	{
@@ -265,9 +289,10 @@ void GameClient::update() {
 
 	updateBullets();
 
+	//put("sent update %", sequenceNumber);
 	render();
 	
-	sequenceNumber++;
+	//sequenceNumber++;
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
@@ -281,6 +306,14 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		case GameMessageType::WORLD_UPDATE: { 
 			// when recieving update for frame x then check if the predicted bullets actually got spawned and delete them if not.
 			const auto msg = static_cast<WorldUpdateMessage*>(message);
+			//put("received update %", msg->sequenceNumber);
+
+			/*if (receivedWorldUpdateThisFrame) {
+				put("double update %", msg->sequenceNumber);
+			}
+			put("received update");
+			receivedWorldUpdateThisFrame = true;*/
+
 			if (msg->sequenceNumber < newestUpdateSequenceNumber) {
 				std::cout << "out of order update message";
 				break;
@@ -446,10 +479,16 @@ void GameClient::processMessage(yojimbo::Message* message) {
 	}
 }
 
+double GameClient::time() {
+	using namespace std::chrono;
+	return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
+}
+
 void GameClient::onJoin(int playerIndex) {
 	clientPlayerIndex = playerIndex;
 	players.insert({ clientPlayerIndex, GameClient::Player{} });
 	sequenceNumber = 0;
+	joinTime = time();
 }
 
 bool GameClient::joinedGame() {
@@ -471,24 +510,24 @@ Vec3 GameClient::getPlayerColor(int id) {
 
 void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {
 	const auto displayDelay = 6;
+	const auto delay = (serverSequenceNumber - firstUpdate.serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR + displayDelay;
+	put("total display delay %", delay - sequenceNumber);
 	positions.push_back(InterpolationPosition{
 		.position = newPosition,
 		.frameToDisplayAt = 
-			firstUpdate.sequenceNumber +  
-			(serverSequenceNumber - firstUpdate.serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR + 
-			displayDelay,
+			firstUpdate.sequenceNumber + delay,
 		.serverSequenceNumber = serverSequenceNumber
 	});
 }
 
 void GameClient::InterpolatedTransform::interpolatePosition(int sequenceNumber) {
-	std::sort(
+	/*std::sort(
 		positions.begin(),
 		positions.end(),
 		[](const InterpolationPosition& a, const InterpolationPosition& b) {
 			return a.frameToDisplayAt < b.frameToDisplayAt;
 		}
-	);
+	);*/
 	if (positions.size() == 1) {
 		position = positions[0].position;
 	} else {

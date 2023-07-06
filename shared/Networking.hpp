@@ -33,8 +33,12 @@ static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
 static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
 
 //static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_JITTER = 25.0f;
+//static constexpr float DEBUG_LATENCY = 150.0f;
+//static constexpr float DEBUG_JITTER = 25.0f;
+//static constexpr float DEBUG_PACKET_LOSS_PERCENT = 10.00f;
+static constexpr float DEBUG_LATENCY = 0.0f;
+static constexpr float DEBUG_JITTER = 0.0f;
+static constexpr float DEBUG_PACKET_LOSS_PERCENT = 0.00f;
 
 namespace GameMessageType {
     enum GameMessageType {

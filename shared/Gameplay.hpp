@@ -4,7 +4,7 @@
 #include <shared/Networking.hpp>
 
 static constexpr float PLAYER_HITBOX_RADIUS = 0.05f;
-static constexpr float BULLET_HITBOX_RADIUS = 0.01f;
+static constexpr float BULLET_HITBOX_RADIUS = 0.04f;
 //static constexpr float BULLET_SPEED = 0.5f;
 
 static constexpr float PLAYER_SPEED = 1.0f;

@@ -2,9 +2,6 @@
 
 uniform float time; 
 uniform vec3 color0; 
-uniform float scale0; 
-uniform vec3 color1; 
-uniform float scale1; 
 uniform vec3 borderColor; 
 uniform float borderRadius; 
 
@@ -66,76 +63,7 @@ float sdHexagon( in vec2 p, in float r ) {
     return length(p)*sign(p.y);
 }
 
-struct HexagonalPos {
-	vec2 posInCell;
-	vec2 cellPos;
-};
-
-// xy = position in cell, zw = cell position
-HexagonalPos hexagonalPos(vec2 p, float radius) {
-	p /= radius;
-	vec2 cellSize = vec2(1.0, sqrt(3));
-	vec2 halfCellSize = cellSize / 2.0;
-	// Subtract halfSize  outside from both to center.
-
-	vec2 a = mod(p, cellSize) - halfCellSize;
-	vec2 b = mod(p - halfCellSize /* The center of the neighbouring hexagon is aligned with the side of this hexagon = myCenter + halfSize */, cellSize) - halfCellSize;
-
-	//vec2 s = cellSize;
-	//vec4 k = floor(vec4(p, p - vec2(0.5, 1)) / s.xyxy) + .5;
-	//vec4 k2 = floor(vec4(p, p - vec2(0.5, 1)) / s.xyxy) + .5;
-	//
-	//vec2 a = (floor(vec4(p, p - vec2(0.5, 1)) / s.xyxy)).xy;
-	//a = (k).xy;
-	//vec2 b = (floor(vec4(p, p - vec2(0.5, 1)) / s.xyxy)).zw;
-	//vec4 hC = floor(vec4(p, p - vec2(0.5, 1)) / s.xyxy) + .5;
-	//vec2 a = hC.xy;
-	//vec2 b = hC.zw;
-	//a = p - a * s;
-	//b = p - (b + 0.5) * s;
-	//vec4 hC = floor(vec4(p, p - vec2(.5, 1))/s.xyxy) + .5;
-    // Centering the coordinates with the hexagon centers above.
-
-    //vec4 h = vec4(p - hC.xy*s, p - (hC.zw + .5)*s);
-	//vec2 a = h.xy;
-	//vec2 b = h.zw;
-
-	// The distance between the centers of hexagons is equal in all directions so just take the min.
-	vec2 posInCell = dot(a, a) <= dot(b, b) ? a : b;
-	vec2 cellPos = p - posInCell;
-	HexagonalPos result;
-	result.posInCell = posInCell;
-	result.cellPos = cellPos;
-	return result;
-}
-
-
-//vec4 getHex(vec2 p)
-//{    
-//    const vec2 s = vec2(1, sqrt(3.0));
-//    //vec4 hC = floor(vec4(p, p - vec2(0.5, 1.0)) / s.xyxy) + 0.5;
-//    //vec2 n0 = hC.xy;
-//    //vec2 n1 = hC.zw;
-//
-//	vec4 hC = floor(vec4(p, p - vec2(0.5, 1.0)) / s.xyxy) + 0.5;
-//    vec2 n0 = hC.xy;
-//    vec2 n1 = hC.zw;
-//
-//    vec4 h = vec4(p - n0*s, p - (n1 + .5)*s);
-//    
-//    vec2 a = h.xy;
-//    vec2 b = h.zw;
-//   
-//    //return dot(a, a) < dot(b, b) 
-//    //    ? vec4(a, hC.xy) 
-//    //    : vec4(b, hC.zw);
-//
-//	return dot(a, a) < dot(b, b) 
-//        ? vec4(a, p - a) 
-//        : vec4(b, p - b);
-//}
-
-vec4 getHex(vec2 p)
+vec4 hexagonalPosition(vec2 p)
 {    
     const vec2 s = vec2(1, sqrt(3.0));
     vec4 hC = floor(vec4(p, p - vec2(.5, 1))/s.xyxy) + .5;
@@ -144,26 +72,10 @@ vec4 getHex(vec2 p)
     b = floor((p - vec2(0.5, 1.0)) / s) + 0.5;
     a = p - a * s;
     b = p - (b + 0.5)*s;
-   
     return dot(a, a) < dot(b, b) 
         ? vec4(a, hC.xy) 
         : vec4(b, hC.zw + .5);
 }
-
-vec4 HexCoords(vec2 uv) {
-	vec2 r = vec2(1, 1.73);
-    vec2 h = r*.5;
-    
-    vec2 a = mod(uv, r)-h;
-    vec2 b = mod(uv-h, r)-h;
-    
-    vec2 gv = dot(a, a) < dot(b,b) ? a : b;
-
-    vec2 id = uv-gv;
-    return vec4(gv, id.x,id.y);
-}
-
-#include "Utils/colorConversion.glsl"
 
 void main() {
 	vec3 col = vec3(0.0);
@@ -214,39 +126,12 @@ void main() {
 		float scale = 2.0;
 		vec2 p = worldPosition * scale;
 		float radius = borderRadius * scale;
-		//vec2 hexagonAabbSize = vec2(1.0, sqrt(3));
-		//vec2 halfHexagonAabbSize = hexagonAabbSize / 2.0;
-		//// Subtract halfSize  outside from both to center.
-		//vec2 a = mod(p, hexagonAabbSize) - halfHexagonAabbSize;
-		//vec2 b = mod(p - halfHexagonAabbSize /* The center of the neighbouring /hexagon/ is aligned with the side of this hexagon = myCenter + halfSize /*/, /hexagonAabbSize) - halfHexagonAabbSize;
-		//// The distance between the centers of hexagons is equal in all directions /so /just take the min.
-		//vec2 posInCell = dot(a, a) <= dot(b, b) ? a : b;
-		//vec2 cellPos = p - posInCell;
-
-		//p = abs(cellPos) / 20.0;
-		//float d = hexagonSdf(posInCell);
-		//float distanceToSide = hexagonAabbSize.x / 2.0;
-		//d = distanceToSide - d;
-
-
-		//float d = (0.25 - sdHexagon(posInCell, hexagonAabbSize.x / 4)) / 4.0; 
-		//col = vec3(d);
-		//vec3 c0 = borderColor;
-		////col = vec3(d);
-		//float smoothing = 0.05;
-		//c0 = mix(vec3(1.0), c0, smoothstep(0.0, smoothing, d));
-		//col = blend(col, c0, mix(0.1, 1.0, smoothstep(smoothing * 2.0, 0.0, d)));
-		HexagonalPos h = hexagonalPos(p, 1.0);
-		vec4 n = getHex(p);
+		vec4 hexagonalPosition = hexagonalPosition(p);
 		// Not sure why hexagonalPos is glitched.
-		h.posInCell = n.xy;
-		h.cellPos = n.zw;
+		vec2 posInCell = hexagonalPosition.xy;
+		vec2 cellPos = hexagonalPosition.zw;
 
-		float d = abs(sdHexagon(h.posInCell, 0.5)); 
-		//d = mix(d, 1.0, smoothstep(0.0, 0.1, -length(p) - 0.5));
-		//float circle = length(p) - 2;
-		//float circle = length(p) - 2;
-		//float borderShape = sdHexagon(p, 2.0);
+		float d = abs(sdHexagon(posInCell, 0.5)); 
 		float borderShape = length(p) - radius;
 		d = subtract(d, borderShape);
 		d = min(abs(borderShape), d);
@@ -259,55 +144,11 @@ void main() {
 
 		float opacitySmoothing = smoothing * 4.0;
 		float opacity = mix(0.4, 1.0, smoothstep(opacitySmoothing, 0.0, d));
-		//opacity += 0.3 * sin(time * 5.0 + hash2to1(h.cellPos) * 241.21) * hash2to1(h.cellPos) * 0.2;
-		float n0 = hash2to1(h.cellPos);
-		float n1 = fract(n0 * 123.23);
-		//opacity += (hash2to1(h.cellPos) * 0.3 + ((sin(time * 1.0 + n1 * 56)) + 0.2) / 2.0 * 0.3) / 1.0;
-		//opacity += hash2to1(h.cellPos) * 0.3;
+		float n0 = hash2to1(cellPos);
 		opacity += 0.2;
-		opacity += (sin(time * 1.0 + n1 * 56) + 0.5) / 2.0 * 0.5;
+		opacity += (sin(time * 1.0 + n0 * 56) + 0.5) / 2.0 * 0.5;
 		opacity *= smoothstep(-opacitySmoothing, 0.0, borderShape);
 		col = blend(col, c0, opacity);
-		//col = vec3(hash21(h.cellPos));
-		//col = vec3(d);
-		//col = vec3(h.cellPos, 0.0);
-
-
-		//d = smoothstep(0.05, 0.0, d);
-		//c0 = mix(c0, vec3(1.0), d);
-		//d = mix(0.3, 1.0, d);
-		//d *= smoothstep(1.0, 1.01, length(worldPosition));
-		////col += (smoothstep(1.0, 1.1, length(p))) * c0;
-		////col = vec3(d);
-		//col = blend(col, c0, d);
-
-		//d = clamp(d, -1.0, 1.0);
-		//d = sqrt(d);
-		//col = vec3(d);
-		//d /= 0.5;
-		//vec3 c = mix(vec3(1), vec3(13, 44, 84) / 255, d);
-		//vec3 c = mix(vec3(1.0), c0, d);
-		
-		//if (d == 1.0) {
-		//	c = c0;
-		//	d = 0.1;
-		//}
-		//float n = hash2to1(cellPos);
-		//d = mix(1.0, n, clamp(d, 0.0, 1.0));
-		//col = vec3(d);
-
-		//col = vec3(cellPos, 0.0);
-		//col = hsv2rgb(vec3(cellPos.y / 12.0, 1.0, abs(cellPos.x)));
-		//col = vec3(posInCell, 0.0);
-		//col = vec3(cellPos / 2, 0.0);
-		//col = c0;
-		//col = vec3(d);
-
-		//p = a;
-		 //float d = hexagonSdf(p);
-		 //
-		 // Different hexagons lighting on and off.
-		 // vec2(atan, d)
 	}
 
 	fragColor = vec4(col, 1.0);

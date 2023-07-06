@@ -19,7 +19,6 @@
 #include <numeric>
 #include <engine/Math/Color.hpp>
 #include <client/Rendering/Shaders/Postprocess/bloomData.hpp>
-#include <client/Rendering/Shaders/spaceBackgroundData.hpp>
 #include <engine/Utils/FileIo.hpp>
 #include <engine/Json/JsonPrinter.hpp>
 #include <engine/Json/JsonParser.hpp>
@@ -54,6 +53,9 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 
 #define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
 
+//#define QUAD_SHADER_LIST(macro) \
+//	macro()
+
 Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
@@ -87,7 +89,9 @@ Renderer::Renderer()
 	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag"))
 	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND))
 	, playerShader(CREATE_GENERATED_SHADER(PLAYER))
-	, playerVao(Vao::null()) {
+	, playerVao(Vao::null())
+	, bulletShader(CREATE_GENERATED_SHADER(BULLET))
+	, bulletVao(Vao::null()) {
 
 	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
@@ -112,6 +116,11 @@ Renderer::Renderer()
 	playerVao.bind();
 	instancesVbo.bind();
 	addPlayerInstanceAttributesToVao(playerVao);
+
+	bulletVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	bulletVao.bind();
+	instancesVbo.bind();
+	addBulletInstanceAttributesToVao(bulletVao);
 
 	spriteVao.bind();
 	{
@@ -209,6 +218,10 @@ Renderer::Renderer()
 
 void Renderer::onResize() {
 	const auto newSize = Window::size();
+
+	if (newSize.x <= 0.0f && newSize.y <= 0.0f)
+		return;
+
 	put("resized window size: %", newSize);
 	auto updatePostprocessTexture = [&newSize](Texture& texture) {
 		texture.bind();
@@ -245,40 +258,14 @@ void Renderer::update() {
 	//Debug::keyboardMovementInput(camera.pos, 2.0f);
 	camera.aspectRatio = Window::aspectRatio();
 	{
-		/*backgroundShader->use();
-		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());*/
 		spaceBackgroundShader.use();
 		shaderSetUniforms(spaceBackgroundShader, SpaceBackgroundVertUniforms{ 
-			/*.clipToWorld = (Mat3x2::translate(-camera.pos / 5.0f) * Mat3x2::scale(Vec2(camera.zoom)) * camera.toNdc()).inversed()*/
 			.clipToWorld = camera.clipSpaceToWorldSpace()
 		});
-		/*static auto uniforms = fromJson<SpaceBackgroundFragUniforms>(Json::parse(R"({"color":{"x":0.109804,"y":0.356863,"z":0.490196}})"));*/
-		static SpaceBackgroundFragUniforms uniforms{
-			.color0 = { 0.109804, 0.356863, 0.490196 },
-			.scale0 = 1.0f,
-			.color1 = { 0.109804, 0.356863, 0.490196 },
-			.scale1 = 1.0f,
-			.borderColor = { 0.0f, 0.26073f, 0.637066f },
-			.borderRadius = 1.0,
-		};
-		Debug::drawLine(Vec2(0.0f), Vec2(uniforms.borderRadius, 0.0f));
-		uniforms.color0 = { 0.0f, 0.279424f, 0.509652f };
-		uniforms.time += 1.0 / 60.0f;
-		//spaceBackgroundShader()
-		// {"scale1":2,"color0":{"x":0.104247,"y":0.450098,"z":1},"color1":{"x":0.366795,"y":0.625945,"z":1},"scale0":0.3}
-		GUI_PROPERTY_EDITOR(gui(uniforms));
-		shaderSetUniforms(spaceBackgroundShader, uniforms);
-		if (ImGui::Button("copy to clipboard")) {
-			StringStream stream;
-			Json::print(stream, toJson(uniforms));
-			Window::setClipboard(stream.string().c_str());
-		}
-		/*spriteVao.bind();
-		glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);*/
-
-		/*backgroundShader->use();
-		backgroundShader->set("clipToWorld", camera.clipSpaceToWorldSpace());*/
-
+		spaceBackgroundUniforms.time += 1.0 / 60.0f;
+		spaceBackgroundUniforms.borderRadius = 10.0f;
+		//GUI_PROPERTY_EDITOR(gui(spaceBackgroundUniforms));
+		shaderSetUniforms(spaceBackgroundShader, spaceBackgroundUniforms);
 		spriteVao.bind();
 		fullscreenQuadPtIbo.bind();
 
@@ -348,6 +335,11 @@ void Renderer::update() {
 	
 	static float time = 0.0f;
 	time += 1.0 / 60.0f;
+	bulletShader.use();
+	bulletVao.bind();
+	bulletInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
+	bulletInstances.toDraw.clear();
+
 	playerShader.use(); 
 	playerVao.bind(); 
 	playerInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); 

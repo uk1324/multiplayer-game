@@ -31,6 +31,10 @@ void Debug::drawLine(Vec2 pos, Vec2 end, Vec3 color, std::optional<float> width)
 	lines.push_back({ pos, end, width, color });
 }
 
+void Debug::drawRay(Vec2 start, Vec2 ray, Vec3 color, std::optional<float> width) {
+	drawLine(start, start + ray, color, width);
+}
+
 void Debug::drawPolygon(std::span<Vec2> vertices, Vec3 color, std::optional<float> width) {
 	if (vertices.size() < 2)
 		return;

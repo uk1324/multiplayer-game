@@ -102,4 +102,5 @@ void MainLoop::connect(const yojimbo::Address& address) {
 	client.InsecureConnect(DEFAULT_PRIVATE_KEY, clientId, address);
 	client.SetLatency(DEBUG_LATENCY);
 	client.SetJitter(DEBUG_JITTER);
+	client.SetPacketLoss(DEBUG_PACKET_LOSS_PERCENT);
 }

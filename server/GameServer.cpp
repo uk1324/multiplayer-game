@@ -35,6 +35,7 @@ GameServer::GameServer()
 	// Can only set fake network parameters after calling Start the network simulator doesn't exist before this.
 	server.SetLatency(DEBUG_LATENCY);
 	server.SetJitter(DEBUG_JITTER);
+	server.SetPacketLoss(DEBUG_PACKET_LOSS_PERCENT);
 
 	if (!server.IsRunning()) {
 		return;
@@ -144,7 +145,6 @@ void GameServer::update(float dt) {
 
 		static int maxInputsSize = -1;
 		for (auto& [playerId, player] : players) {
-
 			/*if (player.inputs.size() > maxInputsSize) {
 				maxInputsSize = player.inputs.size();
 				std::cout << "inputs size: " << player.inputs.size() << '\n';

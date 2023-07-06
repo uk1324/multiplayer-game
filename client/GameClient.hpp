@@ -11,8 +11,13 @@ public:
 	GameClient(yojimbo::Client& client, Renderer& renderer);
 	~GameClient();
 	void update();
-	void processMessage(yojimbo::Message* message);
 
+	void processMessage(yojimbo::Message* message);
+	bool receivedWorldUpdateThisFrame = false;
+
+	static double time();
+
+	double joinTime;
 	void onJoin(int playerIndex);
 	bool joinedGame();
 	void disconnect();
