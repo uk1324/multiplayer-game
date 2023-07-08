@@ -74,8 +74,10 @@ int main(int argc, char* argv[]) {
 		.offset = Vector2{ 0.0f, 0.0f },
 		.target = 0.0f,
 		.rotation = 0.0f,
-		.zoom = 500.0f,
+		//.zoom = 500.0f,
+		.zoom = 1.0f,
 	};
+	float scale = 500.0f;
 	camera.offset.x += windowWidth / 2;
 	camera.offset.y += windowHeight / 2;
 
@@ -90,8 +92,11 @@ int main(int argc, char* argv[]) {
 
 		accumulatedTime += frameTime;
 
-		while (accumulatedTime >= updateTime)
-		{
+		while (accumulatedTime >= updateTime) {
+			for (const auto& [_, bullet] : server.bullets) {
+				std::cout << bullet.timeElapsed << '\n';
+			}
+
 			server.update(updateTime);
 			accumulatedTime -= updateTime;
 
@@ -100,12 +105,17 @@ int main(int argc, char* argv[]) {
 
 			BeginMode2D(camera);
 
+			if (server.players.contains(0)) {
+				//camera.offset = convertPos(server.players[0].pos * scale);
+				camera.target = convertPos(server.players[0].pos * scale);
+				//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
+			}
 			for (const auto& [_, player] : server.players) {
-				DrawCircleV(convertPos(player.pos), PLAYER_HITBOX_RADIUS, BLUE);
+				DrawCircleV(convertPos(player.pos * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
 			}
 
 			for (const auto& [_, bullet] : server.bullets) {
-				DrawCircleV(convertPos(bullet.pos), BULLET_HITBOX_RADIUS, BLUE);
+				DrawCircleV(convertPos(bullet.pos * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
 			}
 
 			EndMode2D();

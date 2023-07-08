@@ -156,7 +156,7 @@ void GameServer::update(float dt) {
 					//std::cout << sequenceNumber << " lost input\n";
 				}
 			} else {
-				const auto [input, sequenceNumber] = player.inputs.front();
+				const auto& [input, sequenceNumber] = player.inputs.front();
 				player.inputs.pop();
 				player.pos = applyMovementInput(player.pos, input, dt);
 				player.newestExecutedInputSequenceNumber = sequenceNumber;
@@ -172,7 +172,7 @@ void GameServer::update(float dt) {
 					const auto direction = Vec2::oriented(input.rotation);
 					auto spawnBullet = [&](Vec2 position, Vec2 velocity) {
 						bullets[bulletIndexCounter] = Bullet{
-							.pos = position + PLAYER_HITBOX_RADIUS * direction,
+							.pos = position,
 							.velocity = velocity,
 							.ownerPlayerIndex = playerId,
 							.aliveFramesLeft = 1000,

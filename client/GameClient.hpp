@@ -23,10 +23,12 @@ public:
 	void disconnect();
 
 	float elapsed = 0.0f;
+	int testTimeFrameA = 0;
 
 	struct FirstUpdate {
 		int serverSequenceNumber;
 		int sequenceNumber;
+		float time;
 	};
 	std::optional<FirstUpdate> firstWorldUpdate;
 

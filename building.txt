@@ -1,0 +1,1 @@
+First run the codeGenTool java main. This requires newer version of java that the main download. Download the newest jdk from the java website. Add replace the old java path with the new one probably C:\Program Files\Java\jdk-<version>\bin

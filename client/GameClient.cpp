@@ -58,13 +58,32 @@ void GameClient::update() {
 		return;
 	}
 
+	elapsed += FRAME_DT;
+	/*ImGui::TextWrapped("You could either use some system clock for calculating the sequence number or update it every frame yourself (the frames are synchronized using the clock")
+	static bool useGlobalClock = false;*/
+	//if (firstWorldUpdate.has_value()) {
+	//	//sequenceNumber = (time() - joinTime) / FRAME_DT;
+	//	//sequenceNumber = (time() - firstWorldUpdate->time) / FRAME_DT;
+	//} else {
+	//	sequenceNumber = 0;
+	//}
+
+	/*sequenceNumber = (time() - joinTime) / FRAME_DT;
+	std::cout << sequenceNumber << ' ' << testTimeFrameA << '\n';
+	testTimeFrameA++;*/
+
 	/*if (!receivedWorldUpdateThisFrame) {
 		put("didn't receive update %", sequenceNumber);
 	}
 	receivedWorldUpdateThisFrame = false;*/
-	elapsed += FRAME_DT;
-	sequenceNumber = (time() - joinTime) / FRAME_DT;
+	/*elapsed += FRAME_DT;
+	sequenceNumber = (time() - joinTime) / FRAME_DT;*/
 	//std::cout << sequenceNumber << '\n';
+	/*for (const auto& bullet : predictedBullets) {
+		std::cout << bullet.timeElapsed << '\n';
+	}*/
+	ImGui::TextWrapped("Try this out with low jitter to see it line up correctly. It also seems to work with jitter.");
+	ImGui::TextWrapped("The code should work both with bullets sent by the client and bullets sent by other clients");
 
 	auto processInput = [this]() {
 		const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
@@ -132,6 +151,7 @@ void GameClient::update() {
 	};
 
 	auto updateBullets = [this]() {
+		int notSynchronizedCount = 0;
 		for (auto& bullet : predictedBullets) {
 			if (sequenceNumber <= bullet.frameToActivateAt)
 				continue;
@@ -142,6 +162,7 @@ void GameClient::update() {
 			}
 
 			if (bullet.tSynchronizaztion < 1.0f) {
+				notSynchronizedCount++;
 
 				auto x = (bullet.tSynchronizaztion - 0.5f); // from -0.5 to 0.5
 				// Most of the values are concentrated in the interval -2 to 2
@@ -151,7 +172,8 @@ void GameClient::update() {
 				const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
 				const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
 
-				const auto max = FRAME_DT / 8.0f;
+				/*const auto max = FRAME_DT / 8.0f;*/
+				const auto max = FRAME_DT / 2.0f;
 				// max = normalDistMax * functionStep * bullet.timeToSynchronize
 				// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
 				// functionStep = timeStep * scale
@@ -162,9 +184,10 @@ void GameClient::update() {
 				const auto functionStep = timeStep * scale;
 				dt -= value * functionStep * bullet.timeToSynchornize;
 			}
-
 			updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
 		}
+		/*if (notSynchronizedCount > 0)
+			put("not synchronized %", notSynchronizedCount);*/
 	};
 
 
@@ -175,17 +198,29 @@ void GameClient::update() {
 		//	.transform = renderer.camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 20.0f),
 		//	.color = getPlayerColor(110),
 		//});
+		const auto drawOnlyHitboxes = true;
 
 		for (auto& bullet : predictedBullets) {
 			const auto growingDuration = 0.1f;
 			float scale = std::clamp(bullet.timeElapsed / growingDuration, 0.0f, 1.0f);
 			scale = smoothstep(scale);
-			renderer.bulletInstances.toDraw.push_back(BulletInstance{
-				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(scale * BULLET_HITBOX_RADIUS * 1.4f)),
-				.color = getPlayerColor(110),
-			});
+			if (drawOnlyHitboxes) {
+				Debug::drawCircle(bullet.position, BULLET_HITBOX_RADIUS);
+			} else {
+				renderer.bulletInstances.toDraw.push_back(BulletInstance{
+					.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(scale * BULLET_HITBOX_RADIUS * 1.4f)),
+					.color = getPlayerColor(110),
+				});
+			}
+			
 			//Debug::drawRay(bullet.position, Vec2(BULLET_HITBOX_RADIUS, 0.0f), Vec3(0.0f, 1.0f, 0.0f), 0.001f);
 			//renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
+		}
+
+		for (auto& [_, bullet] : interpolatedBullets) {
+			/*const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
+			renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));*/
+			Debug::drawCircle(bullet.transform.position, BULLET_HITBOX_RADIUS, Vec3(1.0f, 0.0f, 0.0f));
 		}
 
 		for (const auto& animation : renderer.deathAnimations) {
@@ -199,11 +234,16 @@ void GameClient::update() {
 		}
 
 		const auto drawPlayer = [this](Vec2 pos, Vec3 color, Vec2 sizeScale) {
-			renderer.playerInstances.toDraw.push_back(PlayerInstance{
-				.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
-				.time = elapsed,
-				.color = color,
-			});
+			if (drawOnlyHitboxes) {
+				Debug::drawCircle(pos, PLAYER_HITBOX_RADIUS);
+			} else {
+				renderer.playerInstances.toDraw.push_back(PlayerInstance{
+					.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
+					.time = elapsed,
+					.color = color,
+				});
+			}
+			
 		};
 
 		for (const auto& [playerIndex, player] : players) {
@@ -255,11 +295,6 @@ void GameClient::update() {
 			const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
 			return opacity;
 		};
-
-		//for (auto& [_, bullet] : interpolatedBullets) {
-		//	const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
-		//	renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));
-		//}
 	};
 
 	if (isAlive) {
@@ -292,7 +327,7 @@ void GameClient::update() {
 	//put("sent update %", sequenceNumber);
 	render();
 	
-	//sequenceNumber++;
+	sequenceNumber++;
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
@@ -318,6 +353,8 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				std::cout << "out of order update message";
 				break;
 			}
+			;
+			//put("bullets size %", msg->bullets.size() * sizeof(WorldUpdateMessageBullet));
 
 			if (!firstWorldUpdate.has_value()) {
 				firstWorldUpdate = FirstUpdate{
@@ -366,6 +403,9 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			for (const auto& msgBullet : msg->bullets) {
 				auto& bullet = interpolatedBullets[msgBullet.index];
 				const auto spawn = bullet.transform.positions.size() == 0;
+
+				std::cout << "new pos " << msgBullet.position << '\n';
+				//Debug::drawPoint(msgBullet.position);
 				bullet.transform.updatePositions(firstUpdate, msgBullet.position, sequenceNumber, msg->sequenceNumber);
 
 				if (spawn) {
@@ -391,19 +431,34 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					yojimbo::NetworkInfo info;
 					client.GetNetworkInfo(info);
 					//bullet.position += bullet.velocity * (info.RTT / 1000.0f);
-					bullet.timeToCatchUp += (info.RTT / 1000.0f);
+					const auto rttSeconds = (info.RTT / 1000.0f);
+					//const auto rttSeconds = (sequenceNumber - msg->lastReceivedClientSequenceNumber) * FRAME_DT;
+					//const auto rttSeconds = 0.3f;
+					/*bullet.timeToCatchUp += rttSeconds;*/
+					std::cout << info.RTT << '\n';
+					
+					bullet.timeToCatchUp -= FRAME_DT * 6.0f;  // Trail and error
+					//bullet.timeToCatchUp -= FRAME_DT;
 					for (auto& spawnPredictedBullet : predictedBullets) {
 						if (spawnPredictedBullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber 
 							&& spawnPredictedBullet.frameSpawnIndex == msgBullet.frameSpawnIndex) {
 							bullet.frameToActivateAt += 6;
-							bullet.timeToCatchUp -= (info.RTT / 1000.0f);
+							// Cancel out.
+							bullet.timeToCatchUp += rttSeconds;
+							// There is latency added to player positions so bullets also have to be delayed by it to be synchronized.
+							// If i remeber correctly this is the code that does it.
+							bullet.timeToCatchUp += FRAME_DT * 6.0f;
+							bullet.timeToCatchUp -= rttSeconds;
 
+							// Doesn't use absoulte time. Synchronizes with the server bullet elapsed time. So when you see you hit someone you hit them. Client spawned bullets should be synchronized with the other players not the client player.
 							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber) * FRAME_DT; 
 							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
 							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
 							spawnPredictedBullet.timeToSynchornize = timeDysnych;
 							spawnPredictedBullet.tSynchronizaztion = 0.0f;
 							
+							spawnPredictedBullet.timeToSynchornize += FRAME_DT * 1; // Trail and error
+
 							predictedBullets.pop_back();
 						}
 					}
@@ -511,7 +566,8 @@ Vec3 GameClient::getPlayerColor(int id) {
 void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {
 	const auto displayDelay = 6;
 	const auto delay = (serverSequenceNumber - firstUpdate.serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR + displayDelay;
-	put("total display delay %", delay - sequenceNumber);
+	//put("total display delay %", delay - sequenceNumber);
+	//std::cout << "total display delay" << delay - sequenceNumber << '\n';
 	positions.push_back(InterpolationPosition{
 		.position = newPosition,
 		.frameToDisplayAt = 
@@ -521,13 +577,13 @@ void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& first
 }
 
 void GameClient::InterpolatedTransform::interpolatePosition(int sequenceNumber) {
-	/*std::sort(
+	std::sort(
 		positions.begin(),
 		positions.end(),
 		[](const InterpolationPosition& a, const InterpolationPosition& b) {
 			return a.frameToDisplayAt < b.frameToDisplayAt;
 		}
-	);*/
+	);
 	if (positions.size() == 1) {
 		position = positions[0].position;
 	} else {

@@ -1,0 +1,4 @@
+Synchronization
+To see if the prediction is synchronized with the server version draw both the prediction and the server interpolated version, just drawing the server send version on this frame won't work.
+Sometimes you need to add or subtract time that is used for compensation.
+If things are desynchronized it might be be some constant value like DT or SERVER_UPDATE_SENT_RATE_DIVISOR * DT. Just use trail and error to find the right value if that is the case.

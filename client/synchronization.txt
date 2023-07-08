@@ -1,0 +1,20 @@
+Have a synchronized time between client and server called serverTime.
+When a bullet is spawned on the server or a client predicted bullet is spawned the spawn frame serverTime is stored.
+When the update with the bullet is received then
+	if the bullet is client owned which means spawn predicted calculate the difference between the times of the spawn predicted bullet and the server authoritative bullet and try to synchronize.
+	else just spawn the bullet.
+
+The spawn predicted bullets should line up with players so it should be ok to just leave their clocks like they are.
+For bulllets that are not client owned they should be synchronized with the future that is the clock + currenRtt so when the player dodges a bullet on their screen the inputs have time to be sent to the server and interpreted.
+So there will be 2 clocks serverTime and futureServerTime.
+The client owned bullets will synchornize with serverTime so they are synchronized with the players. When you hit a player on your screen you also hit them on the server.
+The non client owned bullets will synchronize with futureServerTime so they are synchronized with the client predicted position of the player. When you dodge a bullet on your screen you also dodge it on the server.
+
+I think it might be better to store the spawn time instead of elapsed time for a server game, because different things can stop the time running time like lag spikes or dragging the window for example.
+
+if the serverTime is too desynchornized then just jump instead of trying to change it smoothly.
+
+!!!
+The times of non client owned bullets will also have to be delayed (either in the stored value or in calculations) to be synchronized with the interpolated players which need to have added latency so there is enough frames to interpolate between.
+
+A different option might be to store the elapsed time inside the bullet and synchronize with it. This would mean that each bullet is locally synchronized at the point of spawn and not globally synchronized. It would also make it harder to synchronize all of the with clocks like futureServerTime. Things that stop the clock like dragging or lag might also get messed up if there is no global clock.
