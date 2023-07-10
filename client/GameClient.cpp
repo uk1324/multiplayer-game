@@ -25,14 +25,8 @@ GameClient::GameClient(yojimbo::Client& client, Renderer& renderer)
 	, renderer(renderer) {
 
 }
-GameClient::~GameClient() {
-	client.Disconnect();
-}
  
-#include <imgui.h>
-#include <iostream>
-
-void display(const yojimbo::NetworkInfo& info) {
+void gui(const yojimbo::NetworkInfo& info) {
 	ImGui::Text("RTT %g", info.RTT);
 	ImGui::Text("packetLoss %g", info.packetLoss);
 	ImGui::Text("sentBandwidth %g", info.sentBandwidth);
@@ -43,488 +37,137 @@ void display(const yojimbo::NetworkInfo& info) {
 	ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 }
 
+#include <queue>
+
+std::queue<int> delaysExecuted;
+std::queue<int> delaysReceived;
+static int d = 0;
+
 void GameClient::update() {
 	if (!client.IsConnected()) {
 		CHECK_NOT_REACHED();
 		return;
 	}
-	if (clientPlayerIndex == -1) {
+
+	if (!joinedGame()) {
 		CHECK_NOT_REACHED();
 		return;
 	}
 
-	if (Input::isKeyDown(KeyCode::ESCAPE)) {
-		disconnect();
-		return;
-	}
+	const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
+	//const auto cursorRelativeToPlayer = cursorPosWorldSpace - playerTransform.position;
+	//const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
+	float rotation = 0.0f;
+	const auto newInput = ClientInputMessage::Input{
+		.up = Input::isKeyHeld(KeyCode::W),
+		.down = Input::isKeyHeld(KeyCode::S),
+		.left = Input::isKeyHeld(KeyCode::A),
+		.right = Input::isKeyHeld(KeyCode::D),
+		.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
+		.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
+		.rotation = rotation
+	};
+	//pastInputCommands.push_back(newInput);
 
-	elapsed += FRAME_DT;
-	/*ImGui::TextWrapped("You could either use some system clock for calculating the sequence number or update it every frame yourself (the frames are synchronized using the clock")
-	static bool useGlobalClock = false;*/
-	//if (firstWorldUpdate.has_value()) {
-	//	//sequenceNumber = (time() - joinTime) / FRAME_DT;
-	//	//sequenceNumber = (time() - firstWorldUpdate->time) / FRAME_DT;
-	//} else {
-	//	sequenceNumber = 0;
-	//}
-
-	/*sequenceNumber = (time() - joinTime) / FRAME_DT;
-	std::cout << sequenceNumber << ' ' << testTimeFrameA << '\n';
-	testTimeFrameA++;*/
-
-	/*if (!receivedWorldUpdateThisFrame) {
-		put("didn't receive update %", sequenceNumber);
-	}
-	receivedWorldUpdateThisFrame = false;*/
-	/*elapsed += FRAME_DT;
-	sequenceNumber = (time() - joinTime) / FRAME_DT;*/
-	//std::cout << sequenceNumber << '\n';
-	/*for (const auto& bullet : predictedBullets) {
-		std::cout << bullet.timeElapsed << '\n';
+	//const auto oldCommandsToDiscardCount = static_cast<int>(pastInputCommands.size()) - ClientInputMessage::INPUTS_COUNT;
+	/*if (oldCommandsToDiscardCount > 0) {
+		pastInputCommands.erase(pastInputCommands.begin(), pastInputCommands.begin() + oldCommandsToDiscardCount);
 	}*/
-	ImGui::TextWrapped("Try this out with low jitter to see it line up correctly. It also seems to work with jitter.");
-	ImGui::TextWrapped("The code should work both with bullets sent by the client and bullets sent by other clients");
+	//std::cout << pastInputCommands.size() << '\n';
 
-	auto processInput = [this]() {
-		const auto cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
-		const auto cursorRelativeToPlayer = cursorPosWorldSpace - playerTransform.position;
-		const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
-		const auto newInput = ClientInputMessage::Input{
-			.up = Input::isKeyHeld(KeyCode::W),
-			.down = Input::isKeyHeld(KeyCode::S),
-			.left = Input::isKeyHeld(KeyCode::A),
-			.right = Input::isKeyHeld(KeyCode::D),
-			.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
-			.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
-			.rotation = rotation
-		};
-		pastInputCommands.push_back(newInput);
+	const auto inputMsg = static_cast<ClientInputMessage*>(client.CreateMessage(GameMessageType::CLIENT_INPUT));
+	inputMsg->clientSequenceNumber = sequenceNumber;
+	client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
 
-		const auto oldCommandsToDiscardCount = static_cast<int>(pastInputCommands.size()) - ClientInputMessage::INPUTS_COUNT;
-		if (oldCommandsToDiscardCount > 0) {
-			pastInputCommands.erase(pastInputCommands.begin(), pastInputCommands.begin() + oldCommandsToDiscardCount);
+
+	/*serverTime += FRAME_DT_MILLISECONDS;
+	std::cout << serverTime << '\n';*/
+	/*std::cout << serverTime << '\n';
+	serverTime++;*/
+	//std::cout << client.GetTime() << '\n';
+	auto avgD = [](const std::queue<int>& frames) {
+		float s = 0.0f;
+		for (auto v : frames._Get_container()) {
+			s += v;
 		}
-		//std::cout << pastInputCommands.size() << '\n';
-
-		const auto inputMsg = static_cast<ClientInputMessage*>(client.CreateMessage(static_cast<int>(GameMessageType::CLIENT_INPUT)));
-
-		inputMsg->sequenceNumber = sequenceNumber;
-
-		int offset = ClientInputMessage::INPUTS_COUNT - static_cast<int>(pastInputCommands.size());
-		for (int i = 0; i < pastInputCommands.size(); i++) {
-			inputMsg->inputs[offset + i] = pastInputCommands[i];
-		}
-
-		//std::cout << "sending " << inputMsg->sequenceNumber << '\n';
-		client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
-
-		const auto newPos = applyMovementInput(playerTransform.position, newInput, FRAME_DT);
-		playerTransform.inputs.push_back(PastInput{
-			.input = newInput,
-			.sequenceNumber = sequenceNumber
-		});
-		playerTransform.position = newPos;
-
-		shootCooldown -= FRAME_DT;
-		shootCooldown = std::max(0.0f, shootCooldown);
-
-		thisFrameSpawnIndexCounter = 0;
-		if (newInput.shoot && shootCooldown == 0.0f) {
-			shootCooldown = SHOOT_COOLDOWN;
-			auto spawnBullet = [this](Vec2 pos, Vec2 velocity) {
-				const auto direction = velocity.normalized();
-				predictedBullets.push_back(PredictedBullet{
-					/*.position = pos + PLAYER_HITBOX_RADIUS * direction,*/
-					.position = pos,
-					.velocity = velocity,
-					.spawnSequenceNumber = sequenceNumber,
-					.frameSpawnIndex = thisFrameSpawnIndexCounter,
-					.frameToActivateAt = -1,
-					.timeToCatchUp = 0.0f,
-					.timeToSynchornize = 0.0f,
-					.tSynchronizaztion = 1.0f
-				});
-				thisFrameSpawnIndexCounter++;
-			};
-			spawnTripleBullet(playerTransform.position, newInput.rotation, BULLET_SPEED, spawnBullet);
-		}
+		return static_cast<int>(s /= frames.size());
 	};
 
-	auto updateBullets = [this]() {
-		int notSynchronizedCount = 0;
-		for (auto& bullet : predictedBullets) {
-			if (sequenceNumber <= bullet.frameToActivateAt)
-				continue;
-
-			auto dt = FRAME_DT;
-			if (bullet.timeToSynchornize < 0.0f) {
-				bullet.timeToSynchornize = -bullet.timeToSynchornize;
-			}
-
-			if (bullet.tSynchronizaztion < 1.0f) {
-				notSynchronizedCount++;
-
-				auto x = (bullet.tSynchronizaztion - 0.5f); // from -0.5 to 0.5
-				// Most of the values are concentrated in the interval -2 to 2
-				const auto scale = 4.0f;
-				x *= scale; // from -2 to 2
-
-				const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
-				const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
-
-				/*const auto max = FRAME_DT / 8.0f;*/
-				const auto max = FRAME_DT / 2.0f;
-				// max = normalDistMax * functionStep * bullet.timeToSynchronize
-				// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
-				// functionStep = timeStep * scale
-				// timeStep = functionStep / scale
-				const auto timeStep = max / (normalDistributionMax * bullet.timeToSynchornize) / scale;
-
-				bullet.tSynchronizaztion += timeStep;
-				const auto functionStep = timeStep * scale;
-				dt -= value * functionStep * bullet.timeToSynchornize;
-			}
-			updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, dt);
-		}
-		/*if (notSynchronizedCount > 0)
-			put("not synchronized %", notSynchronizedCount);*/
-	};
-
-
-	auto render = [this]() {
-		renderer.camera.pos = playerTransform.position;
-
-		//renderer.bulletInstances.toDraw.push_back(BulletInstance{
-		//	.transform = renderer.camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 20.0f),
-		//	.color = getPlayerColor(110),
-		//});
-		const auto drawOnlyHitboxes = true;
-
-		for (auto& bullet : predictedBullets) {
-			const auto growingDuration = 0.1f;
-			float scale = std::clamp(bullet.timeElapsed / growingDuration, 0.0f, 1.0f);
-			scale = smoothstep(scale);
-			if (drawOnlyHitboxes) {
-				Debug::drawCircle(bullet.position, BULLET_HITBOX_RADIUS);
-			} else {
-				renderer.bulletInstances.toDraw.push_back(BulletInstance{
-					.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(scale * BULLET_HITBOX_RADIUS * 1.4f)),
-					.color = getPlayerColor(110),
-				});
-			}
-			
-			//Debug::drawRay(bullet.position, Vec2(BULLET_HITBOX_RADIUS, 0.0f), Vec3(0.0f, 1.0f, 0.0f), 0.001f);
-			//renderer.drawSprite(renderer.bulletSprite, bullet.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f));
-		}
-
-		for (auto& [_, bullet] : interpolatedBullets) {
-			/*const auto opacity = calculateBulletOpacity(bullet.aliveFramesLeft);
-			renderer.drawSprite(renderer.bulletSprite, bullet.transform.position, BULLET_HITBOX_RADIUS * 2.0f, 0.0f, Vec4(1.0f, 1.0f, 1.0f, opacity));*/
-			Debug::drawCircle(bullet.transform.position, BULLET_HITBOX_RADIUS, Vec3(1.0f, 0.0f, 0.0f));
-		}
-
-		for (const auto& animation : renderer.deathAnimations) {
-			if (animation.t >= 0.5) {
-				players[animation.playerIndex].isRendered = false;
-			}
-		}
-
-		for (const auto& animation : renderer.spawnAnimations) {
-			players[animation.playerIndex].isRendered = true;
-		}
-
-		const auto drawPlayer = [this](Vec2 pos, Vec3 color, Vec2 sizeScale) {
-			if (drawOnlyHitboxes) {
-				Debug::drawCircle(pos, PLAYER_HITBOX_RADIUS);
-			} else {
-				renderer.playerInstances.toDraw.push_back(PlayerInstance{
-					.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
-					.time = elapsed,
-					.color = color,
-				});
-			}
-			
-		};
-
-		for (const auto& [playerIndex, player] : players) {
-			if (!player.isRendered)
-				continue;
-
-			const auto& sprite = renderer.bulletSprite;
-			Vec2 sizeScale(1.0f);
-			float opacity = 1.0f;
-			//Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-			for (const auto& animation : renderer.spawnAnimations) {
-				if (playerIndex == animation.playerIndex) {
-					auto t = animation.t;
-					sizeScale.y *= lerp(2.0f, 1.0f, t);
-					sizeScale.x *= lerp(0.0f, 1.0f, t); // Identity function lol
-					opacity = t;
-					break;
-				}
-			}	
-			//renderer.drawSprite(sprite, player.position, size, 0.0f, color);
-			const auto SNEAKING_ANIMATION_DURATION = 0.3f;
-			static std::optional<float> sneakingElapsed;
-			if (Input::isKeyHeld(KeyCode::LEFT_SHIFT)) {
-				if (!sneakingElapsed.has_value()) {
-					sneakingElapsed = 0.0f;
-				} else {
-					*sneakingElapsed += FRAME_DT;
-					sneakingElapsed = std::min(*sneakingElapsed, SNEAKING_ANIMATION_DURATION);
-				}
-			} else {
-				if (sneakingElapsed.has_value()) {
-					*sneakingElapsed -= FRAME_DT;
-					if (sneakingElapsed <= 0.0f) {
-						sneakingElapsed = std::nullopt;
-					}
-				}
-			}
-			{
-				float t = sneakingElapsed.has_value() ? std::clamp(*sneakingElapsed / SNEAKING_ANIMATION_DURATION, 0.0f, 1.0f) : 0.0f;
-				t = smoothstep(t);
-				auto color = getPlayerColor(playerIndex);
-				color = lerp(color, color / 2.0f, t);
-				drawPlayer(player.position, color, sizeScale);
-			}
-		}
-
-		auto calculateBulletOpacity = [](int aliveFramesLeft) {
-			const auto opacityChangeFrames = 60.0f;
-			const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
-			return opacity;
-		};
-	};
-
-	if (isAlive) {
-		processInput();
-	} else {
-		if (Input::isKeyDown(KeyCode::SPACE)) {
-			const auto message = client.CreateMessage(GameMessageType::SPAWN_REQUEST);
-			client.SendMessage(GameChannel::RELIABLE, message);
-		}
-	}
-	Debug::scrollInput(renderer.camera.zoom);
-
-	// Debug
-	{
-		for (auto& [_, bullet] : interpolatedBullets) {
-			bullet.transform.interpolatePosition(sequenceNumber);
-			bullet.aliveFramesLeft--;
-		}
-		std::erase_if(interpolatedBullets, [](const auto& item) { return item.second.aliveFramesLeft <= 0; });
-	}
-
-	for (auto& [index, transform] : playerIndexToTransform) {
-		transform.interpolatePosition(sequenceNumber);
-		players[index].position = transform.position;
-	}
-	players[clientPlayerIndex].position = playerTransform.position;
-
-	updateBullets();
-
-	//put("sent update %", sequenceNumber);
-	render();
-	
 	sequenceNumber++;
+	frame++;
+	yojimbo::NetworkInfo info;
+	client.GetNetworkInfo(info);
+	const auto avgDExecuted = avgD(delaysExecuted);
+	const auto avgDReceived = avgD(delaysReceived);
+	put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + avgDExecuted, sequenceNumber + avgDReceived, avgDExecuted - avgDReceived, info.RTT, avgDExecuted, avgDReceived);
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
 	switch (message->GetType()) {
-		
-
 		case GameMessageType::CLIENT_INPUT:
 			ASSERT_NOT_REACHED();
 			break;
 
 		case GameMessageType::WORLD_UPDATE: { 
-			// when recieving update for frame x then check if the predicted bullets actually got spawned and delete them if not.
-			const auto msg = static_cast<WorldUpdateMessage*>(message);
-			//put("received update %", msg->sequenceNumber);
+			const auto& msg = reinterpret_cast<WorldUpdateMessage&>(*message);
 
-			/*if (receivedWorldUpdateThisFrame) {
-				put("double update %", msg->sequenceNumber);
-			}
-			put("received update");
-			receivedWorldUpdateThisFrame = true;*/
-
-			if (msg->sequenceNumber < newestUpdateSequenceNumber) {
-				std::cout << "out of order update message";
+			if (msg.serverSequenceNumber < newestUpdateServerSequenceNumber) {
+				put("out of order update message");
 				break;
 			}
-			;
-			//put("bullets size %", msg->bullets.size() * sizeof(WorldUpdateMessageBullet));
+			newestUpdateServerSequenceNumber = msg.serverSequenceNumber;
+			newestUpdateLastReceivedClientSequenceNumber = msg.lastExecutedInputClientSequenceNumber;
+			
+			/*put("%", sequenceNumber - msg.lastExecutedInputClientSequenceNumber);*/
+			/*put("% % %", sequenceNumber - msg.lastExecutedInputClientSequenceNumber, sequenceNumber, msg.lastExecutedInputClientSequenceNumber);*/
+			const auto d2 = sequenceNumber - msg.lastExecutedInputClientSequenceNumber;
+			//const auto d = (sequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR);
+			yojimbo::NetworkInfo info;
+			client.GetNetworkInfo(info);
+			/*const auto differenceBetweenClocks = (msg.lastExecutedInputClientSequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR) * 2.0f;
+			std::cout << sequenceNumber + differenceBetweenClocks << '\n';*/
+			const auto serverFrame = msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR;
 
-			if (!firstWorldUpdate.has_value()) {
-				firstWorldUpdate = FirstUpdate{
-					.serverSequenceNumber = msg->sequenceNumber,
-					.sequenceNumber = sequenceNumber,
-				};
-			}
-			const auto& firstUpdate = *firstWorldUpdate;
-
-			/*const auto playersSize = msg->playersCount * sizeof(WorldUpdateMessage::Player);
-			const auto bulletsSize = msg->bulletsCount * sizeof(WorldUpdateMessage::Bullet);
-			const auto dataSize = playersSize + bulletsSize;
-
-			if (msg->GetBlockSize() != dataSize) {
-				ASSERT_NOT_REACHED();
-				break;
-			}*/
-			newestUpdateSequenceNumber = msg->sequenceNumber;
-			newestUpdateLastReceivedClientSequenceNumber = msg->lastReceivedClientSequenceNumber;
-
-			/*const auto msgPlayers = reinterpret_cast<WorldUpdateMessage::Player*>(msg->GetBlockData());
-			const auto msgBullets = reinterpret_cast<WorldUpdateMessage::Bullet*>(msg->GetBlockData() + playersSize);*/
-
-			for (const auto& msgPlayer : msg->players) {
-				if (msgPlayer.index == clientPlayerIndex) {
-					playerTransform.position = msgPlayer.position;
-					
-					std::erase_if(
-						playerTransform.inputs,
-						[&](const PastInput& prediction) {
-							return prediction.sequenceNumber <= newestUpdateLastReceivedClientSequenceNumber;
-						}
-					);
-
-					// Maybe store the positions when the prediction is made and the compare the predicted ones with the server ones and only rollback the old state if they don't match. 
-					// https://youtu.be/zrIY0eIyqmI?t=1599
-					for (const auto& prediction : playerTransform.inputs) {
-						playerTransform.position = applyMovementInput(playerTransform.position, prediction.input, FRAME_DT);
-					}
-				} else {
-					auto& transform = playerIndexToTransform[msgPlayer.index];
-					transform.updatePositions(firstUpdate, msgPlayer.position, sequenceNumber, msg->sequenceNumber);
+			auto addDelay = [](std::queue<int>& delays, int d) {
+				delays.push(d);
+				if (delays.size() > 10) {
+					delays.pop();
 				}
+			};
+			// https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+			// Average of the time it takes for the packet to get to the server. The first difference is the time it takes to get to the server the second is how long it takes to get back from the server.
+			int dExecuted = ((serverFrame - msg.lastExecutedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
+			int dReceived = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
+			addDelay(delaysExecuted, dExecuted);
+			addDelay(delaysReceived, dReceived);
+			
+			//const auto rtt = (sequenceNumber - msg);
+			//put("%", d);
+			//const auto differenceBetweenClocks = (sequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR) * 2.0f;
+			//frame = sequenceNumber - differenceBetweenClocks;
+			//std::cout << frame << '\n';
+			/*put("% % % % %", d, d * (1.0f / 60.0f), d2, d2 * (1.0f / 60.0f), info.RTT);*/
+			//put("desynch between clocks: %\nRTT: %", d * (1.0f / 60.0f), info.RTT / 1000.0f);
+			//put("%", d);
+			//frame -= d;
+			/*yojimbo::NetworkInfo info;
+			client.GetNetworkInfo(info);
+			if (msg.sentTime < serverTime) {
+				put("smaller %", info.RTT);
+			} else if (serverTime - msg.sentTime > 2) {
+				put("bigger %", info.RTT);
 			}
-
-			for (const auto& msgBullet : msg->bullets) {
-				auto& bullet = interpolatedBullets[msgBullet.index];
-				const auto spawn = bullet.transform.positions.size() == 0;
-
-				std::cout << "new pos " << msgBullet.position << '\n';
-				//Debug::drawPoint(msgBullet.position);
-				bullet.transform.updatePositions(firstUpdate, msgBullet.position, sequenceNumber, msg->sequenceNumber);
-
-				if (spawn) {
-					const auto& p = bullet.transform.positions.back();
-					
-					predictedBullets.push_back(PredictedBullet{
-						.position = p.position,
-						.velocity = msgBullet.velocity,
-						// The prediction also has to be delayed to be in synch with the players the client sees
-						.frameToActivateAt = p.frameToDisplayAt - 6,
-						.timeElapsed = msgBullet.timeElapsed,
-						.timeToCatchUp = msgBullet.timeToCatchUp,
-						.aliveFramesLeft = msgBullet.aliveFramesLeft,
-						.timeToSynchornize = 0.0f,
-						.tSynchronizaztion = 1.0f
-					});
-					// If the bullet should have already been activated forward the prediction in time.
-					auto& bullet = predictedBullets.back();
-					while (bullet.frameToActivateAt < sequenceNumber) { // Should this be < or <= ?
-						updateBullet(bullet.position, bullet.velocity, bullet.timeElapsed, bullet.timeToCatchUp, bullet.aliveFramesLeft, FRAME_DT);
-						bullet.frameToActivateAt++;
-					}
-					yojimbo::NetworkInfo info;
-					client.GetNetworkInfo(info);
-					//bullet.position += bullet.velocity * (info.RTT / 1000.0f);
-					const auto rttSeconds = (info.RTT / 1000.0f);
-					//const auto rttSeconds = (sequenceNumber - msg->lastReceivedClientSequenceNumber) * FRAME_DT;
-					//const auto rttSeconds = 0.3f;
-					/*bullet.timeToCatchUp += rttSeconds;*/
-					std::cout << info.RTT << '\n';
-					
-					bullet.timeToCatchUp -= FRAME_DT * 6.0f;  // Trail and error
-					//bullet.timeToCatchUp -= FRAME_DT;
-					for (auto& spawnPredictedBullet : predictedBullets) {
-						if (spawnPredictedBullet.spawnSequenceNumber == msgBullet.spawnFrameClientSequenceNumber 
-							&& spawnPredictedBullet.frameSpawnIndex == msgBullet.frameSpawnIndex) {
-							bullet.frameToActivateAt += 6;
-							// Cancel out.
-							bullet.timeToCatchUp += rttSeconds;
-							// There is latency added to player positions so bullets also have to be delayed by it to be synchronized.
-							// If i remeber correctly this is the code that does it.
-							bullet.timeToCatchUp += FRAME_DT * 6.0f;
-							bullet.timeToCatchUp -= rttSeconds;
-
-							// Doesn't use absoulte time. Synchronizes with the server bullet elapsed time. So when you see you hit someone you hit them. Client spawned bullets should be synchronized with the other players not the client player.
-							const auto timeBeforePredictionDisplayed = (bullet.frameToActivateAt - sequenceNumber) * FRAME_DT; 
-							const auto bulletCurrentTimeElapsed = bullet.timeElapsed - timeBeforePredictionDisplayed + bullet.timeToCatchUp;
-							const auto timeDysnych = spawnPredictedBullet.timeElapsed - bulletCurrentTimeElapsed;
-							spawnPredictedBullet.timeToSynchornize = timeDysnych;
-							spawnPredictedBullet.tSynchronizaztion = 0.0f;
-							
-							spawnPredictedBullet.timeToSynchornize += FRAME_DT * 1; // Trail and error
-
-							predictedBullets.pop_back();
-						}
-					}
-					
-
-				}
-				bullet.aliveFramesLeft = msgBullet.aliveFramesLeft;
-				bullet.ownerPlayerIndex = msgBullet.ownerPlayerIndex;
-			}
+			serverTime = msg.sentTime;*/
 
 			break;
 		}
  
 		case GameMessageType::LEADERBOARD_UPDATE: {
-			const auto update = static_cast<LeaderboardUpdateMessage*>(message);
-			if (update->GetBlockSize() != update->entryCount * sizeof(LeaderboardUpdateMessage::Entry)) {
-				break;
-			}
-			const auto entries = reinterpret_cast<LeaderboardUpdateMessage::Entry*>(update->GetBlockData());
-
-			//std::cout << "{\nleaderboard update\n";
-			//for (int i = 0; i < update->entryCount; i++) {
-			//	const auto entry = entries[i];
-			//	std::cout << entry.playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
-			//}
-			//std::cout << "}\n";
-
-			//for (const auto& [playerIndex, entry] : playerIdToLeaderboardEntry) {
-			//	std::cout << playerIndex << ' ' << entry.kills << ' ' << entry.deaths << '\n';
-			//}
-			for (i32 i = 0; i < update->entryCount; i++) {
-				const auto entry = entries[i];
-
-				auto player = map_get(players, entry.playerIndex);
-				if (!player.has_value()) {
-					CHECK_NOT_REACHED();
-					continue;
-				}
-				
-				if (const auto died = player->leaderboard.deaths != entry.deaths) {
-					//std::cout << "died: " << entry.playerIndex << '\n';
-					renderer.deathAnimations.push_back(Renderer::DeathAnimation{
-						.position = player->position,
-						.color = getPlayerColor(entry.playerIndex),
-						.playerIndex = entry.playerIndex,
-					});
-					if (entry.playerIndex == clientPlayerIndex) {
-						isAlive = false;
-					}
-				}
-
-				player->leaderboard = {
-					.kills = entry.kills,
-					.deaths = entry.deaths,
-				};
-			}
 			break;
 		}
 
 		case GameMessageType::SPAWN_PLAYER: {
-			const auto& spawn = *reinterpret_cast<SpawnMessage*>(message);
-			std::cout << "spawn player: " << spawn.playerIndex << '\n';
-			renderer.spawnAnimations.push_back(Renderer::SpawnAnimation{ .playerIndex = spawn.playerIndex });
-			if (clientPlayerIndex == spawn.playerIndex) {
-				isAlive = true;
-			}
+			
 			break;
 		}
 
@@ -534,95 +177,25 @@ void GameClient::processMessage(yojimbo::Message* message) {
 	}
 }
 
-double GameClient::time() {
-	using namespace std::chrono;
-	return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
-}
+//double GameClient::time() {
+//	using namespace std::chrono;
+//	return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
+//}
 
-void GameClient::onJoin(int playerIndex) {
-	clientPlayerIndex = playerIndex;
+void GameClient::onJoin(const JoinMessage& msg) {
+	/*clientPlayerIndex = playerIndex;
 	players.insert({ clientPlayerIndex, GameClient::Player{} });
 	sequenceNumber = 0;
-	joinTime = time();
+	joinTime = time();*/
+	clientPlayerIndex = msg.clientPlayerIndex;
+	//serverTime = serverFrameWithLatency = msg.sentTime;
+	put("join clientPlayerIndex = %", clientPlayerIndex);
 }
 
-bool GameClient::joinedGame() {
-	return clientPlayerIndex != -1;
-}
-
-void GameClient::disconnect() {
-	client.Disconnect();
+void GameClient::onDisconnected() {
 	clientPlayerIndex = -1;
 }
 
-Vec3 GameClient::getPlayerColor(int id) {
-	if (id == clientPlayerIndex) {
-		return Vec3(0.0f, 1.0f, 1.0f);
-	} else {
-		return Vec3(1.0f, 0.0f, 0.0f);
-	}
-}
-
-void GameClient::InterpolatedTransform::updatePositions(const FirstUpdate& firstUpdate, Vec2 newPosition, int sequenceNumber, int serverSequenceNumber) {
-	const auto displayDelay = 6;
-	const auto delay = (serverSequenceNumber - firstUpdate.serverSequenceNumber) * SERVER_UPDATE_SEND_RATE_DIVISOR + displayDelay;
-	//put("total display delay %", delay - sequenceNumber);
-	//std::cout << "total display delay" << delay - sequenceNumber << '\n';
-	positions.push_back(InterpolationPosition{
-		.position = newPosition,
-		.frameToDisplayAt = 
-			firstUpdate.sequenceNumber + delay,
-		.serverSequenceNumber = serverSequenceNumber
-	});
-}
-
-void GameClient::InterpolatedTransform::interpolatePosition(int sequenceNumber) {
-	std::sort(
-		positions.begin(),
-		positions.end(),
-		[](const InterpolationPosition& a, const InterpolationPosition& b) {
-			return a.frameToDisplayAt < b.frameToDisplayAt;
-		}
-	);
-	if (positions.size() == 1) {
-		position = positions[0].position;
-	} else {
-		int i = 0;
-		for (i = 0; i < positions.size() - 1; i++) {
-			if (positions[i].frameToDisplayAt <= sequenceNumber && positions[i + 1].frameToDisplayAt > sequenceNumber) {
-				auto t = 
-					static_cast<float>(sequenceNumber - positions[i].frameToDisplayAt) / 
-					static_cast<float>(positions[i + 1].frameToDisplayAt - positions[i].frameToDisplayAt);
-				t = std::clamp(t, 0.0f, 1.0f);
-				if (t == 1.0) {
-					std::cout << "lost";
-				}
-
-				const auto start = positions[i].position;
-				const auto end = positions[i + 1].position;
-				position = lerp(start, end, t);
-				// Can't use hermite interpolation because it overshoots, which makes it look like it's rubber banding.
-				// TODO: The overhsooting might not happen if I store more frames, but this would also add more latency. But I don't think that would actually fix that.
-				// https://gdcvault.com/play/1024597/Replicating-Chaos-Vehicle-Replication-in
-			}
-		}
-
-		if (positions.size() > 2) {
-			positions.erase(positions.begin(), positions.begin() + i - 1);
-		}
-	}
-}
-
-void GameClient::PredictedTrasform::setAuthoritativePosition(Vec2 newPos, int sequenceNumber) {
-	std::erase_if(
-		predictedTranslations,
-		[&](const PredictedTranslation& prediction) {
-			return prediction.sequenceNumber <= sequenceNumber;
-		}
-	);
-
-	position = newPos;
-	for (const auto& prediction : predictedTranslations) {
-		position += prediction.translation;
-	}
+bool GameClient::joinedGame() const {
+	return clientPlayerIndex != -1;
 }

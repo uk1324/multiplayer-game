@@ -93,32 +93,34 @@ int main(int argc, char* argv[]) {
 		accumulatedTime += frameTime;
 
 		while (accumulatedTime >= updateTime) {
-			for (const auto& [_, bullet] : server.bullets) {
-				std::cout << bullet.timeElapsed << '\n';
-			}
-
-			server.update(updateTime);
+			server.update();
 			accumulatedTime -= updateTime;
+			//for (const auto& [_, bullet] : server.bullets) {
+			//	std::cout << bullet.timeElapsed << '\n';
+			//}
+
+			//server.update(updateTime);
+			//accumulatedTime -= updateTime;
 
 			BeginDrawing();
-			ClearBackground(BLACK);
+			//ClearBackground(BLACK);
 
-			BeginMode2D(camera);
+			//BeginMode2D(camera);
 
-			if (server.players.contains(0)) {
-				//camera.offset = convertPos(server.players[0].pos * scale);
-				camera.target = convertPos(server.players[0].pos * scale);
-				//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
-			}
-			for (const auto& [_, player] : server.players) {
-				DrawCircleV(convertPos(player.pos * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
-			}
+			//if (server.players.contains(0)) {
+			//	//camera.offset = convertPos(server.players[0].pos * scale);
+			//	camera.target = convertPos(server.players[0].pos * scale);
+			//	//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
+			//}
+			//for (const auto& [_, player] : server.players) {
+			//	DrawCircleV(convertPos(player.pos * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
+			//}
 
-			for (const auto& [_, bullet] : server.bullets) {
-				DrawCircleV(convertPos(bullet.pos * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
-			}
+			//for (const auto& [_, bullet] : server.bullets) {
+			//	DrawCircleV(convertPos(bullet.pos * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
+			//}
 
-			EndMode2D();
+			//EndMode2D();
 			EndDrawing();
 		}
 	}

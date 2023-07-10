@@ -5,9 +5,14 @@
 
 MainLoop::MainLoop()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0)
+	, adapter(*this)
 	, game(client, renderer) {
 	connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
 	//Window::enableWindowedFullscreen();
+}
+
+MainLoop::~MainLoop() {
+	client.Disconnect();
 }
 
 #include <Gui.hpp>
@@ -15,7 +20,7 @@ MainLoop::MainLoop()
 #include <client/Debug.hpp>
 
 void MainLoop::update() {
-	client.AdvanceTime(client.GetTime() + FRAME_DT);
+	client.AdvanceTime(client.GetTime() + FRAME_DT_SECONDS);
 	client.ReceivePackets();
 
 	if (Input::isKeyDown(KeyCode::X)) {
@@ -23,7 +28,7 @@ void MainLoop::update() {
 		return;
 	}
 
-	Debug::update(renderer.camera, FRAME_DT);
+	Debug::update(renderer.camera, 1.0f / 60.0f);
 	if (client.IsConnected()) {
 		processMessages();
 		if (game.joinedGame()) {
@@ -85,7 +90,7 @@ void MainLoop::processMessage(yojimbo::Message* message) {
 				break;
 			} 
 			const auto msg = static_cast<JoinMessage*>(message);
-			game.onJoin(msg->clientPlayerIndex);
+			game.onJoin(*msg);
 			break;
 		}
 	default:
@@ -104,3 +109,8 @@ void MainLoop::connect(const yojimbo::Address& address) {
 	client.SetJitter(DEBUG_JITTER);
 	client.SetPacketLoss(DEBUG_PACKET_LOSS_PERCENT);
 }
+
+void MainLoop::onDisconnected() {
+	game.onDisconnected();
+}
+

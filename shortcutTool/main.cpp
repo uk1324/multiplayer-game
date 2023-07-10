@@ -6,6 +6,13 @@
 bool ctrlHeld = false;
 bool shiftHeld = false;
 
+enum class Mode {
+    SERVER_AND_2_CLIENTS,
+    SERVER_AND_CLIENT,
+};
+
+Mode mode = Mode::SERVER_AND_2_CLIENTS;
+
 LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     bool eatKeystroke = false;
     if (nCode == HC_ACTION) {
@@ -23,9 +30,24 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
             } else if (keycode == VK_LSHIFT) {
                 shiftHeld = true;
             } else if (ctrlHeld && shiftHeld && keycode == 'Z') {
-                std::cout << system("runServerAnd2Clients.bat");
+                switch (mode) {
+                case Mode::SERVER_AND_2_CLIENTS:
+                    std::cout << system("runServerAnd2Clients.bat") << '\n';
+                    break;
+                case Mode::SERVER_AND_CLIENT:
+                    std::cout << system("runClientServer.bat") << '\n';
+                    break;
+                default:
+                    break;
+                }
             } else if (ctrlHeld && shiftHeld && keycode == 'X') {
                 std::cout << system("taskkill /IM server.exe");
+            } else if (keycode == VK_F1) {
+                std::cout << "switched mode to server and 2 clients\n";
+                mode = Mode::SERVER_AND_2_CLIENTS;
+            } else if (keycode == VK_F2) {
+                std::cout << "switched mode to server and client\n";
+                mode = Mode::SERVER_AND_CLIENT;
             }
 
             break;

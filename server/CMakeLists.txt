@@ -2,7 +2,7 @@ project(server)
 
 include("../codeGenTool/targetAddGenerated.cmake")
 
-add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp")
+add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp")
 
 targetAddGenerated(server "${CMAKE_CURRENT_SOURCE_DIR}")
 target_sources(server PUBLIC ${SHARED_GENERATED_FILES})

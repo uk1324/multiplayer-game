@@ -18,3 +18,43 @@ if the serverTime is too desynchornized then just jump instead of trying to chan
 The times of non client owned bullets will also have to be delayed (either in the stored value or in calculations) to be synchronized with the interpolated players which need to have added latency so there is enough frames to interpolate between.
 
 A different option might be to store the elapsed time inside the bullet and synchronize with it. This would mean that each bullet is locally synchronized at the point of spawn and not globally synchronized. It would also make it harder to synchronize all of the with clocks like futureServerTime. Things that stop the clock like dragging or lag might also get messed up if there is no global clock.
+
+
+
+
+For interpolated positions to be smooth the time it takes to interpolate between any 2 frames should be the same.
+
+!!Improved version maybe!!
+
+What problem is interpolation trying to solve?
+Interpolation is used to smooth out changes of positions in time.
+
+Why not just send positions more frequently?
+1. Sending data frequently takes up a lot of bandwidth. The server has to broadcast data to all players. Which means it that for the server the data takes player count times more bandwidth that for the clients. 
+2. Even if you can send a lot of data the data can arrive out of order or not equally spaced out, which can be smoothed out by adding latency and interpolating between the data.
+3. With enough latency to store a few frames ahead interpolation can even handle packet loss.
+
+How to implement interpolation?
+
+For interpolation to happen at all there needs to be at least 2 positions to interpolate between. For this you need a delay between you receive a position and when you display it.
+
+//This delay should be 
+
+//The problem you need to solve is when should you display something like a player position when you receive it from the server so that the interpolation is smooth and objects are in synch with eachother that is they have the same relative positions as at some point in time on the server.
+
+Technically the delay could be anything bigger than the maxmimum possible RTT (which is never really known). 
+The server sends a position which takes half RTT.
+I plan to display that position at current time + half RTT.
+When the next position arrives the first position starts being displayed.
+After that there are 2 positions to be interpolated between while wating for the next position to arrive.
+
+So the only knowledge you technically need is the RTT. If I wanted to apply this to each object individually then I think I would just need to add the RTT + some value to handle jitter to frame at which the packet was received, but this would make the objects not in synch with eachother.
+
+To make the objects stay in synch you could do something like this.
+Have 2 clocks one would be the server side clock another would be the client side clock. It is easy to calculate the difference curent (not average) time difference between the clocks. If the clocks get too out of synch with eachother (could be measured by the average times) then one way to synchronize them would be to speed up and later slow time on the client. For small differences this shouldn't be noticible and would allow the client to adapt to changing network conditions. It also handles any other source of desynch like computer freezing or the process not updaing (for example due to dragging the window).
+The 2 clocks don't actually have to exist on the client you only need to be able to measure the difference between them based on messages from the server.
+
+
+Additional things.
+
+There is no point of tranmitting milliseconds because they will always be multiples of frame time. 

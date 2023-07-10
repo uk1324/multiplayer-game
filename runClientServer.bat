@@ -1,2 +1,2 @@
-start out/build/x64-Debug/server/server.exe
-start out/build/x64-Debug/client.exe
+start "" "out/build/x64-Debug/server/server.exe" 1
+start "" "out/build/x64-Debug/client/client.exe" 0

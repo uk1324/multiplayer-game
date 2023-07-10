@@ -28,20 +28,13 @@ static constexpr int CLIENT_PORT = 30001;
 
 static const uint8_t DEFAULT_PRIVATE_KEY[yojimbo::KeyBytes] = { 0 };
 
-static constexpr int FPS = 60;
-static constexpr float FRAME_DT = 1.0f / static_cast<float>(FPS);
-static constexpr int SERVER_UPDATE_SEND_RATE_DIVISOR = 6;
+//static constexpr float DEBUG_LATENCY = 1000.0f;
+//static constexpr float DEBUG_JITTER = 500.0f;
+//static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.05f;
 
-//static constexpr float DEBUG_LATENCY = 150.0f;
-//static constexpr float DEBUG_PACKET_LOSS_PERCENT = 10.00f;
-//static constexpr float DEBUG_LATENCY = 0.0f;
-//static constexpr float DEBUG_JITTER = 0.0f;
 static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_JITTER = 100.0f;
-static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.05f;
-//static constexpr float DEBUG_LATENCY = 100.0f;
-//static constexpr float DEBUG_JITTER = 000.0f;
-//static constexpr float DEBUG_PACKET_LOSS_PERCENT = 0.00f;
+static constexpr float DEBUG_JITTER = 50.0f;
+static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.0f;
 
 namespace GameMessageType {
     enum GameMessageType {
@@ -57,7 +50,7 @@ namespace GameMessageType {
 };
 
 struct ClientInputMessage : public yojimbo::Message {
-    i32 sequenceNumber;
+    i32 clientSequenceNumber;
     struct Input {
         bool up = false, down = false, left = false, right = false, shoot = false, shift = false;
         float rotation = 0.0f;
@@ -67,7 +60,7 @@ struct ClientInputMessage : public yojimbo::Message {
 
     template <typename Stream>
     bool Serialize(Stream& stream) {
-        serialize_int(stream, sequenceNumber, 0, INT_MAX);
+        serialize_int(stream, clientSequenceNumber, 0, INT_MAX);
         for (int i = 0; i < std::size(inputs); i++) {
             serialize_bool(stream, inputs[i].left);
             serialize_bool(stream, inputs[i].up);
@@ -168,8 +161,5 @@ YOJIMBO_MESSAGE_FACTORY_START(GameMessageFactory, static_cast<int>(GameMessageTy
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::JOIN, JoinMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::CLIENT_INPUT, ClientInputMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::WORLD_UPDATE, WorldUpdateMessage);
-YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::LEADERBOARD_UPDATE, LeaderboardUpdateMessage);
-YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_REQUEST, SpawnRequestMessage);
-YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_PLAYER, SpawnMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::TEST, TestMessage);
 YOJIMBO_MESSAGE_FACTORY_FINISH();

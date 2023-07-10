@@ -50,8 +50,23 @@ class GeneratedFilesPaths {
     }
 }
 
+class ExitException {
+    public int returnCode;
+    public String message;
+    ExitException(int returnCode, String message) {
+        this.returnCode = returnCode;
+        this.message = message;
+    }
+}
+
 public class Main {
     static String thisProgramWorkingDirectory = System.getProperty("user.dir");
+    static boolean errorFlag = false;
+
+    public static void error(String message, Object... args) {
+        System.err.format(message, args);
+        errorFlag = true;
+    }
 
     public static void main(String[] args) {
         if (args.length >= 1 && args[0].equals("watch")) {
@@ -59,11 +74,15 @@ public class Main {
         } else {
             compilerProgram(args);
         }
+
+        if (errorFlag) {
+            System.exit(1);
+        }
     }
 
     static void compilerProgram(String[] args) {
         if (args.length < 3) {
-            System.err.println("wrong number of arguments");
+            error("wrong number of arguments");
             System.out.println("usage: <cppExecutableWorkingDirectory> <generatedOutDirectory> <folderToProcessRecursivelyOrFile...>");
             return;
         }
@@ -84,17 +103,17 @@ public class Main {
                         }
                     });
                 } catch (java.io.IOException v) {
-                    System.err.println("path doesn't exist");
+                    error("path '%' doesn't exist", path);
                 }
             } else {
-                System.err.format("invalid path %s", path);
+                error("invalid path %s", path);
             }
         }
     }
 
     static void watchProgram(String[] args) {
         if (args.length < 4) {
-            System.err.println("wrong number of arguments");
+            error("wrong number of arguments");
             System.out.println("usage: watch <cppExecutableWorkingDirectory> <generatedOutDirectory> <directoryToRecursivelyToWatch...>");
         }
         var cppExecutableWorkingDirectory = args[1];
@@ -107,7 +126,7 @@ public class Main {
         try {
             new Watcher(directoryPaths, cppExecutableWorkingDirectory, generatedOutDirectory).processEvents();
         } catch (IOException e) {
-            System.err.format("watcher error: %s\n", e.getMessage());
+            error("watcher error: %s\n", e.getMessage());
         }
     }
 
@@ -128,7 +147,7 @@ public class Main {
         var GENERATED_END = "/*generated end*/";
         var split = source.indexOf(GENERATED_END);
         if (split == -1) {
-            System.err.format("'%s' contains no '%s'", filePath, GENERATED_END);
+            error("'%s' contains no '%s'", filePath, GENERATED_END);
             return;
         }
         source = source.substring(split + GENERATED_END.length());
@@ -176,7 +195,7 @@ public class Main {
             try {
                 Files.createDirectories(Paths.get(generatedOutDirectory));
             } catch (IOException e) {
-                System.err.format("failed to create directory '%s'\n", generatedOutDirectory);
+                error("failed to create directory '%s'\n", generatedOutDirectory);
             }
             System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(paths.cppFilePath));
             writeStringToFile(paths.cppFilePath, st.render());
@@ -209,7 +228,7 @@ public class Main {
         try {
             return Optional.of(Files.readString(Path.of(path)));
         } catch(IOException e) {
-            System.err.format("failed to read %s", path);
+            error("failed to read %s", path);
             return Optional.empty();
         }
     }
@@ -226,15 +245,14 @@ public class Main {
         try {
             dataFile = parser.parse();
         } catch (LexerError e) {
-            System.err.println("failed to lex file");
-            System.err.println(e.getMessage());
+            error("failed to lex file: %s", e.getMessage());
             return Optional.empty();
         } catch (ParserError e) {
-            System.err.println("failed to parse file");
+            error("failed to parse file");
             if (e.line.isPresent()) {
-                System.err.format("error on line %s\n", e.line.get());
+                error("error on line %s\n", e.line.get());
             }
-            System.err.println(e.getMessage());
+            error(e.getMessage());
             return Optional.empty();
         }
 
@@ -245,7 +263,7 @@ public class Main {
         try (PrintWriter headerFile = new PrintWriter(path)) {
             headerFile.print(data);
         } catch (IOException e) {
-            System.err.format("failed to write to file %s\n", path);
+            error("failed to write to file %s\n", path);
         }
     }
 
