@@ -23,8 +23,8 @@ struct GameServer {
 
 
 	struct Player {
-		FrameTime newestReceivedInputClientSequenceNumber = 0;
-		FrameTime newestExecutedInputClientSequenceNumber = 0;
+		std::optional<FrameTime> newestReceivedInputClientSequenceNumber = 0;
+		std::optional<FrameTime> newestExecutedInputClientSequenceNumber = 0;
 		
 		struct InputWithSequenceNumber {
 			ClientInputMessage::Input input;

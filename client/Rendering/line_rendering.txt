@@ -1,3 +1,6 @@
+What about rendering the lines (as quads with rounded edges) to a seperate texture and basically doing sdf operations on it? Can you read from a pixel you are going to be writing to? You can't read from pixels around it, but maybe you could read just the one you are writing to?
+
+
 Rendering textured lines with thickness.
 
 Search terms

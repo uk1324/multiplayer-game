@@ -107,8 +107,13 @@ void GameServer::update() {
 				continue;
 			}
 
-			message->lastExecutedInputClientSequenceNumber = player->newestExecutedInputClientSequenceNumber;
-			message->lastReceivedInputClientSequenceNumber = player->newestReceivedInputClientSequenceNumber;
+			if (!player->newestExecutedInputClientSequenceNumber.has_value() || !player->newestReceivedInputClientSequenceNumber.has_value()) {
+				// The client needs to send a message to be able to calculate RTT.
+				continue;
+			}
+
+			message->lastExecutedInputClientSequenceNumber = *player->newestExecutedInputClientSequenceNumber;
+			message->lastReceivedInputClientSequenceNumber = *player->newestReceivedInputClientSequenceNumber;
 			message->serverSequenceNumber = sequenceNumber;
 			server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
 		}
@@ -151,13 +156,18 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 			CHECK_NOT_REACHED();
 			return;
 		}
-		//auto player = players[clientIndex];
 
 		const auto inputsInMessage = static_cast<int>(std::size(msg.inputs));
-		const auto newInputs = std::min(msg.clientSequenceNumber - static_cast<int>(player->newestReceivedInputClientSequenceNumber), inputsInMessage);
-		if (newInputs <= 0) {
-			return;
+		int newInputs;
+		if (player->newestReceivedInputClientSequenceNumber.has_value()) {
+			newInputs = std::min(msg.clientSequenceNumber - static_cast<int>(*player->newestReceivedInputClientSequenceNumber), inputsInMessage);
+			if (newInputs <= 0) {
+				return;
+			}
+		} else {
+			newInputs = inputsInMessage;
 		}
+		put("new inputs %", newInputs);
 		player->newestReceivedInputClientSequenceNumber = msg.clientSequenceNumber;
 
 		auto sequenceNumber = msg.clientSequenceNumber - newInputs + 1;

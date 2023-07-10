@@ -54,6 +54,17 @@ To make the objects stay in synch you could do something like this.
 Have 2 clocks one would be the server side clock another would be the client side clock. It is easy to calculate the difference curent (not average) time difference between the clocks. If the clocks get too out of synch with eachother (could be measured by the average times) then one way to synchronize them would be to speed up and later slow time on the client. For small differences this shouldn't be noticible and would allow the client to adapt to changing network conditions. It also handles any other source of desynch like computer freezing or the process not updaing (for example due to dragging the window).
 The 2 clocks don't actually have to exist on the client you only need to be able to measure the difference between them based on messages from the server.
 
+Attempt at an example of displaying players algorithm.
+
+Game starts
+The server sends a world update.
+The client receives it.
+if the server hasn't received any inputs yet then you cannot calculate the clock delay. The server could just not sent world updates until it receives a input.
+else {
+	Based on the update calculate the clock delay. 
+	Store that as the current delay.
+}
+
 
 Additional things.
 

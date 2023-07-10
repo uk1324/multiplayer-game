@@ -23,6 +23,15 @@ struct GameClient {
 	FrameTime newestUpdateLastReceivedClientSequenceNumber = 0;
 	FrameTime newestUpdateServerSequenceNumber = 0;
 
+	// TODO: Use a ring buffer.
+	std::vector<FrameTime> pastReceivedDelays;
+	std::vector<FrameTime> pastExecutedDelays;
+	static void addDelay(std::vector<FrameTime>& delays, FrameTime newDelay);
+	static FrameTime averageDelay(const std::vector<FrameTime>& delays);
+	FrameTime receivedDelay = 0;
+	// Could calculate the executed delay by sending how many inputs does the server have buffered up.
+	FrameTime executedDelay = 0;
+
 	/*i32 serverFrameWithLatency = 0;
 	ServerClockTime serverTime = 0;*/
 	//bool joinedGame();

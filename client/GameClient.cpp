@@ -37,12 +37,6 @@ void gui(const yojimbo::NetworkInfo& info) {
 	ImGui::Text("numPacketsAcked %d", info.numPacketsAcked);
 }
 
-#include <queue>
-
-std::queue<int> delaysExecuted;
-std::queue<int> delaysReceived;
-static int d = 0;
-
 void GameClient::update() {
 	if (!client.IsConnected()) {
 		CHECK_NOT_REACHED();
@@ -79,27 +73,12 @@ void GameClient::update() {
 	inputMsg->clientSequenceNumber = sequenceNumber;
 	client.SendMessage(GameChannel::UNRELIABLE, inputMsg);
 
-
-	/*serverTime += FRAME_DT_MILLISECONDS;
-	std::cout << serverTime << '\n';*/
-	/*std::cout << serverTime << '\n';
-	serverTime++;*/
-	//std::cout << client.GetTime() << '\n';
-	auto avgD = [](const std::queue<int>& frames) {
-		float s = 0.0f;
-		for (auto v : frames._Get_container()) {
-			s += v;
-		}
-		return static_cast<int>(s /= frames.size());
-	};
-
 	sequenceNumber++;
 	frame++;
 	yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
-	const auto avgDExecuted = avgD(delaysExecuted);
-	const auto avgDReceived = avgD(delaysReceived);
-	put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + avgDExecuted, sequenceNumber + avgDReceived, avgDExecuted - avgDReceived, info.RTT, avgDExecuted, avgDReceived);
+	
+	//put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + executedDelay, sequenceNumber + receivedDelay, executedDelay - receivedDelay, info.RTT, executedDelay, receivedDelay);
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
@@ -118,46 +97,27 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			newestUpdateServerSequenceNumber = msg.serverSequenceNumber;
 			newestUpdateLastReceivedClientSequenceNumber = msg.lastExecutedInputClientSequenceNumber;
 			
-			/*put("%", sequenceNumber - msg.lastExecutedInputClientSequenceNumber);*/
-			/*put("% % %", sequenceNumber - msg.lastExecutedInputClientSequenceNumber, sequenceNumber, msg.lastExecutedInputClientSequenceNumber);*/
-			const auto d2 = sequenceNumber - msg.lastExecutedInputClientSequenceNumber;
-			//const auto d = (sequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR);
-			yojimbo::NetworkInfo info;
-			client.GetNetworkInfo(info);
-			/*const auto differenceBetweenClocks = (msg.lastExecutedInputClientSequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR) * 2.0f;
-			std::cout << sequenceNumber + differenceBetweenClocks << '\n';*/
 			const auto serverFrame = msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR;
 
-			auto addDelay = [](std::queue<int>& delays, int d) {
-				delays.push(d);
-				if (delays.size() > 10) {
-					delays.pop();
-				}
-			};
 			// https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
 			// Average of the time it takes for the packet to get to the server. The first difference is the time it takes to get to the server the second is how long it takes to get back from the server.
-			int dExecuted = ((serverFrame - msg.lastExecutedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
-			int dReceived = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
-			addDelay(delaysExecuted, dExecuted);
-			addDelay(delaysReceived, dReceived);
-			
-			//const auto rtt = (sequenceNumber - msg);
-			//put("%", d);
-			//const auto differenceBetweenClocks = (sequenceNumber - msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR) * 2.0f;
-			//frame = sequenceNumber - differenceBetweenClocks;
-			//std::cout << frame << '\n';
-			/*put("% % % % %", d, d * (1.0f / 60.0f), d2, d2 * (1.0f / 60.0f), info.RTT);*/
-			//put("desynch between clocks: %\nRTT: %", d * (1.0f / 60.0f), info.RTT / 1000.0f);
-			//put("%", d);
-			//frame -= d;
-			/*yojimbo::NetworkInfo info;
-			client.GetNetworkInfo(info);
-			if (msg.sentTime < serverTime) {
-				put("smaller %", info.RTT);
-			} else if (serverTime - msg.sentTime > 2) {
-				put("bigger %", info.RTT);
+			const auto delayExecuted = ((serverFrame - msg.lastExecutedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f; // Should this be using sequence number or something else?
+			const auto delayReceived = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
+			addDelay(pastReceivedDelays, delayReceived);
+			receivedDelay = averageDelay(pastReceivedDelays);
+			addDelay(pastExecutedDelays, delayExecuted);
+			executedDelay = averageDelay(pastExecutedDelays);
+			// NOTE: The delay between the server and the client seems to grow don't know why.
+	
+			static int f = 0;
+			if (f < 50) {
+				yojimbo::NetworkInfo info;
+				client.GetNetworkInfo(info);
+				const auto rtt = sequenceNumber - msg.lastReceivedInputClientSequenceNumber;
+
+				put("% % %", info.RTT / 1000.0f, rtt * (1.0f / 60.0f), receivedDelay);
+				f++;
 			}
-			serverTime = msg.sentTime;*/
 
 			break;
 		}
@@ -198,4 +158,20 @@ void GameClient::onDisconnected() {
 
 bool GameClient::joinedGame() const {
 	return clientPlayerIndex != -1;
+}
+
+void GameClient::addDelay(std::vector<FrameTime>& delays, FrameTime newDelay) {
+	delays.insert(delays.begin(), newDelay);
+	if (delays.size() > 10) {
+		delays.pop_back();
+	}
+}
+
+FrameTime GameClient::averageDelay(const std::vector<FrameTime>& delays) {
+	// TODO: Technically you could calculate the delays on the fly and not store the values by multiplying by the previous count removing the last time and adding the new one and the dividing by the new count. This wouldn't be fully correct because of rounding errors in floats.
+	float s = 0.0f;
+	for (const auto& v : delays) {
+		s += v;
+	}
+	return static_cast<FrameTime>(floor(s / static_cast<float>(delays.size())));
 }
