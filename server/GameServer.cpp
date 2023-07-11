@@ -207,4 +207,5 @@ void GameServer::onClientConnected(int clientIndex) {
 
 void GameServer::onClientDisconnected(int clientIndex) {
 	std::cout << "client disconnected " << clientIndex << '\n';
+	players.erase(clientIndex);
 }

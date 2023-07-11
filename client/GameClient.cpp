@@ -110,6 +110,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			// NOTE: The delay between the server and the client seems to grow don't know why.
 	
 			static int f = 0;
+			// Maybe just wait till you get the RTT and only then start displaying.
 			if (f < 50) {
 				yojimbo::NetworkInfo info;
 				client.GetNetworkInfo(info);
