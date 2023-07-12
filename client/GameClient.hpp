@@ -29,17 +29,27 @@ struct GameClient {
 	// Could calculate the executed delay by sending how many inputs does the server have buffered up.
 	FrameTime averageExecuteDelay = 0;
 
+	struct Delays {
+		// serverFrame to clientFrame 
+		FrameTime interpolatedEntitesDisplayDelay;
+
+		FrameTime executeDelay;
+	};
+	std::optional<Delays> delays;
+
 	struct InterpolatedTransform {
 		struct Position {
 			Vec2 position;
-			FrameTime updateLastReceivedClientSequenceNumber;
+			FrameTime serverFrame;
 		};
 
 		std::vector<Position> positions;
 		Vec2 position;
 
-		void updatePositions(Vec2 newPosition, FrameTime updateLastReceivedClientSequenceNumber);
-		void interpolatePosition(FrameTime sequenceNumber);
+		void updatePositions(Vec2 newPosition, FrameTime serverFrame);
+		void interpolatePosition(FrameTime sequenceNumber, const Delays& delays);
+
+		void debugDisplay() const;
 	};
 
 	std::unordered_map<PlayerIndex, InterpolatedTransform> playerIndexToTransform;

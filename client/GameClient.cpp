@@ -49,8 +49,6 @@ void GameClient::update() {
 		return;
 	}
 
-	ImGui::TextWrapped("the flickering point is the position of the player from the server update");
-
 	const auto input = [
 		cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace(),
 		clientPlayerPosition = clientPlayer.position
@@ -109,17 +107,21 @@ void GameClient::update() {
 	client.SendMessage(GameChannel::UNRELIABLE, inputMessage);
 
 	auto updatePlayersPositions = [
-		&playerIndexToTransform = std::as_const(playerIndexToTransform),
 		&clientPlayer = std::as_const(clientPlayer),
 		clientPlayerIndex = clientPlayerIndex,
+		sequenceNumber = sequenceNumber,
+		&delays = std::as_const(delays),
 
+		&playerIndexToTransform = playerIndexToTransform,
 		&players = players
 	] {
 		players[clientPlayerIndex].position = clientPlayer.position;
 
-		for (auto& [playerIndex, transform] : playerIndexToTransform) {
-			/*transform
-			players[playerIndex].position = transform.position;*/
+		if (delays.has_value()) {
+			for (auto& [playerIndex, transform] : playerIndexToTransform) {
+				transform.interpolatePosition(sequenceNumber, *delays);
+				players[playerIndex].position = transform.position;
+			}
 		}
 	};
 	updatePlayersPositions();
@@ -213,6 +215,10 @@ void GameClient::update() {
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
 	addToRender();
+	ImGui::TextWrapped("Ideally this is when there is no jitter there should be 3 values in queue to display. The 2 you are interpolating between and the new one to switch to. The delay before it is display should around the time between server updates");
+	if (delays.has_value()) {
+		ImGui::Text("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);
+	}
 
 	sequenceNumber++;
 	yojimbo::NetworkInfo info;
@@ -267,13 +273,40 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			averageReceiveDelay = average(pastReceiveDelays);
 			averageExecuteDelay = average(pastExecuteDelays);
 	
-			yojimbo::NetworkInfo info;
-			client.GetNetworkInfo(info);
-			if (info.RTT == 0.0f) {
+			yojimbo::NetworkInfo networkInfo;
+			client.GetNetworkInfo(networkInfo);
+			// RTT is required to calculate the display delay.
+			if (networkInfo.RTT == 0.0f) {
 				// Messages were exchanged between the server and client so the RTT should be calculated.
 				CHECK_NOT_REACHED();
 				break;
 			}
+
+			auto secondsToFrames = [](float seconds) -> FrameTime {
+				return static_cast<FrameTime>(ceil(seconds / FRAME_DT_SECONDS));
+			};
+
+			if (!delays.has_value()) {
+				/*
+				server frame = client frame + receive delay
+				client frame = server frame - receive delay
+
+				client time when message received = message server frame - receive delay + RTT/2
+
+				client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
+				delay = -receive delay + RTT/2 + delay between server updates
+				*/
+				const auto additionalDelayToHandleJitter = 0;
+				const auto rttSeconds = networkInfo.RTT / 1000.0f;
+				delays = Delays{
+					/*.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_FRAME_DELAY + additionalDelayToHandleJitter,*/
+					.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_FRAME_DELAY + additionalDelayToHandleJitter,
+					.executeDelay = averageExecuteDelay
+				};
+			} else {
+				// TODO: Check if synchronized.
+			}
+			put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
 
 			for (const auto& msgPlayer : msg.players) {
 				if (msgPlayer.playerIndex == clientPlayerIndex) {
@@ -283,9 +316,8 @@ void GameClient::processMessage(yojimbo::Message* message) {
 							clientPlayer.position = applyMovementInput(clientPlayer.position, input.input, FRAME_DT_SECONDS);
 						}
 					}
-					Debug::drawCircle(msgPlayer.position, PLAYER_HITBOX_RADIUS);
 				} else {
-
+					playerIndexToTransform[msgPlayer.playerIndex].updatePositions(msgPlayer.position, serverFrame);
 				}
 			}
 
@@ -307,18 +339,8 @@ void GameClient::processMessage(yojimbo::Message* message) {
 	}
 }
 
-//double GameClient::time() {
-//	using namespace std::chrono;
-//	return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
-//}
-
 void GameClient::onJoin(const JoinMessage& msg) {
-	/*clientPlayerIndex = playerIndex;
-	players.insert({ clientPlayerIndex, GameClient::Player{} });
-	sequenceNumber = 0;
-	joinTime = time();*/
 	clientPlayerIndex = msg.clientPlayerIndex;
-	//serverTime = serverFrameWithLatency = msg.sentTime;
 	put("join clientPlayerIndex = %", clientPlayerIndex);
 }
 
@@ -328,4 +350,51 @@ void GameClient::onDisconnected() {
 
 bool GameClient::joinedGame() const {
 	return clientPlayerIndex != -1;
+}
+
+void GameClient::InterpolatedTransform::updatePositions(Vec2 newPosition, FrameTime serverFrame) {
+	positions.push_back(InterpolatedTransform::Position{
+		.position = newPosition,
+		.serverFrame = serverFrame
+	});
+}
+
+void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNumber, const Delays& delays) {
+	ImGui::Text("current time");
+	Debug::text(sequenceNumber);
+	ImGui::Text("display at times");
+	for (const auto& position : positions) {
+		Debug::text(position.serverFrame + delays.interpolatedEntitesDisplayDelay);
+	}
+
+	if (positions.size() == 1) {
+		position = positions[0].position;
+	} else {
+		int i = 0;
+		for (i = 0; i < positions.size() - 1; i++) {
+			auto frameToDisplayAt = [&](const InterpolatedTransform::Position& position) -> FrameTime {
+				return position.serverFrame + delays.interpolatedEntitesDisplayDelay;
+			};
+			const auto iFrameTodisplayAt = frameToDisplayAt(positions[i]);
+			const auto iPlusOneFrameTodisplayAt = frameToDisplayAt(positions[i + 1]);
+			if (iFrameTodisplayAt <= sequenceNumber && iPlusOneFrameTodisplayAt > sequenceNumber) {
+				auto t =
+					static_cast<float>(sequenceNumber - iFrameTodisplayAt) /
+					static_cast<float>(iPlusOneFrameTodisplayAt - iFrameTodisplayAt);
+				t = std::clamp(t, 0.0f, 1.0f);
+
+				const auto start = positions[i].position;
+				const auto end = positions[i + 1].position;
+				position = lerp(start, end, t);
+				// Can't use hermite interpolation because it overshoots, which makes it look like it's rubber banding.
+				// TODO: The overhsooting might not happen if I store more frames, but this would also add more latency. But I don't think that would actually fix that.
+				// https://gdcvault.com/play/1024597/Replicating-Chaos-Vehicle-Replication-in
+				break;
+			}
+		}
+
+		if (positions.size() > 2) {
+			positions.erase(positions.begin(), positions.begin() + i);
+		}
+	}
 }
