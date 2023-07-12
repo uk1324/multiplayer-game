@@ -1,12 +1,12 @@
 `
-#include <engine/Math/Vec2.hpp>
 #include <shared/Time.hpp>
+#include <shared/GameplayStateData.hpp>
 #include <vector>
 
 static const int MAX_CLIENTS = 64;
 
 using PlayerIndex = u32;
-
+#define NETWORK_SERIALIZE_PLAYER_INDEX(stream, value) serialize_uint32(stream, value)
 `
 
 struct
@@ -16,12 +16,18 @@ JoinMessage {
     FrameTime serverFrame;
 }
 
-struct 
-[[NetworkSerialize, NetworkMessage]]
-WorldUpdateMessage {
+struct [[NetworkSerialize]] WorldUpdateMessagePlayer {
+    PlayerIndex playerIndex;
+    Vec2 position;
+}
+
+struct [[NetworkSerialize, NetworkMessage]] WorldUpdateMessage {
     FrameTime serverSequenceNumber;
     FrameTime lastExecutedInputClientSequenceNumber;
     FrameTime lastReceivedInputClientSequenceNumber;
+
+    GameplayState gemeplayState;
+    vector<WorldUpdateMessagePlayer> players;
 
     //ServerClockTime sentTime;
     //ranged_int<`0`, `INT_MAX`> lastReceivedClientSequenceNumber;

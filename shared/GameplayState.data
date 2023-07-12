@@ -1,0 +1,11 @@
+`
+#include <vector>
+`
+
+struct [[NetworkSerialize]] GameplayPlayer {
+	Vec2 position;
+}
+
+struct [[NetworkSerialize]] GameplayState {
+	
+}

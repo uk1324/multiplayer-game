@@ -10,6 +10,8 @@
 // Might use codegen to generate the AoS struct. Internally it would be represented as an AoS, but it would also be accessible by converting it into a struct. Which to prevent duplication could be generated from a .data struct specification.
 
 // Systems could be implemented as just functions or classes that get passed a context struct. The main loop would pass all the data needed to the struct. If the editor could detect if a struct filed isn't used than you could remove it. With the informtation of what data the context has you might be able to make a compile time multithreaded task scheduler.
+
+// Using struct and class for adding an additional global scope
 struct MainLoop {
 	MainLoop();
 	~MainLoop();

@@ -4,6 +4,7 @@
 #include <engine/Math/Vec2.hpp>
 #include <Types.hpp>
 #include <shared/MessagesData.hpp>
+#include <shared/GameplayStateData.hpp>
 #include <bit>
 
 namespace GameChannel {
@@ -56,6 +57,7 @@ struct ClientInputMessage : public yojimbo::Message {
         float rotation = 0.0f;
     };
     static constexpr int INPUTS_COUNT = 15;
+    // Most recent input at the last index.
     Input inputs[INPUTS_COUNT];
 
     template <typename Stream>

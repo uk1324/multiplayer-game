@@ -19,6 +19,10 @@ Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt) {
 	return pos;
 }
 
+void updateGameplayPlayer(GameplayPlayer& player, const ClientInputMessage::Input& input, float dt) {
+	player.position = applyMovementInput(player.position, input, dt);
+}
+
 void updateBullet(Vec2& position, Vec2 velocity, f32& timeElapsed, f32& timeToCatchUp, i32& aliveFramesLeft, f32 dt) {
 	float speedUp = 0.0f;
 

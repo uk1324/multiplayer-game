@@ -4,6 +4,7 @@
 #include <GameServerAdapter.hpp>
 #include <shared/Networking.hpp>
 #include <shared/Time.hpp>
+#include <shared/Gameplay.hpp>
 #include <unordered_map>
 #include <queue>
 
@@ -15,6 +16,8 @@ struct GameServer {
 	void processMessage(PlayerIndex clientIndex, yojimbo::Message* message);
 	void onClientConnected(int clientIndex);
 	void onClientDisconnected(int clientIndex);
+
+	void broadcastWorldState();
 
 	bool isRunning = true;
 
@@ -31,6 +34,8 @@ struct GameServer {
 			FrameTime clientSequenceNumber = 0;
 		};
 		std::queue<InputWithSequenceNumber> inputs;
+
+		GameplayPlayer gameplayPlayer;
 	};
 
 	std::unordered_map<PlayerIndex, Player> players;

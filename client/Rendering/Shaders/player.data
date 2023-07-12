@@ -4,7 +4,6 @@ shader Player {
 		Mat3x2 transform;
 	};
 	fragInstance = {
-		float time;
 		color3 color;
 	};
 	vertOut = {

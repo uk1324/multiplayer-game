@@ -9,6 +9,8 @@ bool shiftHeld = false;
 enum class Mode {
     SERVER_AND_2_CLIENTS,
     SERVER_AND_CLIENT,
+    SERVER,
+    CLIENT,
 };
 
 Mode mode = Mode::SERVER_AND_2_CLIENTS;
@@ -37,6 +39,13 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 case Mode::SERVER_AND_CLIENT:
                     std::cout << system("runClientServer.bat") << '\n';
                     break;
+                case Mode::SERVER:
+                    std::cout << system("runServer.bat") << '\n';
+                    break;
+                case Mode::CLIENT:
+                    std::cout << system("runClient.bat") << '\n';
+                    break;
+
                 default:
                     break;
                 }
@@ -48,6 +57,12 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
             } else if (keycode == VK_F2) {
                 std::cout << "switched mode to server and client\n";
                 mode = Mode::SERVER_AND_CLIENT;
+            } else if (keycode == VK_F3) {
+                std::cout << "switched mode to server\n";
+                mode = Mode::SERVER;
+            } else if (keycode == VK_F4) {
+                std::cout << "switched mode to client\n";
+                mode = Mode::CLIENT;
             }
 
             break;

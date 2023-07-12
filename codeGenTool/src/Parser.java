@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 class ParserError extends Exception {
@@ -376,6 +377,9 @@ public class Parser {
             expect(TokenType.MORE_THAN);
             return new RangedFloatDataType(min, max);
         } else if (match(TokenType.IDENTIFIER)) {
+            if (previousToken.text.equals("Vec2")) {
+                output.addHppIncludePath(Config.VEC2_PATH);
+            }
             return new IdentifierDataType(previousToken.text);
         } else if (match(TokenType.CPP_TYPE)) {
             return new IdentifierDataType(previousToken.cppType());

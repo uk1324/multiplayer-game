@@ -61,9 +61,18 @@ The server sends a world update.
 The client receives it.
 if the server hasn't received any inputs yet then you cannot calculate the clock delay. The server could just not sent world updates until it receives a input.
 else {
-	Based on the update calculate the clock delay. 
-	Store that as the current delay.
+	Based on the update calculate the clock delay and RTT. 
+	Store that as the "current delay and RTT".
+	When the server sent the message the time was client clock + delay - half RTT.
+	When the message arrived the time was client clock + delay.
+	The next message should arrive at around client clock + delay + half RTT.
+	Display the entity at received position at client clock + delay + halfRTT + value to handle jitter.
+
+	The positions should be relative to the server clock because these times are regularly spaced out which isn't true for other clocks like client send or client receive time.
 }
+
+If the actual delay or RTT changes the currently used values have to be updated.
+To keep things in synch the "current delays and RTTs" have to be smoothly interpolated. To keep exisiting objects in synch their display delays probably should also be interpolated.
 
 
 Additional things.

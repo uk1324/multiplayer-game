@@ -2,7 +2,7 @@
 #include <iostream>
 #include <engine/Utils/RefOptional.hpp>
 #include <engine/Utils/Put.hpp>
-#include <shared/Gameplay.hpp>
+#include <engine/Utils/MapOptGet.hpp>
 
 template<typename MessageType, typename InitCallable>
 void broadcastMessage(
@@ -26,15 +26,6 @@ void broadcastMessage(
 		}
 		server.SendMessage(clientIndex, channel, message);
 	}
-}
-
-template<typename K, typename V>
-std::optional<V&> get(std::unordered_map<K, V>& map, const K& key) {
-	auto it = map.find(key);
-	if (it == map.end()) {
-		return std::nullopt;
-	}
-	return it->second;
 }
 
 GameServer::GameServer()
@@ -88,35 +79,13 @@ void GameServer::update() {
 			player.newestExecutedInputClientSequenceNumber = clientSequenceNumber;
 
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
+			updateGameplayPlayer(player.gameplayPlayer, input, FRAME_DT_SECONDS);
 		}
 	}
 
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
-		const auto sequenceNumber = frame / SERVER_UPDATE_SEND_RATE_DIVISOR;
-
-		for (PlayerIndex clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
-			if (!server.IsClientConnected(clientIndex)) {
-				continue;
-			}
-
-			auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
-			const auto player = get(players, clientIndex);
-			if (!player.has_value()) {
-				CHECK_NOT_REACHED();
-				continue;
-			}
-
-			if (!player->newestExecutedInputClientSequenceNumber.has_value() || !player->newestReceivedInputClientSequenceNumber.has_value()) {
-				// The client needs to send a message to be able to calculate RTT.
-				continue;
-			}
-
-			message->lastExecutedInputClientSequenceNumber = *player->newestExecutedInputClientSequenceNumber;
-			message->lastReceivedInputClientSequenceNumber = *player->newestReceivedInputClientSequenceNumber;
-			message->serverSequenceNumber = sequenceNumber;
-			server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
-		}
+		broadcastWorldState();
 	}
 
 	server.SendPackets();
@@ -197,7 +166,12 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 void GameServer::onClientConnected(int clientIndex) {
 	std::cout << "client connected " << clientIndex << '\n';
 	/*players[clientIndex] = Player{};*/
-	players.insert({ clientIndex, Player{ } });
+	const Player player{
+		.gameplayPlayer = {
+			.position = Vec2(0.0f)
+		}
+	};
+	players.insert({ clientIndex, player });
 	const auto msg = reinterpret_cast<JoinMessage*>(server.CreateMessage(clientIndex, GameMessageType::JOIN));
 
 	//msg->sentTime = frame;
@@ -208,4 +182,37 @@ void GameServer::onClientConnected(int clientIndex) {
 void GameServer::onClientDisconnected(int clientIndex) {
 	std::cout << "client disconnected " << clientIndex << '\n';
 	players.erase(clientIndex);
+}
+
+void GameServer::broadcastWorldState() {
+	const auto sequenceNumber = frame / SERVER_UPDATE_SEND_RATE_DIVISOR;
+
+	for (PlayerIndex clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
+		if (!server.IsClientConnected(clientIndex)) {
+			continue;
+		}
+
+		auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
+		const auto player = get(players, clientIndex);
+		if (!player.has_value()) {
+			CHECK_NOT_REACHED();
+			continue;
+		}
+
+		if (!player->newestExecutedInputClientSequenceNumber.has_value() || !player->newestReceivedInputClientSequenceNumber.has_value()) {
+			// The client needs to send a message to be able to calculate RTT.
+			continue;
+		}
+
+		message->lastExecutedInputClientSequenceNumber = *player->newestExecutedInputClientSequenceNumber;
+		message->lastReceivedInputClientSequenceNumber = *player->newestReceivedInputClientSequenceNumber;
+		message->serverSequenceNumber = sequenceNumber;
+		for (const auto& [playerIndex, player] : players) {
+			message->players.push_back(WorldUpdateMessagePlayer{
+				.playerIndex = playerIndex,
+				.position = player.gameplayPlayer.position
+			});
+		}
+		server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
+	}
 }

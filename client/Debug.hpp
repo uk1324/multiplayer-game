@@ -76,13 +76,14 @@ namespace Debug {
 #define floatin(name, value) static float name = value; ImGui::InputFloat(#name, &name)
 #define intin(name, value) static int name = value; ImGui::InputInt(#name, &name)
 
+// https://codereview.stackexchange.com/questions/134627/c-identity-function
 template<typename T>
-auto dbgImplementation(T&& value, const char* expressionString) -> T&& {
+decltype(auto) dbgImplementation(T&& value, const char* expressionString) {
 	thread_local StringStream stream;
 	stream.string().clear();
 	stream << value;
 	printf("%s = %s\n", expressionString, stream.string().c_str());
-	return std::move(value);
+	return std::forward<T>(value);
 }
 
-#define dbg(value) debugImplementation(value, #value)
+#define dbg(value) dbgImplementation(value, #value)

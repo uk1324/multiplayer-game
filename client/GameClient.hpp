@@ -6,6 +6,7 @@
 #include <shared/Time.hpp>
 
 // TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
+	// TODO: Use a ring buffer.
 struct GameClient {
 	GameClient(yojimbo::Client& client, Renderer& renderer);
 	void update();
@@ -18,19 +19,54 @@ struct GameClient {
 	bool joinedGame() const;
 
 	FrameTime sequenceNumber = 0;
-	FrameTime frame = 0;
 
 	FrameTime newestUpdateLastReceivedClientSequenceNumber = 0;
 	FrameTime newestUpdateServerSequenceNumber = 0;
 
-	// TODO: Use a ring buffer.
-	std::vector<FrameTime> pastReceivedDelays;
-	std::vector<FrameTime> pastExecutedDelays;
-	static void addDelay(std::vector<FrameTime>& delays, FrameTime newDelay);
-	static FrameTime averageDelay(const std::vector<FrameTime>& delays);
-	FrameTime receivedDelay = 0;
+	std::vector<FrameTime> pastReceiveDelays;
+	std::vector<FrameTime> pastExecuteDelays;
+	FrameTime averageReceiveDelay = 0;
 	// Could calculate the executed delay by sending how many inputs does the server have buffered up.
-	FrameTime executedDelay = 0;
+	FrameTime averageExecuteDelay = 0;
+
+	struct InterpolatedTransform {
+		struct Position {
+			Vec2 position;
+			FrameTime updateLastReceivedClientSequenceNumber;
+		};
+
+		std::vector<Position> positions;
+		Vec2 position;
+
+		void updatePositions(Vec2 newPosition, FrameTime updateLastReceivedClientSequenceNumber);
+		void interpolatePosition(FrameTime sequenceNumber);
+	};
+
+	std::unordered_map<PlayerIndex, InterpolatedTransform> playerIndexToTransform;
+	struct PastInput {
+		ClientInputMessage::Input input;
+		FrameTime sequenceNumber;
+	};
+	std::vector<PastInput> pastInputs;
+	GameplayPlayer clientPlayer;
+
+	struct Player {
+		Vec2 position;
+		// TODO: Change this to false.
+		bool isRendered = true;
+	};
+	std::unordered_map<PlayerIndex, Player> players;
+
+	//Vec2 clientPlayerPosition;
+
+	/*struct Player {
+		Vec2 position;
+	};*/
+	//std::unordered_map<PlayerIndex, GameplayPlayer>
+
+
+	//std::unordered_map<PlayerIndex, 
+	//FrameTime
 
 	/*i32 serverFrameWithLatency = 0;
 	ServerClockTime serverTime = 0;*/

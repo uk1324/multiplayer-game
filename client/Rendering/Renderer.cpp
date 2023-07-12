@@ -375,7 +375,7 @@ void Renderer::update() {
 		static BloomFragUniforms uniforms{
 			.color = Color3::WHITE
 		};
-		GUI_PROPERTY_EDITOR(gui(uniforms));
+		//GUI_PROPERTY_EDITOR(gui(uniforms));
 		shaderSetUniforms(postprocessShader, uniforms);
 
 	}
