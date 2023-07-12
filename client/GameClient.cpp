@@ -12,6 +12,9 @@
 #include <RefOptional.hpp>
 #include <engine/Utils/MapOptGet.hpp>
 
+// Could use static variables and use Imgui to enable or disable it.
+//#define DEBUG_INTERPOLATION
+
 template<typename T>
 static float average(const std::vector<T> vs) {
 	float s = 0.0f;
@@ -215,9 +218,8 @@ void GameClient::update() {
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
 	addToRender();
-	ImGui::TextWrapped("Ideally this is when there is no jitter there should be 3 values in queue to display. The 2 you are interpolating between and the new one to switch to. The delay before it is display should around the time between server updates");
 	if (delays.has_value()) {
-		ImGui::Text("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);
+		ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);
 	}
 
 	sequenceNumber++;
@@ -236,6 +238,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		case GameMessageType::WORLD_UPDATE: { 
 			const auto& msg = reinterpret_cast<WorldUpdateMessage&>(*message);
 
+			// TODO: For interpolated positions could update it with older updates, because they might not have been displayed yet.
 			if (msg.serverSequenceNumber < newestUpdateServerSequenceNumber) {
 				put("out of order update message");
 				break;
@@ -296,17 +299,21 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
 				delay = -receive delay + RTT/2 + delay between server updates
 				*/
-				const auto additionalDelayToHandleJitter = 0;
+				/*const auto additionalDelayToHandleJitter = 6;*/
+				const auto additionalDelayToHandleJitter = 6;
 				const auto rttSeconds = networkInfo.RTT / 1000.0f;
 				delays = Delays{
-					/*.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_FRAME_DELAY + additionalDelayToHandleJitter,*/
+					// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
 					.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_FRAME_DELAY + additionalDelayToHandleJitter,
 					.executeDelay = averageExecuteDelay
 				};
 			} else {
 				// TODO: Check if synchronized.
 			}
-			put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
+			#ifdef DEBUG_INTERPOLATION
+				put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
+			#endif // DEBUG_INTERPOLATION
+
 
 			for (const auto& msgPlayer : msg.players) {
 				if (msgPlayer.playerIndex == clientPlayerIndex) {
@@ -360,12 +367,14 @@ void GameClient::InterpolatedTransform::updatePositions(Vec2 newPosition, FrameT
 }
 
 void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNumber, const Delays& delays) {
-	ImGui::Text("current time");
-	Debug::text(sequenceNumber);
-	ImGui::Text("display at times");
-	for (const auto& position : positions) {
-		Debug::text(position.serverFrame + delays.interpolatedEntitesDisplayDelay);
-	}
+	#ifdef DEBUG_INTERPOLATION
+		ImGui::Text("current time");
+		Debug::text(sequenceNumber);
+		ImGui::Text("display at times");
+		for (const auto& position : positions) {
+			Debug::text(position.serverFrame + delays.interpolatedEntitesDisplayDelay);
+		}
+	#endif
 
 	if (positions.size() == 1) {
 		position = positions[0].position;
@@ -389,12 +398,13 @@ void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNu
 				// Can't use hermite interpolation because it overshoots, which makes it look like it's rubber banding.
 				// TODO: The overhsooting might not happen if I store more frames, but this would also add more latency. But I don't think that would actually fix that.
 				// https://gdcvault.com/play/1024597/Replicating-Chaos-Vehicle-Replication-in
+
+				if (positions.size() > 2) {
+					positions.erase(positions.begin(), positions.begin() + i);
+				}
+
 				break;
 			}
-		}
-
-		if (positions.size() > 2) {
-			positions.erase(positions.begin(), positions.begin() + i);
 		}
 	}
 }
