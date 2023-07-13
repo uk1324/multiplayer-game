@@ -59,6 +59,7 @@ struct GameClient {
 	};
 	std::vector<PastInput> pastInputs;
 	GameplayPlayer clientPlayer;
+	GameplayState gameplayState;
 
 	struct Player {
 		Vec2 position;

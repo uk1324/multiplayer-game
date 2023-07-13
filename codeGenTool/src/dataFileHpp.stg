@@ -24,12 +24,38 @@ declaration(declaration) ::= <%
 struct(struct) ::= <<
 <if(struct.isNetworkSerialize)>
 #define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, structValue) \
-    <struct.fields : { field | <networkSerialize(field.dataType, fieldAccess("(structValue)", field.name))> }; separator="\\\n">
+    <struct.fields : { field | <if(!field.isNoNetworkSerialize)><networkSerialize(field.dataType, fieldAccess("(structValue)", field.name))><endif> }; separator="\\\n">
+<endif>
+
+<if(struct.isBullet)>
+struct <struct.name>Index {
+    PlayerIndex ownerPlayerIndex;
+    FrameTime spawnFrame;
+    u16 spawnIndexInFrame;
+
+    bool operator==(const <struct.name>Index&) const = default;
+};
+
+#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>_INDEX(stream, value) \
+    NETWORK_SERIALIZE_PLAYER_INDEX(stream, value.ownerPlayerIndex); \
+    NETWORK_SERIALIZE_FRAME_TIME(stream, value.spawnFrame); \
+    serialize_int(stream, value.spawnIndexInFrame, 0, UINT16_MAX);
+
+template\<>
+struct std::hash\<<struct.name>Index> {
+    std::size_t operator()(const <struct.name>Index& value) const noexcept {
+        const auto h1 = std::hash\<PlayerIndex>{}(value.ownerPlayerIndex);
+        const auto h2 = std::hash\<FrameTime>{}(value.spawnFrame);
+        const auto h3 = std::hash\<u16>{}(value.spawnIndexInFrame);
+        return (h1 \<\< h2) * h3 - 1;
+    }
+};
+
 <endif>
 
 struct <struct.name> <if(struct.isNetworkMessage)>: yojimbo::Message <endif>{
     <struct.declarations : { declaration | <declarationInStruct(declaration)> }; separator="\n">
-    <if(struct.isNetworkSerialize)>
+    <if(struct.isNetworkMessage)>
     template\<typename Stream\>
     bool Serialize(Stream& stream) {
         NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, *this);
@@ -97,6 +123,8 @@ static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_VERT_PATH = "<sh
 static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_FRAG_PATH = "<shader.fragPathRelativeToWorkingDirectory>";
 >>
 
+castConstAway(name, dataType) ::= "const_cast\<<dataType.keyDataType.name>&>(<name>)"
+
 networkSerialize(dataType, name) ::= <%
 <if(dataType.isFloat)>
     serialize_float(stream, <name>);
@@ -115,6 +143,25 @@ networkSerialize(dataType, name) ::= <%
                 <name>.push_back(std::move(value));
             } else {
                 <networkSerialize(dataType.itemDataType, arrayAccess(name, "i"))>
+            }
+        }
+    }
+<elseif(dataType.isMap)>
+    {
+        int size = <name>.size();
+        serialize_int(stream, size, 0, INT_MAX);
+        if (Stream::IsReading) {
+            for (int i = 0; i \< size; i++) {
+                <dataType.keyDataType.name> key;
+                <networkSerialize(dataType.keyDataType, "key")>
+                <dataType.valueDataType.name> value;
+                <networkSerialize(dataType.valueDataType, "value")>
+                <name>.insert({ std::move(key), std::move(value) });
+            }
+        } else {
+            for (auto& [key, value] : <name>) {
+                <networkSerialize(dataType.keyDataType, castConstAway("key", dataType))>
+                <networkSerialize(dataType.valueDataType, "value")>
             }
         }
     }

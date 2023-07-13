@@ -1,3 +1,4 @@
+import javax.xml.crypto.Data;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -115,6 +116,9 @@ class Struct extends Declaration {
     public boolean getIsUniform() {
         return attributes.stream().anyMatch(a -> a instanceof StructAttributeUniform);
     }
+    public boolean getIsBullet() {
+        return attributes.stream().anyMatch(a -> a instanceof StructAttributeBullet);
+    }
 }
 
 abstract class StructAttribute { }
@@ -124,6 +128,11 @@ class StructAttributeNetworkMessage extends StructAttribute { }
 class StructAttributeGui extends StructAttribute { }
 class StructAttributeJson extends StructAttribute { }
 class StructAttributeUniform extends StructAttribute { }
+// Cannot generate macros that create macros. Cannot generate the serialize function
+// Technically you could create it without creating macros inside a macro, but then the code for generation would need to change to allow using functions that return bool and forwarding that. Inside a function you can still check if the stream is read or write.
+// And you would also need to be able to add attributes to types and not fields because of things like map<key[[CustomNetworkSerialize()]], value>
+// Or could just use u64, but then it would be harder to modify and the variable names would need to do used instead of types.
+class StructAttributeBullet extends StructAttribute { }
 
 class Enum extends Declaration {
     public String name;
@@ -196,15 +205,15 @@ class Shader extends Declaration {
         // TODO: could support passing structs instead of a vertexFormat.
         int layout = 0;
         if (vertexFormat.equals("PT")) {
-            var field = new Field(new IdentifierDataType("Vec2"), "vertexPosition", Optional.empty());
+            var field = new Field(new IdentifierDataType("Vec2"), "vertexPosition", Optional.empty(), new ArrayList<>());
             vertexAttributes.add(new VertexAttribute(layout, field, false));
             layout++;
-            field = new Field(new IdentifierDataType("Vec2"), "vertexTexturePosition", Optional.empty());
+            field = new Field(new IdentifierDataType("Vec2"), "vertexTexturePosition", Optional.empty(), new ArrayList<>());
             vertexAttributes.add(new VertexAttribute(layout, field, false));
             layout++;
         }
         for (var field : instance.fields) {
-            var f = new Field(field.dataType, "instance" + FormatUtils.firstLetterToUppercase(field.name), field.defaultValueCppSource);
+            var f = new Field(field.dataType, "instance" + FormatUtils.firstLetterToUppercase(field.name), field.defaultValueCppSource, new ArrayList<>());
             vertexAttributes.add(new VertexAttribute(layout, f, true));
             if (f.dataType.getName().equals("Mat3x2")) {
                 layout += 3;
@@ -281,11 +290,13 @@ class Field extends DeclarationInStruct {
     public DataType dataType;
     public String name;
     public Optional<String> defaultValueCppSource;
+    public List<FieldAttribute> attributes;
 
-    Field(DataType dataType, String name, Optional<String> defaultValueCppSource) {
+    Field(DataType dataType, String name, Optional<String> defaultValueCppSource, List<FieldAttribute> attributes) {
         this.dataType = dataType;
         this.name = name;
         this.defaultValueCppSource = defaultValueCppSource;
+        this.attributes = attributes;
     }
 
     public String getDisplayName() {
@@ -302,7 +313,13 @@ class Field extends DeclarationInStruct {
         return defaultValueCppSource.get();
     }
 
+    public boolean getIsNoNetworkSerialize() {
+        return attributes.stream().anyMatch(a -> a instanceof FieldAttributeNoNetworkSerialize);
+    }
 }
+
+abstract class FieldAttribute { }
+class FieldAttributeNoNetworkSerialize extends FieldAttribute { }
 
 class CppInStruct extends DeclarationInStruct {
     public String cppSource;
@@ -311,8 +328,6 @@ class CppInStruct extends DeclarationInStruct {
         this.cppSource = source;
     }
 }
-
-abstract class FieldProperty { }
 
 abstract class DataType {
     abstract public String getName();
@@ -355,6 +370,9 @@ abstract class DataType {
     }
     public boolean getIsVector() {
         return this instanceof VectorDataType;
+    }
+    public boolean getIsMap() {
+        return this instanceof MapDataType;
     }
     public boolean getIsIdentifier() {
         return this instanceof IdentifierDataType;
@@ -437,6 +455,21 @@ class VectorDataType extends DataType {
     @Override
     public String getName() {
         return "std::vector<" + itemDataType.getName() + ">";
+    }
+}
+
+class MapDataType extends DataType {
+    public DataType keyDataType;
+    public DataType valueDataType;
+
+    MapDataType(DataType keyType, DataType valueType) {
+        this.keyDataType = keyType;
+        this.valueDataType = valueType;
+    }
+
+    @Override
+    public String getName() {
+        return "std::unordered_map<" + keyDataType.getName() + ", " + valueDataType.getName() + ">";
     }
 }
 

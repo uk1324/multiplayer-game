@@ -14,7 +14,16 @@ static constexpr float SHOOT_COOLDOWN = 0.4f;
 
 Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt);
 
-void updateGameplayPlayer(GameplayPlayer& player, const ClientInputMessage::Input& input, float dt);
+// The update is separated like this, so when they do an input they see the state the are reacting to when the input is executed.
+void updateGemeplayStateBeforeProcessingInput(GameplayState& state);
+void updateGameplayPlayer(
+	PlayerIndex playerIndex,
+	GameplayPlayer& player,
+	GameplayState& state,
+	const ClientInputMessage::Input& input,
+	FrameTime ownerFrame,
+	float dt);
+void updateGemeplayStateAfterProcessingInput(GameplayState& state, float dt);
 //void updateBullet(Vec2& position, Vec2 velocity, f32& timeElapsed, f32& timeToCatchUp, i32& aliveFramesLeft, f32 dt);
 //
 //struct GameplayBullet {

@@ -1,11 +1,29 @@
 `
 #include <vector>
+#include <unordered_map>
+#include <shared/Time.hpp>
+
+using PlayerIndex = u32;
+#define NETWORK_SERIALIZE_PLAYER_INDEX(stream, value) serialize_uint32(stream, value)
 `
 
 struct [[NetworkSerialize]] GameplayPlayer {
 	Vec2 position;
+	float shootCooldown = `0.0f`;
+}
+
+struct [[NetworkSerialize, Bullet]] MoveForwardBullet {
+	Vec2 position;
+	Vec2 velocity;
+	float elapsed = `0.0f`;
+	`#ifdef CLIENT`
+	float [[NoNetworkSerialize]] timeToSynchronize = `0.0f`;
+	float [[NoNetworkSerialize]] tSynchronization = `0.0f`;
+	`#endif`
 }
 
 struct [[NetworkSerialize]] GameplayState {
-	
+	map<MoveForwardBulletIndex, MoveForwardBullet> moveForwardBullets;
+
+	i32 [[NoNetworkSerialize]] bulletsSpawnedThisFrame = `0`;
 }

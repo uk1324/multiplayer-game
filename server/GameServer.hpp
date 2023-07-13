@@ -38,6 +38,7 @@ struct GameServer {
 		GameplayPlayer gameplayPlayer;
 	};
 
+	GameplayState gameplayState;
 	std::unordered_map<PlayerIndex, Player> players;
 
 	yojimbo::Server server;

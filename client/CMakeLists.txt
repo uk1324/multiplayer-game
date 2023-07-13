@@ -7,6 +7,7 @@ endif()
 
 project(client)
 
+add_definitions(-DCLIENT)
 add_executable(
 	client
 	"main.cpp" 

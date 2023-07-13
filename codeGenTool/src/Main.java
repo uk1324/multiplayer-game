@@ -208,6 +208,8 @@ public class Main {
             var shader = (Shader)declaration;
             var group = new STGroupFile("shader.stg");
 
+            // TODO: Error handling
+            // https://stackoverflow.com/questions/27268522/how-to-retrieve-error-message-in-stringtemplate
             if (shader.generateVert) {
                 ST st = group.getInstanceOf("vert");
                 st.add("shader", shader);

@@ -169,6 +169,8 @@ public class Parser {
             output.addHppIncludePath(Config.NETWORKING_PATH);
             output.addHppIncludePath(Config.NETWORKING_UTILS_PATH);
             return new StructAttributeNetworkMessage();
+        } else if (matchIdentifier("Bullet")) {
+            return new StructAttributeBullet();
         }
         throw new ParserError("expected struct attribute");
     }
@@ -184,6 +186,15 @@ public class Parser {
 
     Field structField() throws ParserError, LexerError {
         var dataType = dataType();
+
+        List<FieldAttribute> attributes = new ArrayList<>();
+        if (match(TokenType.DOUBLE_LEFT_BRACKET)) {
+            do {
+                attributes.add(fieldAttribute());
+            } while (match(TokenType.COMMA));
+            expect(TokenType.DOUBLE_RIGHT_BRACKET);
+        }
+
         expect(TokenType.IDENTIFIER);
         var name = previousToken.text;
 
@@ -194,7 +205,15 @@ public class Parser {
         }
 
         expect(TokenType.SEMICOLON);
-        return new Field(dataType, name, defaultValue);
+        return new Field(dataType, name, defaultValue, attributes);
+    }
+
+    FieldAttribute fieldAttribute() throws LexerError, ParserError {
+        if (matchIdentifier("NoNetworkSerialize")) {
+            return new FieldAttributeNoNetworkSerialize();
+        } else {
+            throw new ParserError("expected field attribute");
+        }
     }
 
     DeclarationInStruct declarationInStruct() throws LexerError, ParserError {
@@ -364,6 +383,13 @@ public class Parser {
             var itemDataType = dataType();
             expect(TokenType.MORE_THAN);
             return new VectorDataType(itemDataType);
+        } else if (matchIdentifier("map")) {
+            expect(TokenType.LESS_THAN);
+            var key = dataType();
+            expect(TokenType.COMMA);
+            var value = dataType();
+            expect(TokenType.MORE_THAN);
+            return new MapDataType(key, value);
         } else if (matchIdentifier("ranged_float")) {
             expect(TokenType.LESS_THAN);
 

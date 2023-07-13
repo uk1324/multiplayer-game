@@ -1,12 +1,9 @@
 `
-#include <shared/Time.hpp>
 #include <shared/GameplayStateData.hpp>
 #include <vector>
 
 static const int MAX_CLIENTS = 64;
 
-using PlayerIndex = u32;
-#define NETWORK_SERIALIZE_PLAYER_INDEX(stream, value) serialize_uint32(stream, value)
 `
 
 struct

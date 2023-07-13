@@ -63,7 +63,8 @@ void GameServer::update() {
 
 	processMessages();
 
-	for (auto& [playerId, player] : players) {
+	updateGemeplayStateBeforeProcessingInput(gameplayState);
+	for (auto& [playerIndex, player] : players) {
 		/*if (player.inputs.size() > maxInputsSize) {
 			maxInputsSize = player.inputs.size();
 			std::cout << "inputs size: " << player.inputs.size() << '\n';
@@ -79,10 +80,10 @@ void GameServer::update() {
 			player.newestExecutedInputClientSequenceNumber = clientSequenceNumber;
 
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
-			updateGameplayPlayer(player.gameplayPlayer, input, FRAME_DT_SECONDS);
+			updateGameplayPlayer(playerIndex, player.gameplayPlayer, gameplayState, input, clientSequenceNumber, FRAME_DT_SECONDS);
 		}
-	}
-
+	}	
+	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();

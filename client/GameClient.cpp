@@ -70,12 +70,14 @@ void GameClient::update() {
 	}();
 
 	auto processInput = [
+		clientPlayerIndex = clientPlayerIndex,
 		sequenceNumber = sequenceNumber,
 		&input,
 		newestUpdateLastReceivedClientSequenceNumber = newestUpdateLastReceivedClientSequenceNumber,
 
 		&pastInputs = pastInputs,
-		&clientPlayer = clientPlayer
+		&clientPlayer = clientPlayer,
+		&gameplayState = gameplayState
 	] {
 
 		pastInputs.push_back({ input, sequenceNumber });
@@ -88,9 +90,11 @@ void GameClient::update() {
 		toRemoveFromBackCount = std::min(toRemoveFromBackCount, ClientInputMessage::INPUTS_COUNT);
 		pastInputs.erase(pastInputs.begin(), pastInputs.begin() + toRemoveFromBackCount);
 
-		updateGameplayPlayer(clientPlayer, input, FRAME_DT_SECONDS);
+		updateGameplayPlayer(clientPlayerIndex, clientPlayer, gameplayState, input, sequenceNumber, FRAME_DT_SECONDS);
 	};
+	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
 	processInput();
+	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
 
 	auto inputMessage = [
 		sequenceNumber = sequenceNumber, 
@@ -132,6 +136,7 @@ void GameClient::update() {
 	auto addToRender = [
 		&players = std::as_const(players),
 		clientPlayerIndex = clientPlayerIndex,
+		&gameplayState = std::as_const(gameplayState),
 
 		&renderer = renderer
 	] {
@@ -156,6 +161,12 @@ void GameClient::update() {
 		//for (const auto& animation : renderer.spawnAnimations) {
 		//	players[animation.playerIndex].isRendered = true;
 		//}
+		for (const auto& [index, bullet] : gameplayState.moveForwardBullets) {
+			renderer.bulletInstances.toDraw.push_back(BulletInstance{
+				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS)),
+				.color = playerColor(index.ownerPlayerIndex),
+			});
+		}
 
 		const auto drawPlayer = [&](Vec2 pos, Vec3 color, Vec2 sizeScale) {
 			renderer.playerInstances.toDraw.push_back(PlayerInstance{
@@ -299,7 +310,6 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
 				delay = -receive delay + RTT/2 + delay between server updates
 				*/
-				/*const auto additionalDelayToHandleJitter = 6;*/
 				const auto additionalDelayToHandleJitter = 6;
 				const auto rttSeconds = networkInfo.RTT / 1000.0f;
 				delays = Delays{
@@ -312,8 +322,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 			#ifdef DEBUG_INTERPOLATION
 				put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
-			#endif // DEBUG_INTERPOLATION
-
+			#endif
 
 			for (const auto& msgPlayer : msg.players) {
 				if (msgPlayer.playerIndex == clientPlayerIndex) {
@@ -327,6 +336,10 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					playerIndexToTransform[msgPlayer.playerIndex].updatePositions(msgPlayer.position, serverFrame);
 				}
 			}
+
+			/*for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
+				msgBullet
+			}*/
 
 			break;
 		}

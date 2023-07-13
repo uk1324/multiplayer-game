@@ -1,0 +1,16 @@
+Storing time initial time vs elapsed. 
+
+Initial time 
+advantages / disadvantages:
+* When changing the clock all the other clock are updated with it.
+* The clock is updated even if you don't do anything.
+
+I think for my use case storing elapsed time will be better because it is more flexible.
+You can get sub frame precision (which is also possible by using 2 clocks and initial time).
+You can control it per instance (which might be worse in this case for synchronizing all the objects idk will find out).
+
+Storing initial position vs current position.
+
+Not all things can be represented using just an initial position + time that easily, the would need to be numerically integrated from the start for example pursuit curves (I think haven't checked). If the position are cached this means also more memory.
+
+Just updating the current position might have numerical issues.

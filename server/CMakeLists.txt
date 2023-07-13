@@ -1,6 +1,7 @@
 project(server)
 
 include("../codeGenTool/targetAddGenerated.cmake")
+add_definitions(-DSERVER)
 
 add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp")
 

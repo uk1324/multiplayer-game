@@ -1,0 +1,11 @@
+For types that cannot be default intitialized could just create a different convention for serializing that would work for reading only.
+Instead of returning a boolean it would be passed as an argument.
+
+auto struct = serializeStruct(stream, flag);
+if (!flag) {
+	return false;
+}
+
+Could put all of this into a macro that takes a variable name as input.
+
+Technically you could use pointers or smart pointers.
