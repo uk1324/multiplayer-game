@@ -214,6 +214,8 @@ void GameServer::broadcastWorldState() {
 				.position = player.gameplayPlayer.position
 			});
 		}
+		// TODO: Don't copy the whole state. Could just pass a reference (both on the client and server). For the server could add an additional counter to make sure that the data hasn't been modified from the creation time to serialization time. This shouldn't be a problem I think, because this is an unreliable message. If needed could use shared pointers. On the clinet there would just be 2 states one for loading which would be reset before deserizalizing and another for actual use.
+		message->gemeplayState = gameplayState;
 		server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
 	}
 }

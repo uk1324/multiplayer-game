@@ -34,6 +34,8 @@ struct <struct.name>Index {
     u16 spawnIndexInFrame;
 
     bool operator==(const <struct.name>Index&) const = default;
+
+    UntypedBulletIndex untypedIndex() const;
 };
 
 #define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>_INDEX(stream, value) \

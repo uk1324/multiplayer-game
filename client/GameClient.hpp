@@ -3,7 +3,10 @@
 #include <client/Rendering/Renderer.hpp>
 #include <optional>
 #include <shared/Networking.hpp>
+#include <shared/BulletIndex.hpp>
 #include <shared/Time.hpp>
+
+#define DEBUG_INTERPOLATE_BULLETS
 
 // TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
 	// TODO: Use a ring buffer.
@@ -67,6 +70,10 @@ struct GameClient {
 		bool isRendered = true;
 	};
 	std::unordered_map<PlayerIndex, Player> players;
+
+	#ifdef DEBUG_INTERPOLATE_BULLETS
+	std::unordered_map<UntypedBulletIndex, InterpolatedTransform> debugInterpolatedBullets;
+	#endif 
 
 	//Vec2 clientPlayerPosition;
 

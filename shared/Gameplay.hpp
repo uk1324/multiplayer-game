@@ -3,6 +3,11 @@
 #include <engine/Math/Vec2.hpp>
 #include <shared/Networking.hpp>
 
+// TODO: It would be cool to have a debugger for patterns that would allow have a slider for time.
+// The simplest way to do this would to on a change of time just to reset to the initial state and update which should be enought.
+// A more complicated version would to to store the previous states or maybe just the delays (this would work if using things like hot reloading).
+// Technically you could make a language that could calculate the inverses of operations. (How would that work if things like position rely on velocity and vice versa).
+
 static constexpr float PLAYER_HITBOX_RADIUS = 0.05f;
 static constexpr float BULLET_HITBOX_RADIUS = 0.04f;
 //static constexpr float BULLET_SPEED = 0.5f;
@@ -24,37 +29,3 @@ void updateGameplayPlayer(
 	FrameTime ownerFrame,
 	float dt);
 void updateGemeplayStateAfterProcessingInput(GameplayState& state, float dt);
-//void updateBullet(Vec2& position, Vec2 velocity, f32& timeElapsed, f32& timeToCatchUp, i32& aliveFramesLeft, f32 dt);
-//
-//struct GameplayBullet {
-//	//enum class Type {
-//	//	MOVE_FORWARD,
-//	//};
-//
-//	//Vec2 pos;
-//	//Vec2 velocity;
-//};
-//
-//// SpawnBullet = (Vec2 pos, Vec2 velocity) -> int id
-//// GetBullet = (int id) -> std::optional<
-//
-//struct InvertedCircleSpawner {
-//	float time;
-//
-//	template<typename T> 
-//	void update() {
-//
-//	}
-//};
-//
-//template<typename SpawnBullet>
-//void spawnTripleBullet(Vec2 pos, float rotation, float velocity, SpawnBullet spawnBullet) {
-//	/*for (int i = 0; i < 10; i++) {
-//		float angle = i / 10.0f * 6.28f;
-//		spawnBullet(pos, velocity * Vec2::oriented(angle));
-//	}*/
-//	spawnBullet(pos, velocity * Vec2::oriented(rotation));
-//	/*spawnBullet(pos, velocity * Vec2::oriented(rotation));
-//	spawnBullet(pos, velocity * Vec2::oriented(rotation - 0.1f));
-//	spawnBullet(pos, velocity * Vec2::oriented(rotation + 0.1f));*/
-//}

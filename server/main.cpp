@@ -103,24 +103,25 @@ int main(int argc, char* argv[]) {
 			//accumulatedTime -= updateTime;
 
 			BeginDrawing();
-			//ClearBackground(BLACK);
+			ClearBackground(BLACK);
 
-			//BeginMode2D(camera);
+			BeginMode2D(camera);
 
 			//if (server.players.contains(0)) {
 			//	//camera.offset = convertPos(server.players[0].pos * scale);
 			//	camera.target = convertPos(server.players[0].pos * scale);
 			//	//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
 			//}
-			//for (const auto& [_, player] : server.players) {
-			//	DrawCircleV(convertPos(player.pos * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
-			//}
 
-			//for (const auto& [_, bullet] : server.bullets) {
-			//	DrawCircleV(convertPos(bullet.pos * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
-			//}
+			for (const auto& [_, player] : server.players) {
+				DrawCircleV(convertPos(player.gameplayPlayer.position * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
+			}
 
-			//EndMode2D();
+			for (const auto& [_, bullet] : server.gameplayState.moveForwardBullets) {
+				DrawCircleV(convertPos(bullet.position * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
+			}
+
+			EndMode2D();
 			EndDrawing();
 		}
 	}

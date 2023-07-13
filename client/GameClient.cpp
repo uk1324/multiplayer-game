@@ -92,7 +92,7 @@ void GameClient::update() {
 
 		updateGameplayPlayer(clientPlayerIndex, clientPlayer, gameplayState, input, sequenceNumber, FRAME_DT_SECONDS);
 	};
-	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
+	updateGemeplayStateBeforeProcessingInput(gameplayState);
 	processInput();
 	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
 
@@ -229,6 +229,18 @@ void GameClient::update() {
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
 	addToRender();
+
+	#ifdef DEBUG_INTERPOLATE_BULLETS
+	if (delays.has_value()) {
+		for (auto& [_, bullet] : debugInterpolatedBullets) {
+			bullet.interpolatePosition(sequenceNumber, *delays);
+			Debug::drawCircle(bullet.position, BULLET_HITBOX_RADIUS);
+		}
+	}
+	#endif 
+
+
+
 	if (delays.has_value()) {
 		ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);
 	}
@@ -314,7 +326,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				const auto rttSeconds = networkInfo.RTT / 1000.0f;
 				delays = Delays{
 					// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
-					.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_FRAME_DELAY + additionalDelayToHandleJitter,
+					.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_RATE_DIVISOR + additionalDelayToHandleJitter,
 					.executeDelay = averageExecuteDelay
 				};
 			} else {
@@ -337,9 +349,20 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				}
 			}
 
-			/*for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
-				msgBullet
-			}*/
+			#ifdef DEBUG_INTERPOLATE_BULLETS
+				#define ADD_INTERPOLATED_BULLET(position) \
+					debugInterpolatedBullets[bulletIndex.untypedIndex()].updatePositions(position, serverFrame)
+			#else
+				#define ADD_INTERPOLATED_BULLET(position)
+			#endif
+
+			for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
+				if (bulletIndex.ownerPlayerIndex == clientPlayerIndex) {
+					ADD_INTERPOLATED_BULLET(msgBullet.position);
+				} else {
+
+				}
+			}
 
 			break;
 		}

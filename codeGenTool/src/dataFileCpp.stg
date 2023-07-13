@@ -22,6 +22,12 @@ declaration(declaration) ::= <%
 %>
 
 struct(struct) ::= <<
+<if(struct.isBullet)>
+UntypedBulletIndex <struct.name>Index::untypedIndex() const {
+    return UntypedBulletIndex{ ownerPlayerIndex, spawnFrame, spawnIndexInFrame };
+}
+<endif>
+
 <if(struct.isGui)>
 void gui(<struct.name>& value) {
     using namespace Gui;
