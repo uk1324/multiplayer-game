@@ -252,8 +252,11 @@ namespace
 
 		Json::Value object = Json::Value::emptyObject();
 
-		if (match('}'))
+		if (match('}')) {
+			m_nestingDepth--;
 			return object;
+		}
+			
 
 		do
 		{
@@ -297,8 +300,11 @@ namespace
 
 		skipWhitespace();
 
-		if (match(']'))
+		if (match(']')) {
+			m_nestingDepth--;
 			return array;
+		}
+			
 
 		do
 		{
