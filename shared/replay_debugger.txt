@@ -1,0 +1,1 @@
+Not sure if a replay debugger would be useful, because everything is desynchronized. You could offset the times and then see if things synch up maybe. A basic and inefficient debugger like this shouldn't be hard to make you would only need to serialize the game state and then have some way of displaying it.

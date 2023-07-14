@@ -12,9 +12,6 @@
 #include <RefOptional.hpp>
 #include <engine/Utils/MapOptGet.hpp>
 
-// Could use static variables and use Imgui to enable or disable it.
-//#define DEBUG_INTERPOLATION
-
 template<typename T>
 static float average(const std::vector<T> vs) {
 	float s = 0.0f;
@@ -228,7 +225,20 @@ void GameClient::update() {
 	};
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
-	addToRender();
+	chk(debugDraw) {
+		Vec3 color = Color3::RED;
+
+		for (const auto& [playerIndex, player] : players) {
+			Debug::drawCircle(player.position, PLAYER_HITBOX_RADIUS, color);
+		}
+
+		for (const auto& [_, bullet] : gameplayState.moveForwardBullets) {
+			Debug::drawCircle(bullet.position, BULLET_HITBOX_RADIUS, color);
+		}
+	} else {
+		addToRender();
+	}
+
 
 	#ifdef DEBUG_INTERPOLATE_BULLETS
 	if (delays.has_value()) {
@@ -350,15 +360,39 @@ void GameClient::processMessage(yojimbo::Message* message) {
 			}
 
 			#ifdef DEBUG_INTERPOLATE_BULLETS
-				#define ADD_INTERPOLATED_BULLET(position) \
+				#define DEBUG_ADD_INTERPOLATED_BULLET(position) \
 					debugInterpolatedBullets[bulletIndex.untypedIndex()].updatePositions(position, serverFrame)
 			#else
-				#define ADD_INTERPOLATED_BULLET(position)
+				#define DEBUG_ADD_INTERPOLATED_BULLET(position)
 			#endif
 
+			//put("size %", msg.gemeplayState.moveForwardBullets.size());
 			for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
 				if (bulletIndex.ownerPlayerIndex == clientPlayerIndex) {
-					ADD_INTERPOLATED_BULLET(msgBullet.position);
+					DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
+					const auto i = bulletIndex.untypedIndex();
+					put("% % %", i.ownerPlayerIndex, i.spawnFrame, i.spawnIndexInFrame);
+					auto spawnPredictedBullet = get(gameplayState.moveForwardBullets, bulletIndex);
+					if (!spawnPredictedBullet.has_value()) {
+						// If the client spawned the bullet then they should have it.
+						CHECK_NOT_REACHED();
+						continue;
+					}
+					// @Hack: checking for zero
+					if (spawnPredictedBullet->synchronization.timeToSynchronize != 0.0f) {
+						continue;
+					}
+
+					ASSERT(delays.has_value());
+					const auto frameWhenTheBulletInterpolatedBulletWouldBeDisplayed = serverFrame + delays->interpolatedEntitesDisplayDelay;
+					const auto timeBeforePredictionDisplayed = (frameWhenTheBulletInterpolatedBulletWouldBeDisplayed - sequenceNumber) * FRAME_DT_SECONDS;
+					const auto bulletCurrentTimeElapsed = msgBullet.elapsed - timeBeforePredictionDisplayed /* + msgBullet.timeToCatchUp*/;
+					auto timeDysnych = spawnPredictedBullet->elapsed - bulletCurrentTimeElapsed;
+					timeDysnych += FRAME_DT_SECONDS; // I think this might need to be added because the bullet will get updated this frame and interpolated versions wont.
+
+					//spawnPredictedBullet->position -= spawnPredictedBullet->velocity * timeDysnych;
+					spawnPredictedBullet->synchronization.timeToSynchronize = timeDysnych;
+					spawnPredictedBullet->synchronization.synchronizationProgressT = 0.0f;
 				} else {
 
 				}

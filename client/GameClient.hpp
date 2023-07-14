@@ -6,7 +6,9 @@
 #include <shared/BulletIndex.hpp>
 #include <shared/Time.hpp>
 
-#define DEBUG_INTERPOLATE_BULLETS
+//#define DEBUG_INTERPOLATE_BULLETS
+// Could use static variables and use Imgui to enable or disable it.
+//#define DEBUG_INTERPOLATION
 
 // TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
 	// TODO: Use a ring buffer.

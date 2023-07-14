@@ -1,0 +1,1 @@
+Bullets shouldn't be despawned when hitting a player, because the client sees bullets in the preducted future and in the server future the might get destroyed so it seems simpler to just keep them after the hit a target.

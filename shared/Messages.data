@@ -25,10 +25,4 @@ struct [[NetworkSerialize, NetworkMessage]] WorldUpdateMessage {
 
     GameplayState gemeplayState;
     vector<WorldUpdateMessagePlayer> players;
-
-    //ServerClockTime sentTime;
-    //ranged_int<`0`, `INT_MAX`> lastReceivedClientSequenceNumber;
-    //ranged_int<`0`, `INT_MAX`> sequenceNumber;
-    //vector<WorldUpdateMessagePlayer> players;
-    //vector<WorldUpdateMessageBullet> bullets;
 }

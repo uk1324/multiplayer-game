@@ -1,5 +1,11 @@
+#define CLIENT
 #include "Gameplay.hpp"
 #include <engine/Utils/Put.hpp>
+#include <engine/Math/Utils.hpp>
+#ifdef CLIENT
+#include <client/Debug.hpp>
+#endif 
+
 
 template<typename BulletIndex>
 static BulletIndex createBulletIndex(GameplayState& gameplayState, FrameTime ownerFrame, PlayerIndex ownerPlayerIndex) {
@@ -58,9 +64,42 @@ void updateGameplayPlayer(
 	}
 }
 
+static float calculateDt(ClientBulletSynchronizationData& synchronization, float dt) {
+#ifdef CLIENT
+	if (synchronization.timeToSynchronize < 0.0f) {
+		synchronization.timeToSynchronize = -synchronization.timeToSynchronize;
+	}
+
+	if (synchronization.synchronizationProgressT < 1.0f) {
+
+		auto x = (synchronization.synchronizationProgressT - 0.5f); // from -0.5 to 0.5
+		// Most of the values are concentrated in the interval -2 to 2
+		const auto scale = 4.0f;
+		x *= scale; // from -2 to 2
+
+		const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
+		const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
+
+		const auto max = dt / 2.0f;
+		// max = normalDistMax * functionStep * bullet.timeToSynchronize
+		// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
+		// functionStep = timeStep * scale
+		// timeStep = functionStep / scale
+		const auto timeStep = max / (normalDistributionMax * synchronization.timeToSynchronize) / scale;
+
+		synchronization.synchronizationProgressT += timeStep;
+		const auto functionStep = timeStep * scale;
+		dt -= value * functionStep * synchronization.timeToSynchronize;
+	}
+#endif
+	return dt;
+}
+
 void updateGemeplayStateAfterProcessingInput(GameplayState& state, float dt) {
 	for (auto& [index, bullet] : state.moveForwardBullets) {
-		bullet.position += bullet.velocity * dt;
+		const auto bulletDt = calculateDt(bullet.synchronization, dt);
+		bullet.position += bullet.velocity * bulletDt;
+		bullet.elapsed += bulletDt;
 	}
 }
 

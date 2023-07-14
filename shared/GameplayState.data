@@ -14,14 +14,20 @@ struct [[NetworkSerialize]] GameplayPlayer {
 	float shootCooldown = `0.0f`;
 }
 
+struct ClientBulletSynchronizationData {
+	`#ifdef CLIENT`
+	float timeToSynchronize = `0.0f`;
+	float synchronizationProgressT = `1.0f`;
+	// Istead of using the server spawn frame could do something like storing negative elapsed time. Or maybe just storing the server frame inside the elapsed. The issues with just stroing negative elapsed time is that it isn't synchronized with the rest of the world although that could technically be handled.
+	FrameTime serverFrame = `0`;
+	`#endif`
+}
+
 struct [[NetworkSerialize, Bullet]] MoveForwardBullet {
 	Vec2 position;
 	Vec2 velocity;
 	float elapsed = `0.0f`;
-	`#ifdef CLIENT`
-	float [[NoNetworkSerialize]] timeToSynchronize = `0.0f`;
-	float [[NoNetworkSerialize]] tSynchronization = `0.0f`;
-	`#endif`
+	ClientBulletSynchronizationData [[NoNetworkSerialize]] synchronization;
 }
 
 struct [[NetworkSerialize]] GameplayState {
