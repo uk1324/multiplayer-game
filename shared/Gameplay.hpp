@@ -32,4 +32,4 @@ void updateGameplayPlayer(
 	const ClientInputMessage::Input& input,
 	FrameTime ownerFrame,
 	float dt);
-void updateGemeplayStateAfterProcessingInput(GameplayState& state, float dt);
+void updateGameplayStateAfterProcessingInput(GameplayState& state, float dt);

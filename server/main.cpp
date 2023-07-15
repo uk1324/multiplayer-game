@@ -3,6 +3,7 @@
 #include <iostream>
 #include <shared/WindowsUtils.hpp>
 #include <shared/DebugWindowInfo.hpp>
+#include <replayTool/debugDraw.hpp>
 #include <charconv>
 
 #include <raylib/raylib.h>
@@ -61,26 +62,20 @@ int main(int argc, char* argv[]) {
 
 	GameServer server;
 
-	auto vector2 = [](Vec2 pos) {
-		return Vector2{ .x = pos.x, .y = pos.y };
-	};
-
-	auto convertPos = [&](Vec2 pos) {
-		pos.y = -pos.y;
-		return vector2(pos);
-	};
+	
 
 	Camera2D camera{
 		.offset = Vector2{ 0.0f, 0.0f },
 		.target = 0.0f,
 		.rotation = 0.0f,
-		//.zoom = 500.0f,
-		.zoom = 1.0f,
+		.zoom = 500.0f,
+		//.zoom = 1.0f,
 	};
-	float scale = 500.0f;
+	//float scale = 500.0f;
 	camera.offset.x += windowWidth / 2;
 	camera.offset.y += windowHeight / 2;
-
+	std::vector<GameplayPlayer> players;
+	// TODO: Does raylib slow down the game loop, because of things like vsync.
 	while (server.isRunning && !WindowShouldClose())
 	{
 		frameStartTime = currentTime();
@@ -109,17 +104,16 @@ int main(int argc, char* argv[]) {
 
 			//if (server.players.contains(0)) {
 			//	//camera.offset = convertPos(server.players[0].pos * scale);
-			//	camera.target = convertPos(server.players[0].pos * scale);
+			//	camera.target = convertPos(server.players[0].gameplayPlayer.position * scale);
 			//	//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
 			//}
-
-			for (const auto& [_, player] : server.players) {
-				DrawCircleV(convertPos(player.gameplayPlayer.position * scale), PLAYER_HITBOX_RADIUS * scale, BLUE);
+			players.clear();
+			for (const auto& player : server.players) {
+				players.push_back(player.second.gameplayPlayer);
 			}
+			debugDraw(server.gameplayState, players, BLUE);
 
-			for (const auto& [_, bullet] : server.gameplayState.moveForwardBullets) {
-				DrawCircleV(convertPos(bullet.position * scale), BULLET_HITBOX_RADIUS * scale, BLUE);
-			}
+			
 
 			EndMode2D();
 			EndDrawing();

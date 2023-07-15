@@ -33,8 +33,11 @@ static const uint8_t DEFAULT_PRIVATE_KEY[yojimbo::KeyBytes] = { 0 };
 //static constexpr float DEBUG_JITTER = 500.0f;
 //static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.05f;
 
-static constexpr float DEBUG_LATENCY = 150.0f;
-static constexpr float DEBUG_JITTER = 50.0f;
+//static constexpr float DEBUG_LATENCY = 150.0f;
+//static constexpr float DEBUG_JITTER = 50.0f;
+//static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.0f;
+static constexpr float DEBUG_LATENCY = 1000.0f;
+static constexpr float DEBUG_JITTER = 0.0f;
 static constexpr float DEBUG_PACKET_LOSS_PERCENT = 5.0f;
 
 //static constexpr float DEBUG_LATENCY = 500.0f;

@@ -26,6 +26,23 @@ struct(struct) ::= <<
 UntypedBulletIndex <struct.name>Index::untypedIndex() const {
     return UntypedBulletIndex{ ownerPlayerIndex, spawnFrame, spawnIndexInFrame };
 }
+
+template\<>
+<struct.name>Index fromJson\<<struct.name>Index>(const Json::Value& json) {
+    return <struct.name>Index{
+        .ownerPlayerIndex = static_cast\<PlayerIndex>(json.at("ownerPlayerIndex").intNumber()),
+        .spawnFrame = static_cast\<FrameTime>(json.at("spawnFrame").intNumber()),
+        .spawnIndexInFrame = static_cast\<u16>(json.at("spawnIndexInFrame").intNumber()),
+    };
+}
+
+Json::Value toJson(const <struct.name>Index& value) {
+    auto json = Json::Value::emptyObject();
+    json["ownerPlayerIndex"] = Json::Value(static_cast\<Json::Value::IntType>(value.ownerPlayerIndex));
+    json["spawnFrame"] = Json::Value(value.spawnFrame);
+    json["spawnIndexInFrame"] = Json::Value(value.spawnIndexInFrame);
+    return json;
+}
 <endif>
 
 <if(struct.isGui)>
@@ -42,7 +59,7 @@ void gui(<struct.name>& value) {
 Json::Value toJson(const <struct.name>& value) {
     auto json = Json::Value::emptyObject();
 
-    <struct.fields : { field | <toJson(field.dataType, field.name)>} >
+    <struct.fields : { field | <if(!field.isNoJsonSerialize)><toJson(field.dataType, field.name)><endif>} >
     return json;
 }
 
@@ -50,7 +67,11 @@ template\<\>
 <struct.name> fromJson\<<struct.name>\>(const Json::Value& json) {
     return <struct.name> {
         <struct.fields : { field
-            | .<field.name> = <if(field.hasDefaultValue)>!json.contains("<field.name>") ? <field.defaultValue> : <endif><fromJson(field.dataType, jsonAccess("json", field.name))>};
+            |
+            <if(!field.isNoJsonSerialize)>
+            .<field.name> = <if(field.hasDefaultValue)>!json.contains("<field.name>") ? <field.defaultValue> : <endif><fromJson(field.dataType, jsonAccess("json", field.name))>
+            <endif>
+            };
             separator=",\n"
         >
     };
@@ -89,7 +110,7 @@ if (node("<displayedName>")) {
 >>
 
 toJson(dataType, name) ::= <<
-<if(dataType.isFloat || dataType.isBool)><\\>
+<if(dataType.isFloat || dataType.isBool || dataType.isI32)><\\>
 json["<name>"] = Json::Value(value.<name>);
 <else><\\>
 json["<name>"] = toJson(value.<name>);
@@ -103,6 +124,24 @@ fromJson(dataType, name) ::= <<
 <name>.intNumber()<\\>
 <elseif(dataType.isBool)><\\>
 <name>.boolean()<\\>
+<elseif(dataType.isMap)><\\>
+[&] {
+    std::unordered_map\<<dataType.keyDataType.name>, <dataType.valueDataType.name>\> result;
+    const auto& array = <name>.array();
+    for (const auto& object : array) {
+        result[std::move(<fromJson(dataType.keyDataType, "object.at(\"key\")")>)] = std::move(<fromJson(dataType.valueDataType, "object.at(\"value\")")>);
+    }
+    return result;
+}()
+<elseif(dataType.isVector)><\\>
+[&] {
+    std::vector\<<dataType.itemDataType.name>\> result;
+    const auto& array = <name>.array();
+    for (const auto& item : array) {
+        result.push_back(fromJson\<<dataType.itemDataType.name>\>(item));
+    }
+    return result;
+}()
 <else><\\>
 fromJson\<<dataType.name>\>(<name>)<\\>
 <endif>

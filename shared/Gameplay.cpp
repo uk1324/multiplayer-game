@@ -1,4 +1,4 @@
-#define CLIENT
+//#define CLIENT
 #include "Gameplay.hpp"
 #include <engine/Utils/Put.hpp>
 #include <engine/Math/Utils.hpp>
@@ -66,9 +66,9 @@ void updateGameplayPlayer(
 
 static float calculateDt(ClientBulletSynchronizationData& synchronization, float dt) {
 #ifdef CLIENT
-	if (synchronization.timeToSynchronize < 0.0f) {
+	/*if (synchronization.timeToSynchronize < 0.0f) {
 		synchronization.timeToSynchronize = -synchronization.timeToSynchronize;
-	}
+	}*/
 
 	if (synchronization.synchronizationProgressT < 1.0f) {
 
@@ -95,7 +95,7 @@ static float calculateDt(ClientBulletSynchronizationData& synchronization, float
 	return dt;
 }
 
-void updateGemeplayStateAfterProcessingInput(GameplayState& state, float dt) {
+void updateGameplayStateAfterProcessingInput(GameplayState& state, float dt) {
 	for (auto& [index, bullet] : state.moveForwardBullets) {
 		const auto bulletDt = calculateDt(bullet.synchronization, dt);
 		bullet.position += bullet.velocity * bulletDt;

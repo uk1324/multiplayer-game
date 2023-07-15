@@ -20,9 +20,6 @@ add_executable(
 	"../dependencies/imgui/imgui_impl_opengl3.h" 
 	"../dependencies/imgui/imgui_demo.cpp"
 	"../dependencies/glad/src/glad.c"
-	"../engine/Json/JsonValue.cpp"
-	"../engine/Json/JsonPrinter.cpp"
-	"../engine/Json/JsonParser.cpp"
 	"../shared/Gameplay.cpp" 
 	"../shared/WindowsUtils.cpp" 
 	"GameClient.cpp" "GameClientAdapter.cpp" "Rendering/Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
@@ -30,6 +27,7 @@ add_executable(
 
 target_link_libraries(client engine)
 target_link_libraries(client math)
+target_link_libraries(client json)
 target_link_libraries(client glfw)
 
 targetAddGenerated(client "../shared")

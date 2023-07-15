@@ -316,10 +316,15 @@ class Field extends DeclarationInStruct {
     public boolean getIsNoNetworkSerialize() {
         return attributes.stream().anyMatch(a -> a instanceof FieldAttributeNoNetworkSerialize);
     }
+
+    public boolean getIsNoJsonSerialize() {
+        return attributes.stream().anyMatch(a -> a instanceof FieldAttributeNoJsonSerialize);
+    }
 }
 
 abstract class FieldAttribute { }
 class FieldAttributeNoNetworkSerialize extends FieldAttribute { }
+class FieldAttributeNoJsonSerialize extends FieldAttribute { }
 
 class CppInStruct extends DeclarationInStruct {
     public String cppSource;

@@ -30,7 +30,8 @@ void broadcastMessage(
 
 GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
-	, adapter(this) {
+	, adapter(this)
+	, replayRecorder("./generated/serverReplay.json") {
 
 	server.Start(MAX_CLIENTS);
 
@@ -58,6 +59,14 @@ void GameServer::update() {
 		isRunning = false;
 		return;
 	}
+	if (replayRecorder.isRecording) {
+		gameplayPlayers.clear();
+		for (const auto& [_, player] : players) {
+			gameplayPlayers.push_back(player.gameplayPlayer);
+		}
+		replayRecorder.addFrame({}, gameplayState);
+	}
+
 	server.AdvanceTime(server.GetTime() + 1.0f / 60.0f);
 	server.ReceivePackets();
 
@@ -74,7 +83,7 @@ void GameServer::update() {
 			// Maybe duplicate last frame's input
 		} else {
 			std::cout << "inputs size" << player.inputs.size() << '\n';
-			const auto [input, clientSequenceNumber] = player.inputs.front();
+			const auto& [input, clientSequenceNumber] = player.inputs.front();
 			player.inputs.pop();
 			//player.pos = applyMovementInput(player.pos, input, dt);*/
 			player.newestExecutedInputClientSequenceNumber = clientSequenceNumber;
@@ -83,7 +92,7 @@ void GameServer::update() {
 			updateGameplayPlayer(playerIndex, player.gameplayPlayer, gameplayState, input, clientSequenceNumber, FRAME_DT_SECONDS);
 		}
 	}	
-	updateGemeplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
+	updateGameplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();
@@ -193,7 +202,6 @@ void GameServer::broadcastWorldState() {
 			continue;
 		}
 
-		auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
 		const auto player = get(players, clientIndex);
 		if (!player.has_value()) {
 			CHECK_NOT_REACHED();
@@ -204,7 +212,7 @@ void GameServer::broadcastWorldState() {
 			// The client needs to send a message to be able to calculate RTT.
 			continue;
 		}
-
+		auto message = reinterpret_cast<WorldUpdateMessage*>(server.CreateMessage(clientIndex, GameMessageType::WORLD_UPDATE));
 		message->lastExecutedInputClientSequenceNumber = *player->newestExecutedInputClientSequenceNumber;
 		message->lastReceivedInputClientSequenceNumber = *player->newestReceivedInputClientSequenceNumber;
 		message->serverSequenceNumber = sequenceNumber;

@@ -53,6 +53,10 @@ struct std::hash\<<struct.name>Index> {
     }
 };
 
+template\<>
+<struct.name>Index fromJson\<<struct.name>Index>(const Json::Value& json);
+Json::Value toJson(const <struct.name>Index& value);
+
 <endif>
 
 struct <struct.name> <if(struct.isNetworkMessage)>: yojimbo::Message <endif>{

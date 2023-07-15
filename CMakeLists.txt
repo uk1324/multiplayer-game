@@ -19,11 +19,16 @@ include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
 
+# add_definitions(-DDEBUG_RECORD_REPLAYS)
+
 add_subdirectory(engine)
+add_subdirectory(engine/Json)
 
 add_subdirectory(client)
 
 add_subdirectory(server)
+
+add_subdirectory(replayTool)
 
 add_subdirectory(shortcutTool)
 

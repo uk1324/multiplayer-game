@@ -1,0 +1,15 @@
+`
+#include <shared/GameplayStateData.hpp>
+`
+
+struct [[Json]] ReplayFrame {
+	float globalClockTime;
+	vector<GameplayPlayer> players;
+	GameplayState gameplayState;
+}
+
+
+struct [[Json]] ReplayData {
+	vector<ReplayFrame> frames;
+}
+

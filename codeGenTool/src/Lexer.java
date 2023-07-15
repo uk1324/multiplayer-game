@@ -52,7 +52,9 @@ class Token {
 }
 
 class LexerError extends Exception {
-
+    LexerError(String message) {
+        super(message);
+    }
 }
 
 public class Lexer {
@@ -132,7 +134,7 @@ public class Lexer {
                     return number(peek());
                 }
         }
-        throw new LexerError();
+        throw new LexerError(String.format("invalid character '%c'", c));
     }
 
     Optional<Token> number(char firstDigit) throws LexerError {
@@ -154,7 +156,7 @@ public class Lexer {
             }
             eat();
         }
-        throw new LexerError();
+        throw new LexerError("number parsing error");
     }
 
     void skipWhitespace() {

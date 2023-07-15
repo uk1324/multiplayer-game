@@ -211,6 +211,8 @@ public class Parser {
     FieldAttribute fieldAttribute() throws LexerError, ParserError {
         if (matchIdentifier("NoNetworkSerialize")) {
             return new FieldAttributeNoNetworkSerialize();
+        } else if (matchIdentifier("NoJsonSerialize")) {
+            return new FieldAttributeNoJsonSerialize();
         } else {
             throw new ParserError("expected field attribute");
         }

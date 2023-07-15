@@ -9,7 +9,7 @@ using PlayerIndex = u32;
 #include <shared/BulletIndex.hpp>
 `
 
-struct [[NetworkSerialize]] GameplayPlayer {
+struct [[NetworkSerialize, Json]] GameplayPlayer {
 	Vec2 position;
 	float shootCooldown = `0.0f`;
 }
@@ -19,18 +19,18 @@ struct ClientBulletSynchronizationData {
 	float timeToSynchronize = `0.0f`;
 	float synchronizationProgressT = `1.0f`;
 	// Istead of using the server spawn frame could do something like storing negative elapsed time. Or maybe just storing the server frame inside the elapsed. The issues with just stroing negative elapsed time is that it isn't synchronized with the rest of the world although that could technically be handled.
-	FrameTime serverFrame = `0`;
+	FrameTime frameToActivateAt = `0`;
 	`#endif`
 }
 
-struct [[NetworkSerialize, Bullet]] MoveForwardBullet {
+struct [[NetworkSerialize, Bullet, Json]] MoveForwardBullet {
 	Vec2 position;
 	Vec2 velocity;
 	float elapsed = `0.0f`;
-	ClientBulletSynchronizationData [[NoNetworkSerialize]] synchronization;
+	ClientBulletSynchronizationData [[NoNetworkSerialize, NoJsonSerialize]] synchronization;
 }
 
-struct [[NetworkSerialize]] GameplayState {
+struct [[NetworkSerialize, Json]] GameplayState {
 	map<MoveForwardBulletIndex, MoveForwardBullet> moveForwardBullets;
 
 	i32 [[NoNetworkSerialize]] bulletsSpawnedThisFrame = `0`;

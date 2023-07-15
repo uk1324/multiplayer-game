@@ -3,7 +3,7 @@ project(server)
 include("../codeGenTool/targetAddGenerated.cmake")
 add_definitions(-DSERVER)
 
-add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp")
+add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp" "../replayTool/DebugDraw.cpp" "../shared/ReplayRecorder.cpp" "../generated/ReplayDataGenerated.cpp" "../generated/GameplayStateDataGenerated.cpp" "../engine/Utils/Json.cpp")
 
 targetAddGenerated(server "${CMAKE_CURRENT_SOURCE_DIR}")
 target_sources(server PUBLIC ${SHARED_GENERATED_FILES})
@@ -11,6 +11,7 @@ target_sources(server PUBLIC ${SHARED_GENERATED_FILES})
 target_include_directories(server PUBLIC "." "../dependencies" "../")
 
 target_link_libraries(server math)
+target_link_libraries(server json)
 
 target_link_libraries(server debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
 target_link_libraries(server optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")

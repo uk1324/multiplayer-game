@@ -1,5 +1,5 @@
-#include <Utils/FileIo.hpp>
-#include <Log/Log.hpp>
+#include "FileIo.hpp"
+#include "../Log/Log.hpp"
 
 #include <fstream>
 
@@ -49,25 +49,4 @@ std::optional<Json::Value> tryLoadJsonFromFile(std::string_view path) {
 	} catch (const Json::ParsingError&) {
 		return std::nullopt;
 	}
-}
-
-ByteBuffer byteBufferFromFile(std::string_view path) {
-	std::ifstream file(path.data(), std::ios::binary);
-
-	if (file.fail())
-		LOG_FATAL("couldn't open file \"%s\"", path.data());
-
-	auto start = file.tellg();
-	file.seekg(0, std::ios::end);
-	auto end = file.tellg();
-	file.seekg(start);
-	auto fileSize = end - start;
-
-	ByteBuffer result(fileSize);
-
-	file.read(result.data(), fileSize);
-	if (file.fail())
-		LOG_FATAL("couldn't read file \"%s\"", path.data());
-
-	return result;
 }

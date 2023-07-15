@@ -17,7 +17,7 @@ char32_t fromJson<char32_t>(const Json::Value& json) {
 }
 
 template<typename K, typename V>
-Json::Value toJson(const std::unordered_map<K, V>& map) {
+static Json::Value mapToJson(const std::unordered_map<K, V>& map) {
 	auto json = Json::Value::emptyArray();
 	auto& jsonArray = json.array();
 	// Maybe serialize std::pair.
@@ -31,7 +31,7 @@ Json::Value toJson(const std::unordered_map<K, V>& map) {
 }
 
 template<typename K, typename V>
-std::unordered_map<K, V> fromJson(const Json::Value& value) {
+static std::unordered_map<K, V> fromJson(const Json::Value& value) {
 	std::unordered_map<K, V> result;
 	for (const auto& pair : value.array()) {
 		result[fromJson<K>(pair.at("key"))] = fromJson<V>(pair.at("value"));
@@ -172,7 +172,7 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	}
 
 	auto info = Json::Value::emptyObject();
-	info["glyphs"] = toJson(glyphs);
+	info["glyphs"] = mapToJson(glyphs);
 	info["pixelHeight"] = fontPixelHeight;
 	std::ofstream jsonFile(cachedFontInfoPath);
 	Json::prettyPrint(jsonFile, info);

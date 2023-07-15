@@ -5,6 +5,7 @@
 #include <shared/Networking.hpp>
 #include <shared/Time.hpp>
 #include <shared/Gameplay.hpp>
+#include <shared/ReplayRecorder.hpp>
 #include <unordered_map>
 #include <queue>
 
@@ -43,4 +44,7 @@ struct GameServer {
 
 	yojimbo::Server server;
 	GameServerAdapter adapter;
+
+	ReplayRecorder replayRecorder;
+	std::vector<GameplayPlayer> gameplayPlayers;
 };
