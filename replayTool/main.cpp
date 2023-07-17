@@ -56,6 +56,7 @@ struct ReplayTool {
 		.zoom = 500.0f,
 	};
 
+	float recordingStartOffset = 0.0f;
 	float time = 0.0f;
 	bool timePaused = false;
 
@@ -65,7 +66,7 @@ struct ReplayTool {
 			return;
 		}
 		if (replay->frames.size() >= 1) {
-			time = replay->frames[0].globalClockTime;
+			recordingStartOffset = std::min(recordingStartOffset, replay->frames[0].globalClockTime);
 		}
 		Color color = WHITE;
 		if (replays.size() == 0) {
@@ -110,9 +111,21 @@ struct ReplayTool {
 			time += GetFrameTime();
 		}
 
+		float speed = 1.0f;
+		if (IsKeyDown(KEY_W)) {
+			camera.target.y -= speed * GetFrameTime();
+		} else if (IsKeyDown(KEY_S)) {
+			camera.target.y += speed * GetFrameTime();
+		}
+
+		if (IsKeyDown(KEY_A)) {
+			camera.target.x -= speed * GetFrameTime();
+		} else if (IsKeyDown(KEY_D)) {
+			camera.target.x += speed * GetFrameTime();
+		}
 
 		for (auto& replay : replays) {
-			const auto index = findFrameClosestTo(replay.replay, time + replay.timeOffset);
+			const auto index = findFrameClosestTo(replay.replay, recordingStartOffset + time + replay.timeOffset);
 			if (!index.has_value()) {
 				continue;
 			}
@@ -144,6 +157,7 @@ int main(int argc, char* argv[]) {
 
 	ReplayTool tool;
 	
+	SetTargetFPS(60);
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 
@@ -160,9 +174,6 @@ int main(int argc, char* argv[]) {
 		EndDrawing();
 	}
 	CloseWindow();
-
-	// Raylib causes yojimbo to leak memory for some reason. If this is commented out the leak check doesn't happen.
-	//ShutdownYojimbo();
 
 	return EXIT_SUCCESS;
 }

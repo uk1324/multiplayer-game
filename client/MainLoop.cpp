@@ -2,6 +2,7 @@
 #include <imgui/imgui.h>
 #include <engine/Window.hpp>
 #include <engine/Input/Input.hpp>
+#include <shared/DebugNetworkConfig.hpp>
 
 MainLoop::MainLoop()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0)

@@ -8,7 +8,7 @@ using namespace std::chrono;
 ReplayRecorder::ReplayRecorder(std::string outputFile)
 	: outputFile(std::move(outputFile))
 	, start(Clock::now()) {
-	start = sys_days{ July / 15 / 2023 } + 0h + 0min + 0s;
+	start = sys_days{ July / 17 / 2023 } + 10h + 0min + 0s;
 }
 
 ReplayRecorder::~ReplayRecorder() {

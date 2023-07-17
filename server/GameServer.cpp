@@ -3,6 +3,7 @@
 #include <engine/Utils/RefOptional.hpp>
 #include <engine/Utils/Put.hpp>
 #include <engine/Utils/MapOptGet.hpp>
+#include <shared/DebugNetworkConfig.hpp>
 
 template<typename MessageType, typename InitCallable>
 void broadcastMessage(
@@ -64,7 +65,7 @@ void GameServer::update() {
 		for (const auto& [_, player] : players) {
 			gameplayPlayers.push_back(player.gameplayPlayer);
 		}
-		replayRecorder.addFrame({}, gameplayState);
+		replayRecorder.addFrame(gameplayPlayers, gameplayState);
 	}
 
 	server.AdvanceTime(server.GetTime() + 1.0f / 60.0f);

@@ -429,7 +429,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 					/*const auto whenOnClientReceivedServerTime = serverFrame * FRAME_DT_SECONDS + rttSeconds / 2.0f;
 					const auto whenDisplayed*/
 
-					const auto timeDesynch = timeBeforePredictionDisplayed + rttSeconds / 2.0f;
+					const auto timeDesynch = timeBeforePredictionDisplayed + rttSeconds + std::max(0, averageExecuteDelay - averageReceiveDelay) * FRAME_DT_SECONDS;
 					auto bullet = msgBullet;
 					bullet.position += bullet.velocity * timeDesynch;
 					/*bullet.synchronization.timeToSynchronize = timeDesynch;
