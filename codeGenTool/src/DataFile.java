@@ -350,7 +350,7 @@ abstract class DataType {
         return this instanceof RangedFloatDataType;
     }
     public boolean getIsI32() {
-        return this instanceof I32DataType;
+        return getName().equals("i32");
     }
     public boolean getIsRangedSignedInt() {
         return this instanceof RangedSignedIntDataType;

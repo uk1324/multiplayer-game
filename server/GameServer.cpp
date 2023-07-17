@@ -83,7 +83,7 @@ void GameServer::update() {
 		if (player.inputs.empty()) {
 			// Maybe duplicate last frame's input
 		} else {
-			std::cout << "inputs size" << player.inputs.size() << '\n';
+			//std::cout << "inputs size" << player.inputs.size() << '\n';
 			const auto& [input, clientSequenceNumber] = player.inputs.front();
 			player.inputs.pop();
 			//player.pos = applyMovementInput(player.pos, input, dt);*/
@@ -100,7 +100,7 @@ void GameServer::update() {
 	}
 
 	server.SendPackets();
-	put("%", frame);
+	//put("%", frame);
 	frame++;
 	/*frame++;
 
@@ -147,7 +147,7 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 		} else {
 			newInputs = inputsInMessage;
 		}
-		put("new inputs %", newInputs);
+		//put("new inputs %", newInputs);
 		player->newestReceivedInputClientSequenceNumber = msg.clientSequenceNumber;
 
 		auto sequenceNumber = msg.clientSequenceNumber - newInputs + 1;

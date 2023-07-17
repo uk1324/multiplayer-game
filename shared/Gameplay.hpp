@@ -3,10 +3,6 @@
 #include <engine/Math/Vec2.hpp>
 #include <shared/Networking.hpp>
 
-//struct GameplayContext {
-//
-//};
-
 // TODO: It would be cool to have a debugger for patterns that would allow have a slider for time.
 // The simplest way to do this would to on a change of time just to reset to the initial state and update which should be enought.
 // A more complicated version would to to store the previous states or maybe just the delays (this would work if using things like hot reloading).
@@ -20,6 +16,8 @@ static constexpr float PLAYER_SPEED = 1.0f;
 static constexpr float PLAYER_SHIFT_SPEED = 0.7f;
 static constexpr float BULLET_SPEED = 0.5f;
 static constexpr float SHOOT_COOLDOWN = 0.4f;
+
+static constexpr float BULLET_ALIVE_SECONDS = 2.0f;
 
 Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt);
 

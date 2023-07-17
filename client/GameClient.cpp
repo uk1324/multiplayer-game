@@ -182,10 +182,16 @@ void GameClient::update() {
 		//for (const auto& animation : renderer.spawnAnimations) {
 		//	players[animation.playerIndex].isRendered = true;
 		//}
+
 		for (const auto& [index, bullet] : gameplayState.moveForwardBullets) {
+			const auto opacityChangeSeconds = 1.0f;
+			const auto opacity = 1.0f - std::clamp((bullet.elapsed - (BULLET_ALIVE_SECONDS - opacityChangeSeconds)) / opacityChangeSeconds, 0.0f, 1.0f);
+
 			renderer.bulletInstances.toDraw.push_back(BulletInstance{
-				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS)),
-				.color = playerColor(index.ownerPlayerIndex),
+				// * 1.3f = Actual bullet size 
+				/*.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 1.3f),*/
+				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 1.7f),
+				.color = Vec4(playerColor(index.ownerPlayerIndex), opacity),
 			});
 		}
 
@@ -240,12 +246,6 @@ void GameClient::update() {
 			}
 		}
 
-		auto calculateBulletOpacity = [](int aliveFramesLeft) {
-			const auto opacityChangeFrames = 60.0f;
-			const auto opacity = 1.0f - std::clamp((opacityChangeFrames - aliveFramesLeft) / opacityChangeFrames, 0.0f, 1.0f);
-			return opacity;
-		};
-
 	};
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
@@ -276,14 +276,14 @@ void GameClient::update() {
 
 
 	if (delays.has_value()) {
-		ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);
+		/*ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);*/
+		ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
 	}
 
 	sequenceNumber++;
-	yojimbo::NetworkInfo info;
+	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
-	
-	//put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + averageExecuteDelay, sequenceNumber + averageReceiveDelay, averageExecuteDelay - averageReceiveDelay, info.RTT, averageExecuteDelay, averageReceiveDelay);
+	put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + averageExecuteDelay, sequenceNumber + averageReceiveDelay, averageExecuteDelay - averageReceiveDelay, info.RTT, averageExecuteDelay, averageReceiveDelay);*/
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
@@ -401,11 +401,11 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				if (bulletIndex.ownerPlayerIndex == clientPlayerIndex) {
 					DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
 					const auto i = bulletIndex.untypedIndex();
-					//put("% % %", i.ownerPlayerIndex, i.spawnFrame, i.spawnIndexInFrame);
 					auto spawnPredictedBullet = get(gameplayState.moveForwardBullets, bulletIndex);
 					if (!spawnPredictedBullet.has_value()) {
 						// If the client spawned the bullet then they should have it.
-						CHECK_NOT_REACHED();
+						// CHECK_NOT_REACHED();
+						// Except if it got destroyed already.
 						continue;
 					}
 					// @Hack: checking for zero
@@ -431,13 +431,18 @@ void GameClient::processMessage(yojimbo::Message* message) {
 
 					const auto timeDesynch = timeBeforePredictionDisplayed + rttSeconds + std::max(0, averageExecuteDelay - averageReceiveDelay) * FRAME_DT_SECONDS;
 					auto bullet = msgBullet;
-					bullet.position += bullet.velocity * timeDesynch;
-					/*bullet.synchronization.timeToSynchronize = timeDesynch;
-					bullet.synchronization.synchronizationProgressT = 0.0f;*/
-					
+
+					const auto maxFrameSpeedup = FRAME_DT_SECONDS * 2.0f;
+					// maxFrameSpeedup = catchUpPercentPerFrame * timeToCatchUp
+					// catchUpPercentPerFrame = maxFrameSpeedup / timeToCatchUp
+
+					// TODO: Could use a std::max for maxFrameSpeedup so it doesn't always accelerate that quickly on the first frame. Or maybe it is more balanced this way.
+
 					// The bullets should as close to being shot out of the interpolated entity. Technically the server update most of the time won't be sent on the frame the bullet was spawned.
 					// TODO: This doesn't deal with the case when the frameToActivateAt already passed.
 					bullet.synchronization.frameToActivateAt = serverFrame + delays->interpolatedEntitesDisplayDelay;
+					bullet.synchronization.timeToCatchUp = timeDesynch;
+					bullet.synchronization.catchUpPercentPerFrame = maxFrameSpeedup / bullet.synchronization.timeToCatchUp;
 					inactiveGameplayState.moveForwardBullets.insert({ bulletIndex, bullet });
 				}
 			}

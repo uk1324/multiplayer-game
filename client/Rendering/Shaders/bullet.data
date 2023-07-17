@@ -4,7 +4,7 @@ shader Bullet {
 		Mat3x2 transform;
 	};
 	fragInstance = {
-		color3 color;
+		color color;
 	};
 	vertOut = {
 		Vec2 texturePosition;

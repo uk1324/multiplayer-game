@@ -12,7 +12,7 @@ struct ReplayRecorder {
 	void addFrame(std::vector<GameplayPlayer> players, GameplayState gameplayState);
 
 	std::chrono::time_point<Clock> start;
-	bool isRecording = true;
+	bool isRecording = false;
 	ReplayData replay;
 	std::string outputFile;
 };

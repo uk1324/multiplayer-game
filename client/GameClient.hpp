@@ -7,7 +7,7 @@
 #include <shared/Time.hpp>
 #include <shared/ReplayRecorder.hpp>
 
-#define DEBUG_INTERPOLATE_BULLETS
+//#define DEBUG_INTERPOLATE_BULLETS
 // Could use static variables and use Imgui to enable or disable it.
 //#define DEBUG_INTERPOLATION
 

@@ -3,11 +3,11 @@
 layout(location = 0) in vec2 vertexPosition; 
 layout(location = 1) in vec2 vertexTexturePosition; 
 layout(location = 2) in mat3x2 instanceTransform; 
-layout(location = 5) in vec3 instanceColor; 
+layout(location = 5) in vec4 instanceColor; 
 
 out vec2 texturePosition; 
 
-out vec3 color; 
+out vec4 color; 
 
 void passToFragment() {
     color = instanceColor; 
