@@ -57,8 +57,24 @@ void GameClient::update() {
 
 	const auto input = [
 		cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace(),
-		clientPlayerPosition = clientPlayer.position
+		clientPlayerPosition = clientPlayer.position,
+
+		&selectedPattern = selectedPattern
 	] {
+		auto newPattern = selectedPattern;
+		if (Input::isKeyDown(KeyCode::ALPHA_1)) newPattern = 0;
+		else if (Input::isKeyDown(KeyCode::ALPHA_2)) newPattern = 1;
+		else if (Input::isKeyDown(KeyCode::ALPHA_3)) newPattern = 2;
+		else if (Input::isKeyDown(KeyCode::ALPHA_4)) newPattern = 3;
+		else if (Input::isKeyDown(KeyCode::ALPHA_5)) newPattern = 4;
+		else if (Input::isKeyDown(KeyCode::ALPHA_6)) newPattern = 5;
+		else if (Input::isKeyDown(KeyCode::ALPHA_7)) newPattern = 6;
+		else if (Input::isKeyDown(KeyCode::ALPHA_8)) newPattern = 7;
+		else if (Input::isKeyDown(KeyCode::ALPHA_9)) newPattern = 8;
+		if (newPattern < std::size(patternInfos)) {
+			selectedPattern = newPattern;
+		}
+
 		const auto cursorRelativeToPlayer = cursorPosWorldSpace - clientPlayerPosition;
 		const auto rotation = atan2(cursorRelativeToPlayer.y, cursorRelativeToPlayer.x);
 		return ClientInputMessage::Input{
@@ -68,7 +84,8 @@ void GameClient::update() {
 			.right = Input::isKeyHeld(KeyCode::D),
 			.shoot = Input::isMouseButtonHeld(MouseButton::LEFT),
 			.shift = Input::isKeyHeld(KeyCode::LEFT_SHIFT),
-			.rotation = rotation
+			.rotation = rotation,
+			.selectedPattern = selectedPattern
 		};
 	}();
 
@@ -160,6 +177,7 @@ void GameClient::update() {
 		&players = std::as_const(players),
 		clientPlayerIndex = clientPlayerIndex,
 		&gameplayState = std::as_const(gameplayState),
+		selectedPattern = selectedPattern,
 
 		&renderer = renderer
 	] {
@@ -243,11 +261,21 @@ void GameClient::update() {
 				float t = sneakingElapsed.has_value() ? std::clamp(*sneakingElapsed / SNEAKING_ANIMATION_DURATION, 0.0f, 1.0f) : 0.0f;
 				t = smoothstep(t);
 				auto color = playerColor(playerIndex);
-				color = lerp(color, color / 2.0f, t);
+				if (playerIndex == clientPlayerIndex) {
+					color = lerp(color, color / 2.0f, t);
+				}
 				drawPlayer(player.position, color, sizeScale);
 			}
 		}
 
+		const auto aabb = renderer.camera.aabb();
+		Debug::drawPoint(aabb.max);
+		Debug::drawPoint(aabb.min);
+		/*renderer.addTextToDraw(renderer.textInstances, renderer.font, renderer.camera.pos, 2.0f / renderer.camera.zoom, patternInfos[selectedPattern].name);*/
+		// To make the cooldown meter smooth interpolate.
+
+		renderer.addTextToDraw(renderer.textInstances, renderer.font, aabb.min + Vec2(0.03f) / renderer.camera.zoom, 0.1f / renderer.camera.zoom, patternInfos[selectedPattern].name);
+		ImGui::Text("%d", selectedPattern);
 	};
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
@@ -328,7 +356,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				const auto delayReceive = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
 				addDelay(pastReceiveDelays, delayReceive);
 				addDelay(pastExecuteDelays, delayExecute);
-				put("new delay %", delayReceive);
+				//put("new delay %", delayReceive);
 				
 				// NOTE: The delay between the server and the client seems to grow don't know why.
 			};

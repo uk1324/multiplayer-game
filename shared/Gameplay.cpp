@@ -122,47 +122,71 @@ void updateGameplayPlayer(
 	const auto deg180 = deg90 * deg90;
 	const auto deg270 = deg45.inversed();
 
-	player.shootCooldown = std::max(0.0f, player.shootCooldown - dt);
-	if (input.shoot && player.shootCooldown == 0.0f) {
-		// Expanding is just so the velocity has to be the vector from the center.
-		auto spawnExpandingPolygon = [&](float rotation, i32 sides, i32 bulletsPerSide) {
-			const auto step = TAU<float> / sides;
-			for (int i = 0; i < sides; i++) {
-				const auto startAngle = rotation + step * i;
-				const auto endAngle = rotation + step * (i + 1);
-				const auto start = Vec2::oriented(startAngle);
-				const auto end = Vec2::oriented(endAngle);
-				for (int j = 0; j < bulletsPerSide - 1; j++) {
-					// Never get to 1 so the next sides adds the corner.
-					float t = static_cast<float>(j) / static_cast<float>(bulletsPerSide - 1);
-					const auto vectorFromCenter = lerp(start, end, t);
-					spawnMoveForwardBullet(player.position, vectorFromCenter);
-				}
-			}
-		};
-		
-		auto spawnTriangleStar = [&](float angle) {
-			spawnExpandingPolygon(angle, 3, 10);
-			spawnExpandingPolygon(angle + PI<float>, 3, 10);
-		};
-
-		auto spawnSquareStar = [&]() {
-			spawnExpandingPolygon(0.0f, 4, 10);
-			spawnExpandingPolygon(PI<float> / 4.0f, 4, 10);
-		};
+	auto updateCooldown = [&dt](float& cooldown) {
+		cooldown = std::max(0.0f, cooldown - dt);
+	};
+	updateCooldown(player.cooldowns.singleBullet);
+	updateCooldown(player.cooldowns.expandingTriangleStarPattern);
+	updateCooldown(player.cooldowns.spinningPattern);
+	put("%", player.cooldowns.singleBullet);
 
 
-		//spawnTriangleStar(input.rotation);
-
-		auto spawnSpinningPattern = [&]() {
-			const auto index = createBulletIndex<SpinningPatternSpawnerIndex>(state, ownerFrame, playerIndex, SPINNING_PATTERN_BULLETS + 1);
-			state.spinningPatternSpawners[index] = SpinningPatternSpawner{
-				.ownerPlayerIndex = playerIndex,
+	if (input.shoot) {
+		if (input.selectedPattern == PatternType::SINLGE_BULLET && player.cooldowns.singleBullet == 0.0f) {
+			const auto index = createBulletIndex<MoveForwardBulletIndex>(state, ownerFrame, playerIndex);
+			state.moveForwardBullets[index] = MoveForwardBullet{
+				.position = player.position,
+				.velocity = direction * 0.5f
 			};
-		};
+			player.cooldowns.singleBullet = patternInfos[PatternType::SINLGE_BULLET].cooldown;
+		} 
 
-		spawnSpinningPattern();
-		player.shootCooldown = SHOOT_COOLDOWN;
+		if (input.selectedPattern == PatternType::EXPANDING_TRIANGLE_STAR_PATTERN && player.cooldowns.expandingTriangleStarPattern == 0.0f) {
+			// Expanding is just so the velocity has to be the vector from the center.
+			auto spawnExpandingPolygon = [&](float rotation, i32 sides, i32 bulletsPerSide) {
+				const auto step = TAU<float> / sides;
+				for (int i = 0; i < sides; i++) {
+					const auto startAngle = rotation + step * i;
+					const auto endAngle = rotation + step * (i + 1);
+					const auto start = Vec2::oriented(startAngle);
+					const auto end = Vec2::oriented(endAngle);
+					for (int j = 0; j < bulletsPerSide - 1; j++) {
+						// Never get to 1 so the next sides adds the corner.
+						float t = static_cast<float>(j) / static_cast<float>(bulletsPerSide - 1);
+						const auto vectorFromCenter = lerp(start, end, t);
+						spawnMoveForwardBullet(player.position, vectorFromCenter);
+					}
+				}
+			};
+
+			auto spawnTriangleStar = [&](float angle) {
+				spawnExpandingPolygon(angle, 3, 10);
+				spawnExpandingPolygon(angle + PI<float>, 3, 10);
+			};
+
+			auto spawnSquareStar = [&]() {
+				spawnExpandingPolygon(0.0f, 4, 10);
+				spawnExpandingPolygon(PI<float> / 4.0f, 4, 10);
+			};
+
+			spawnTriangleStar(input.rotation);
+			player.cooldowns.expandingTriangleStarPattern = patternInfos[PatternType::EXPANDING_TRIANGLE_STAR_PATTERN].cooldown;
+		}
+
+		if (input.selectedPattern == PatternType::SPINNING_PATTERN && player.cooldowns.spinningPattern == 0.0f) {
+			auto spawnSpinningPattern = [&]() {
+				const auto index = createBulletIndex<SpinningPatternSpawnerIndex>(state, ownerFrame, playerIndex, SPINNING_PATTERN_BULLETS + 1);
+				state.spinningPatternSpawners[index] = SpinningPatternSpawner{
+					.ownerPlayerIndex = playerIndex,
+				};
+			};
+			spawnSpinningPattern();
+			player.cooldowns.spinningPattern = patternInfos[PatternType::SPINNING_PATTERN].cooldown;
+		}
+
+		
+		//spawnSpinningPattern();
+		//player.cooldowns.singleBullet = SHOOT_COOLDOWN;
 
 		/*auto spawnExpandingSquare = [&](Vec2 up) {
 			
@@ -187,11 +211,7 @@ void updateGameplayPlayer(
 			.directionAngle = input.rotation,
 		};*/
 
-		/*const auto index = createBulletIndex<MoveForwardBulletIndex>(state, ownerFrame, playerIndex);
-		state.moveForwardBullets[index] = MoveForwardBullet{
-			.position = player.position,
-			.velocity = direction * 0.5f
-		};*/
+		
 	}
 
 	// 2 square star.
@@ -243,7 +263,7 @@ void updateGameplayStateAfterProcessingInput(GameplayState& state, GameplayConte
 		const auto bulletSpawnedEveryFrame = 2;
 
 		if (spawner.elapsed % bulletSpawnDelayFrames == 0) {
-			float angle = spawner.elapsed / 6.0f;
+			float angle = spawner.elapsed / 6.0f * 1.618f;
 
 			const auto ownerPlayer = c.getPlayer(spawner.ownerPlayerIndex);
 			// TODO: What if dead?

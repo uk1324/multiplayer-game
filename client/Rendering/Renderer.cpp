@@ -489,7 +489,7 @@ void Renderer::drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation, Ve
 }
 
 Fbo& Renderer::currentWriteFbo() {
-	if (currentFboIndex = 0) {
+	if (currentFboIndex == 0) {
 		return postProcessFbo0;
 	} else {
 		return postProcessFbo1;
@@ -497,7 +497,7 @@ Fbo& Renderer::currentWriteFbo() {
 }
 
 Texture& Renderer::currentReadTexture() {
-	if (currentFboIndex = 0) {
+	if (currentFboIndex == 0) {
 		return postprocessTexture0;
 	} else {
 		return postprocessTexture1;

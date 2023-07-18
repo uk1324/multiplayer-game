@@ -65,6 +65,7 @@ struct GameClient {
 	};
 	std::vector<PastInput> pastInputs;
 	GameplayPlayer clientPlayer;
+	i32 selectedPattern = 0;
 	GameplayState gameplayState;
 	GameplayState inactiveGameplayState;
 

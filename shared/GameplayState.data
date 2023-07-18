@@ -7,11 +7,36 @@ using PlayerIndex = u32;
 #define NETWORK_SERIALIZE_PLAYER_INDEX(stream, value) serialize_uint32(stream, value)
 
 #include <shared/BulletIndex.hpp>
+
+struct PatternInfo {
+	const char* name;
+	float cooldown;
+};
+
+namespace PatternType {
+	enum PatternType {
+		SINLGE_BULLET,
+		EXPANDING_TRIANGLE_STAR_PATTERN,
+		SPINNING_PATTERN
+	};
+};
+
+static constexpr PatternInfo patternInfos[] {
+	{ "single bullet", 0.4f },
+	{ "expanding triangle star pattern", 3.0f },
+	{ "spinning pattern", 5.0f },
+};
+
+struct PlayerPatternCooldowns {
+	float singleBullet = 0.0f;
+	float expandingTriangleStarPattern = 0.0f;
+	float spinningPattern = 0.0f;
+};
 `
 
 struct [[NetworkSerialize, Json]] GameplayPlayer {
 	Vec2 position;
-	float shootCooldown = `0.0f`;
+	PlayerPatternCooldowns [[NoNetworkSerialize, NoJsonSerialize]] cooldowns;
 }
 
 struct ClientBulletSynchronizationData {

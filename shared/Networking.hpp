@@ -47,6 +47,7 @@ struct ClientInputMessage : public yojimbo::Message {
     struct Input {
         bool up = false, down = false, left = false, right = false, shoot = false, shift = false;
         float rotation = 0.0f;
+        i32 selectedPattern = 0;
     };
     static constexpr int INPUTS_COUNT = 15;
     // Most recent input at the last index.
@@ -63,6 +64,7 @@ struct ClientInputMessage : public yojimbo::Message {
             serialize_bool(stream, inputs[i].shoot);
             serialize_bool(stream, inputs[i].shift);
             serialize_float(stream, inputs[i].rotation);
+            serialize_int(stream, inputs[i].selectedPattern, 0, std::size(patternInfos) - 1);
         }
         return true;
     }

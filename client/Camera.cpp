@@ -4,6 +4,10 @@
 #include <engine/Window.hpp>
 #include <engine/Input/Input.hpp>
 
+Mat3x2 objectTransform(Vec2 pos, float rotation, Vec2 scale) {
+	return Mat3x2::scale(scale) * Mat3x2::rotate(rotation) * Mat3x2::translate(Vec2(pos.x, pos.y));
+}
+
 Camera::Camera(Vec2 pos, float zoom)
 	: pos{ pos }
 	, zoom{ zoom }
@@ -22,11 +26,27 @@ Mat3x2 Camera::clipSpaceToWorldSpace() const {
 	return (cameraTransform() * toNdc()).inversed();
 }
 
-Mat3x2 Camera::makeTransform(Vec2 pos, float rotation, Vec2 scale) {
-	const auto objectToWorld = Mat3x2::scale(scale) * Mat3x2::rotate(rotation) * Mat3x2::translate(Vec2(pos.x, pos.y));
-	return objectToWorld * cameraTransform() * toNdc();
+Mat3x2 Camera::makeTransform(Vec2 pos, float rotation, Vec2 scale) const {
+	const auto objectToWorld = objectTransform(pos, rotation, scale);
+	return objectToWorld * worldToCameraToNdc();
 }
 
+Mat3x2 Camera::worldToCameraToNdc() const {
+	return cameraTransform() * toNdc();
+}
+
+float Camera::height() const {
+	return 2.0f / zoom;
+}
+
+float Camera::width() const {
+	return 2.0f * aspectRatio / zoom;
+}
+
+Aabb Camera::aabb() const {
+	const auto halfSize = Vec2{ width(), height() } / 2.0f;
+	return Aabb::fromCorners(pos - halfSize, pos + halfSize);
+}
 
 //auto Camera::posInGrid(Vec2 p, Vec2 gridCenter, float gridSize, Vec2T<i64> gridCellSize) -> Vec2T<i64> {
 //	const Vec2 size{ gridSize * gridCellSize.xOverY(), gridSize };

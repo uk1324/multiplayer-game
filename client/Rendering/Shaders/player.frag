@@ -21,6 +21,6 @@ void main() {
 	d *= max(0.0, 1.0 - smoothstep(0.5, 1.0, length(p)));
 	col = mix(color, vec3(1), d);
 
-	fragColor = vec4(col, clamp(d, 0.0, 1.0));
+	fragColor = vec4(clamp(col, 0.0, 1.0), clamp(d, 0.0, 1.0));
 
 }

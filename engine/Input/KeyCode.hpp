@@ -4,6 +4,16 @@
 
 enum class KeyCode {
 	SPACE = 32,
+	ALPHA_0 = 48,
+	ALPHA_1 = 49,
+	ALPHA_2 = 50,
+	ALPHA_3 = 51,
+	ALPHA_4 = 52,
+	ALPHA_5 = 53,
+	ALPHA_6 = 54,
+	ALPHA_7 = 55,
+	ALPHA_8 = 56,
+	ALPHA_9 = 57,
 	A = 65,
 	B = 66,
 	C = 67,
@@ -33,5 +43,5 @@ enum class KeyCode {
 	ESCAPE = 256,
 	F3 = 292,
 	LEFT_SHIFT = 340,
-	COUNT
+	COUNT,
 };
