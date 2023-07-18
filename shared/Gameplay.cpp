@@ -94,6 +94,7 @@ void updateGemeplayStateBeforeProcessingInput(GameplayState& state) {
 }
 
 const auto SLASH_PATTERN_BULLETS = 10;
+const auto SPINNING_PATTERN_BULLETS = 50;
 
 void updateGameplayPlayer(
 	PlayerIndex playerIndex, 
@@ -140,9 +141,9 @@ void updateGameplayPlayer(
 			}
 		};
 		
-		auto spawnTriangleStar = [&]() {
-			spawnExpandingPolygon(0.0f, 3, 10);
-			spawnExpandingPolygon(PI<float>, 3, 10);
+		auto spawnTriangleStar = [&](float angle) {
+			spawnExpandingPolygon(angle, 3, 10);
+			spawnExpandingPolygon(angle + PI<float>, 3, 10);
 		};
 
 		auto spawnSquareStar = [&]() {
@@ -151,8 +152,16 @@ void updateGameplayPlayer(
 		};
 
 
-		spawnTriangleStar();
+		//spawnTriangleStar(input.rotation);
 
+		auto spawnSpinningPattern = [&]() {
+			const auto index = createBulletIndex<SpinningPatternSpawnerIndex>(state, ownerFrame, playerIndex, SPINNING_PATTERN_BULLETS + 1);
+			state.spinningPatternSpawners[index] = SpinningPatternSpawner{
+				.ownerPlayerIndex = playerIndex,
+			};
+		};
+
+		spawnSpinningPattern();
 		player.shootCooldown = SHOOT_COOLDOWN;
 
 		/*auto spawnExpandingSquare = [&](Vec2 up) {
@@ -188,7 +197,7 @@ void updateGameplayPlayer(
 	// 2 square star.
 }
 
-void updateGameplayStateAfterProcessingInput(GameplayState& state, float dt) {
+void updateGameplayStateAfterProcessingInput(GameplayState& state, GameplayContext& c, float dt) {
 	std::erase_if(state.moveForwardBullets, [&](std::pair<const MoveForwardBulletIndex, MoveForwardBullet>& pair) {
 		auto& [_, bullet] = pair;
 		const auto bulletDt = calculateDt(bullet.synchronization, dt);
@@ -205,7 +214,6 @@ void updateGameplayStateAfterProcessingInput(GameplayState& state, float dt) {
 		float startAngle = spawner.directionAngle - halfArcLength;
 		const auto timeBetweenSpawns = FRAME_DT_SECONDS * 4.0f;
 		for (i32 i = spawner.bulletsSpawned; i < SLASH_PATTERN_BULLETS; i++) {
-			put("time %", spawner.elapsed / timeBetweenSpawns);
 			if (spawner.elapsed / timeBetweenSpawns >= i) {
 				const auto index = createSpawnerBulletIndex<MoveForwardBulletIndex>(spawnerIndex.untypedIndex(), i);
 				const auto angle = startAngle + (halfArcLength * 2.0f) / (SLASH_PATTERN_BULLETS - 1) * i;
@@ -226,28 +234,35 @@ void updateGameplayStateAfterProcessingInput(GameplayState& state, float dt) {
 		spawner.elapsed += spawnerDt;
 		return false;
 	});
-	//for (auto& [spawnerIndex, spawner] : state.slashPatternSpawners) {
-	//	/*const auto spawnerDt = calculateDt(spawner.synchronization, dt);*/
-	//	
-	//}
-}
 
-//void updateBullet(Vec2& position, Vec2 velocity, f32& timeElapsed, f32& timeToCatchUp, i32& aliveFramesLeft, f32 dt) {
-//	float speedUp = 0.0f;
-//
-//	if (timeToCatchUp > 0.0f) {
-//		const auto catchUpSpeed = 0.08f;
-//		speedUp = (timeToCatchUp * catchUpSpeed);
-//		timeToCatchUp -= speedUp;
-//
-//		if (timeToCatchUp <= dt / 2.0f) {
-//			speedUp += timeToCatchUp;
-//			timeToCatchUp = 0.0f;
-//		}
-//	}
-//
-//	const auto elapsed = dt + speedUp;
-//	position += velocity * elapsed;
-//	aliveFramesLeft--;
-//	timeElapsed += elapsed;
-//}
+	std::erase_if(state.spinningPatternSpawners, [&](std::pair<const SpinningPatternSpawnerIndex, SpinningPatternSpawner>& pair) {
+		auto& [spawnerIndex, spawner] = pair;
+			// Could do this pattern by only using elapsed and not storing spawned bullets, having spawned bullets is more convinient.
+
+		const auto bulletSpawnDelayFrames = 3;
+		const auto bulletSpawnedEveryFrame = 2;
+
+		if (spawner.elapsed % bulletSpawnDelayFrames == 0) {
+			float angle = spawner.elapsed / 6.0f;
+
+			const auto ownerPlayer = c.getPlayer(spawner.ownerPlayerIndex);
+			// TODO: What if dead?
+			if (!ownerPlayer.has_value()) {
+				CHECK_NOT_REACHED();
+				return true;
+			}
+
+			for (i32 i = 0; i < bulletSpawnedEveryFrame; i++) {
+				const auto index = createSpawnerBulletIndex<MoveForwardBulletIndex>(spawnerIndex.untypedIndex(), spawner.bulletsSpawned);
+				spawner.bulletsSpawned++;
+				state.moveForwardBullets[index] = MoveForwardBullet{
+					.position = ownerPlayer->position,
+					.velocity = Vec2::oriented(angle + i * PI<float>)
+				};
+			}
+		}
+		spawner.elapsed++;
+
+		return spawner.bulletsSpawned == SPINNING_PATTERN_BULLETS;
+	});
+}

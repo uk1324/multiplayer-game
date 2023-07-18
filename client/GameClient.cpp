@@ -8,6 +8,7 @@
 #include <shared/Gameplay.hpp>
 #include <engine/Math/Color.hpp>
 #include <client/Debug.hpp>
+#include <client/ClientGameplayContext.hpp>
 #include <engine/Utils/Put.hpp>
 #include <RefOptional.hpp>
 #include <engine/Utils/MapOptGet.hpp>
@@ -79,7 +80,7 @@ void GameClient::update() {
 	] {
 		std::erase_if(inactiveGameplayState.moveForwardBullets, [&](const auto& it) {
 			if (sequenceNumber >= it.second.synchronization.frameToActivateAt) {
-				put("spawned current frame: % should be spawned at: %", sequenceNumber, it.second.synchronization.frameToActivateAt);
+				//put("spawned current frame: % should be spawned at: %", sequenceNumber, it.second.synchronization.frameToActivateAt);
 				gameplayState.moveForwardBullets.insert(it);
 				return true;
 			}
@@ -115,7 +116,8 @@ void GameClient::update() {
 
 	updateGemeplayStateBeforeProcessingInput(gameplayState);
 	processInput();
-	updateGameplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
+	ClientGameplayContext context(*this);
+	updateGameplayStateAfterProcessingInput(gameplayState, context, FRAME_DT_SECONDS);
 
 	auto inputMessage = [
 		sequenceNumber = sequenceNumber, 
@@ -326,6 +328,7 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				const auto delayReceive = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
 				addDelay(pastReceiveDelays, delayReceive);
 				addDelay(pastExecuteDelays, delayExecute);
+				put("new delay %", delayReceive);
 				
 				// NOTE: The delay between the server and the client seems to grow don't know why.
 			};

@@ -3,7 +3,7 @@ project(server)
 include("../codeGenTool/targetAddGenerated.cmake")
 add_definitions(-DSERVER)
 
-add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp" "../replayTool/DebugDraw.cpp" "../shared/ReplayRecorder.cpp" "../generated/ReplayDataGenerated.cpp" "../generated/GameplayStateDataGenerated.cpp" "../engine/Utils/Json.cpp")
+add_executable(server "main.cpp" "GameServer.cpp" "../shared/Networking.cpp" "../shared/WindowsUtils.cpp" "../shared/Gameplay.cpp" "GameServerAdapter.cpp" "../engine/Utils/Put.cpp" "../replayTool/DebugDraw.cpp" "../shared/ReplayRecorder.cpp" "../generated/ReplayDataGenerated.cpp" "../generated/GameplayStateDataGenerated.cpp" "../engine/Utils/Json.cpp" "ServerGameplayContext.cpp")
 
 targetAddGenerated(server "${CMAKE_CURRENT_SOURCE_DIR}")
 target_sources(server PUBLIC ${SHARED_GENERATED_FILES})

@@ -3,7 +3,23 @@
 #include <engine/Utils/RefOptional.hpp>
 #include <engine/Utils/Put.hpp>
 #include <engine/Utils/MapOptGet.hpp>
+#include <server/ServerGameplayContext.hpp>
 #include <shared/DebugNetworkConfig.hpp>
+
+// TODO: Idea for sending only spawned objects. 
+// With each object on the server store 2 bitsets of size max players. 
+// One for if the object was sent an another for if it was acked.
+// The issue with this is that there is a RTT of delay between send and acking. Should the server send data during that time. I guess there wouldn't be an issue with that.
+
+// Only send a message if an update was not received. 
+// How would a client know if an update was not received.
+// Checking sequence numbers isn't perfect because of out of order updates, but might work.
+
+
+// Between updates store the spawned object indices.
+// Store past updates.
+// If update not acked resend.
+// This is less flexible, because each player o receives the same objects even if they don't need them.
 
 template<typename MessageType, typename InitCallable>
 void broadcastMessage(
@@ -93,7 +109,8 @@ void GameServer::update() {
 			updateGameplayPlayer(playerIndex, player.gameplayPlayer, gameplayState, input, clientSequenceNumber, FRAME_DT_SECONDS);
 		}
 	}	
-	updateGameplayStateAfterProcessingInput(gameplayState, FRAME_DT_SECONDS);
+	ServerGameplayContext context(*this);
+	updateGameplayStateAfterProcessingInput(gameplayState, context, FRAME_DT_SECONDS);
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();

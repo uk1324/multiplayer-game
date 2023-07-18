@@ -40,9 +40,17 @@ struct [[NetworkSerialize, Bullet, Json]] SlashPatternSpawner {
 	ClientBulletSynchronizationData [[NoNetworkSerialize, NoJsonSerialize]] synchronization;
 }
 
+struct [[NetworkSerialize, Bullet, Json]] SpinningPatternSpawner {
+	PlayerIndex [[NoJsonSerialize]] ownerPlayerIndex;
+	FrameTime [[NoJsonSerialize]] elapsed = `0`;
+	ranged_int<`0`, `INT32_MAX`> bulletsSpawned = `0`;
+	ClientBulletSynchronizationData [[NoNetworkSerialize, NoJsonSerialize]] synchronization;
+}
+
 struct [[NetworkSerialize, Json]] GameplayState {
 	map<MoveForwardBulletIndex, MoveForwardBullet> moveForwardBullets;
 	map<SlashPatternSpawnerIndex, SlashPatternSpawner> slashPatternSpawners;
+	map<SpinningPatternSpawnerIndex, SpinningPatternSpawner> spinningPatternSpawners;
 
 	i32 [[NoNetworkSerialize]] bulletsSpawnedThisFrame = `0`;
 }
