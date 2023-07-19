@@ -24,6 +24,45 @@
 #include <engine/Json/JsonParser.hpp>
 #include <shared/Gameplay.hpp>
 
+#define ANIMATION_UPDATE(animations, amount) \
+	do { \
+		for (auto& animation : animations) { \
+			animation.t += amount; \
+		} \
+		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
+	} while (false)
+
+#define ANIMATION_UPDATE_DEBUG(animations, amount) \
+	do { \
+		static auto updateAnimations = true; \
+		static auto speed = amount; \
+		ImGui::Checkbox("update", &updateAnimations); \
+		ImGui::SliderFloat("speed", &speed, 0.0f, 1.0f); \
+		int i = 0; \
+		for (auto& animation : animations) { \
+			if (updateAnimations) animation.t += speed; \
+			ImGui::PushID(i); \
+			ImGui::SliderFloat("t", &animation.t, 0.0f, 1.0f); \
+			ImGui::PopID(); \
+			i++; \
+		} \
+		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
+	} while (false)
+
+#define ANIMATION_DEFULAT_SPAWN(animations, ...) \
+	do { \
+		if (ImGui::Button("spawn")) { \
+			animations.push_back((__VA_ARGS__)); \
+		} \
+	} while (false)
+
+
+#define INSTANCES_DRAW_QUAD(type) \
+		type.shader.use(); \
+		type.vao.bind(); \
+		type.instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
+		type.instances.toDraw.clear(); \
+
 static constexpr PtVertex fullscreenQuadVerts[]{
 	{ Vec2{ -1.0f, 1.0f }, Vec2{ 0.0f, 1.0f } },
 	{ Vec2{ 1.0f, 1.0f }, Vec2{ 1.0f, 1.0f } },
@@ -59,13 +98,8 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 Renderer::Renderer()
 	: fullscreenQuadPtVbo(fullscreenQuadVerts, sizeof(fullscreenQuadVerts))
 	, fullscreenQuadPtIbo(fullscreenQuadIndices, sizeof(fullscreenQuadIndices))
-	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
-	, atlasTexture(Texture::null())
-	, spriteVao(Vao::generate())
-	/*, circleVao(Vao::null())
-	, lineVao(Vao::null())*/
+	, fullscreenQuadPtVao(Vao::generate())
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
-	//, fontVao(Vao::null())
 	, font([]() {
 		Timer timer;
 		auto font = fontLoadSdfWithCaching(
@@ -97,124 +131,17 @@ Renderer::Renderer()
 	, text(GENERATED_ARGS(TEXT))
 	, circle(GENERATED_ARGS(CIRCLE))
 	, line(GENERATED_ARGS(LINE))
+	, cooldownTimer(GENERATED_ARGS(COOLDOWN_TIMER))
 
 #undef GENERATED_ARGS
-
-	, cooldownTimerShader(CREATE_GENERATED_SHADER(COOLDOWN_TIMER))
-	, cooldownTimerVao(Vao::null()) {
-
-	/*deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	deathAnimationVao.bind();
-	instancesVbo.bind();
-	addDeathAnimationInstanceAttributesToVao(deathAnimationVao);
-	
-	deathAnimationShader = &CREATE_GENERATED_SHADER(DEATH_ANIMATION);*/
-
-	/*circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	circleVao.bind();
-	instancesVbo.bind();
-	addCircleInstanceAttributesToVao(circleVao);
-	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);*/
-
-	/*lineVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	lineVao.bind();
-	instancesVbo.bind();
-	addLineInstanceAttributesToVao(lineVao);
-	lineShader = &CREATE_GENERATED_SHADER(LINE);*/
-
-
-	/*playerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	playerVao.bind();
-	instancesVbo.bind();
-	addPlayerInstanceAttributesToVao(playerVao);*/
-
-	//bulletVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	//bulletVao.bind();
-	//instancesVbo.bind();
-	//addBulletInstanceAttributesToVao(bulletVao);
-
-	cooldownTimerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	cooldownTimerVao.bind();
-	instancesVbo.bind();
-	addBulletInstanceAttributesToVao(cooldownTimerVao);
-
-	spriteVao.bind();
 	{
+
+	{
+		fullscreenQuadPtVao.bind();
 		fullscreenQuadPtVbo.bind();
 		boundVaoSetAttribute(0, ShaderDataType::Float, 2, offsetof(PtVertex, pos), sizeof(PtVertex));
 		boundVaoSetAttribute(1, ShaderDataType::Float, 2, offsetof(PtVertex, texturePos), sizeof(PtVertex));
 	}
-	{
-		texturedQuadPerInstanceDataVbo.bind();
-		boundVaoSetAttribute(2, ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, transform), sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(2, 1);
-		boundVaoSetAttribute(3, ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, transform) + sizeof(Vec2), sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(3, 1);
-		boundVaoSetAttribute(4, ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, transform) + sizeof(Vec2) * 2, sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(4, 1);
-
-		boundVaoSetAttribute(5, ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, atlasOffset), sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(5, 1);
-
-		boundVaoSetAttribute(6, ShaderDataType::Float, 2, offsetof(TexturedQuadInstanceData, size), sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(6, 1);
-
-		boundVaoSetAttribute(7, ShaderDataType::Float, 4, offsetof(TexturedQuadInstanceData, color), sizeof(TexturedQuadInstanceData));
-		glVertexAttribDivisor(7, 1);
-	}
-	{
-		std::vector<TextureAtlasInputImage> textureAtlasImages;
-
-		#define ADD_TO_ATLAS(spriteName, filename) \
-			const auto spriteName##Path = "assets/textures/" filename; \
-			textureAtlasImages.push_back(TextureAtlasInputImage{ .name = spriteName##Path, .image = Image32(spriteName##Path) });
-		
-		#define MAKE_SPRITE(name) \
-			{ \
-				const auto pos = nameToPos[name##Path]; \
-				name##Sprite = Sprite{ \
-					.offset = Vec2(pos.offset) / atlasTextureSize, \
-					.size = Vec2(pos.size) / atlasTextureSize, \
-					.aspectRatio = static_cast<float>(pos.size.y) / static_cast<float>(pos.size.x) \
-				}; \
-			}
-
-		ADD_TO_ATLAS(player, "player.png")
-		ADD_TO_ATLAS(bullet, "bullet.png")
-		ADD_TO_ATLAS(bullet2, "bullet2.png")
-		ADD_TO_ATLAS(bullet3, "bullet3.png")
-
-		auto [nameToPos, image] = generateTextureAtlas(textureAtlasImages);
-		const Texture::Settings settings {
-			.wrapS = Texture::Wrap::CLAMP_TO_EDGE,
-			.wrapT = Texture::Wrap::CLAMP_TO_EDGE,
-		};
-		atlasTexture = Texture(image, settings);
-		const auto atlasTextureSize = Vec2(Vec2T<int>(image.width(), image.height()));
-
-		MAKE_SPRITE(player);
-		MAKE_SPRITE(bullet);
-		MAKE_SPRITE(bullet2);
-		MAKE_SPRITE(bullet3);
-
-		#undef MAKE_SPRITE
-		#undef ADD_TO_ATLAS
-	}	
-	{
-		spriteShader = &ShaderManager::createShader("client/shader.vert", "client/shader.frag");
-	}
-	{
-		backgroundShader = &ShaderManager::createShader("client/background.vert", "client/background.frag");
-	}
-	camera.zoom /= 3.0f;
-
-	/*{
-		textShader = &CREATE_GENERATED_SHADER(TEXT);
-		fontVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-		fontVao.bind();
-		instancesVbo.bind();
-		addTextInstanceAttributesToVao(fontVao);
-	}*/
 
 	{
 		auto initializePostProcessFbo = [](Fbo& fbo, Texture& color) {
@@ -230,6 +157,9 @@ Renderer::Renderer()
 		initializePostProcessFbo(postProcessFbo0, postprocessTexture0);
 		initializePostProcessFbo(postProcessFbo1, postprocessTexture1);
 	}
+
+	camera.zoom /= 3.0f;
+
 }
 
 void Renderer::onResize() {
@@ -250,12 +180,6 @@ void Renderer::onResize() {
 	glViewport(0, 0, newSize.x, newSize.y);
 }
 
-//#define INSTANCED_DRAW_QUAD_PT(instanceName) \
-//	instanceName##Shader->use(); \
-//	instanceName##Vao.bind(); \
-//	instanceName##Instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
-//	instanceName##Instances.toDraw.clear();
-
 void Renderer::update() {
 	ShaderManager::update();
 	if (Input::isKeyHeld(KeyCode::F3) && Input::isKeyDown(KeyCode::T)) {
@@ -272,6 +196,9 @@ void Renderer::update() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	{
 		spaceBackgroundShader.use();
 		shaderSetUniforms(spaceBackgroundShader, SpaceBackgroundVertUniforms{ 
@@ -281,78 +208,11 @@ void Renderer::update() {
 		spaceBackgroundUniforms.borderRadius = 10.0f;
 		//GUI_PROPERTY_EDITOR(gui(spaceBackgroundUniforms));
 		shaderSetUniforms(spaceBackgroundShader, spaceBackgroundUniforms);
-		spriteVao.bind();
+		fullscreenQuadPtVao.bind();
 		fullscreenQuadPtIbo.bind();
 
 		glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 	}
-
-	{
-		spriteShader->use();
-		glActiveTexture(GL_TEXTURE0);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		atlasTexture.bind();
-		spriteShader->setTexture("textureAtlas", 0);
-
-		int toDraw = 0;
-		spriteVao.bind();
-		texturedQuadPerInstanceDataVbo.bind();
-		for (int i = 0; i < spritesToDraw.size(); i++) {
-			const auto& sprite = spritesToDraw[i];
-			auto& quad = texturedQuadPerInstanceData[toDraw];
-			quad.transform = camera.makeTransform(sprite.pos, sprite.rotation, sprite.size);
-			quad.atlasOffset = sprite.sprite.offset;
-			quad.size = sprite.sprite.size;
-			quad.color = sprite.color;
-			toDraw++;
-			if (toDraw == std::size(texturedQuadPerInstanceData) || i == spritesToDraw.size() - 1) {
-				boundVboSetData(0, texturedQuadPerInstanceData, toDraw * sizeof(TexturedQuadInstanceData));
-				glDrawElementsInstanced(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr, toDraw);
-				toDraw = 0;
-			}
-		}
-		spritesToDraw.clear();
-	}
-
-#define ANIMATION_UPDATE(animations, amount) \
-	do { \
-		for (auto& animation : animations) { \
-			animation.t += amount; \
-		} \
-		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
-	} while (false)
-
-#define ANIMATION_UPDATE_DEBUG(animations, amount) \
-	do { \
-		static auto updateAnimations = true; \
-		static auto speed = amount; \
-		ImGui::Checkbox("update", &updateAnimations); \
-		ImGui::SliderFloat("speed", &speed, 0.0f, 1.0f); \
-		int i = 0; \
-		for (auto& animation : animations) { \
-			if (updateAnimations) animation.t += speed; \
-			ImGui::PushID(i); \
-			ImGui::SliderFloat("t", &animation.t, 0.0f, 1.0f); \
-			ImGui::PopID(); \
-			i++; \
-		} \
-		std::erase_if(animations, [](const auto& animation) { return animation.t >= 1.0f; }); \
-	} while (false)
-
-#define ANIMATION_DEFULAT_SPAWN(animations, ...) \
-	do { \
-		if (ImGui::Button("spawn")) { \
-			animations.push_back((__VA_ARGS__)); \
-		} \
-	} while (false)
-
-	
-	#define INSTANCES_DRAW_QUAD(type) \
-		type.shader.use(); \
-		type.vao.bind(); \
-		type.instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
-		type.instances.toDraw.clear(); \
 	
 	INSTANCES_DRAW_QUAD(bullet);
 	INSTANCES_DRAW_QUAD(player);
@@ -366,7 +226,6 @@ void Renderer::update() {
 	for (const auto& animation : deathAnimations) {
 		deathAnimation.instances.toDraw.push_back(DeathAnimationInstance{
 			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 7.0f * PLAYER_HITBOX_RADIUS }),
-			//.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 60.0f * PLAYER_HITBOX_RADIUS }),
 			.color = animation.color,
 			.time = animation.t,
 		});
@@ -377,13 +236,8 @@ void Renderer::update() {
 	font.fontAtlas.bind();
 	text.shader.setTexture("fontAtlas", 0);
 	INSTANCES_DRAW_QUAD(text);
-	/*font.fontAtlas.bind();
-	textShader->use();
-	fontVao.bind();
-	textInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
-	textInstances.toDraw.clear();*/
 
-	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed.
+	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed (for example for downscaled blur. 
 
 	swapFbos();
 	Fbo::unbind();
@@ -394,7 +248,7 @@ void Renderer::update() {
 	currentReadTexture().bind();
 	postprocessShader.setTexture("colorBuffer", 0);
 
-	spriteVao.bind();
+	fullscreenQuadPtVao.bind();
 	glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 
 	drawDebugShapes();
@@ -488,14 +342,6 @@ Renderer::TextInfo Renderer::getTextInfo(const Font& font, float maxHeight, std:
 	};
 }
 
-void Renderer::drawSprite(Sprite sprite, Vec2 pos, float size, float rotation, Vec4 color) {
-	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, sprite.scaledSize(size), rotation, color});
-}
-
-void Renderer::drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation, Vec4 color) {
-	spritesToDraw.push_back(SpriteToDraw{ sprite, pos, size, rotation, color });
-}
-
 Fbo& Renderer::currentWriteFbo() {
 	if (currentFboIndex == 0) {
 		return postProcessFbo0;
@@ -553,10 +399,6 @@ void Renderer::drawDebugShapes() {
 		pos -= info.size / 2.0f;
 		addTextToDraw(this->text.instances, font, pos, text.height, text.text);
 	}
-}
-
-Vec2 Renderer::Sprite::scaledSize(float scale) const {
-	return scale * Vec2(1.0f, aspectRatio);
 }
 
 template<typename TypeInstances>

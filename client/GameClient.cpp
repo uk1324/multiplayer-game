@@ -226,7 +226,6 @@ void GameClient::update() {
 			if (!player.isRendered)
 				continue;
 
-			const auto& sprite = renderer.bulletSprite;
 			Vec2 sizeScale(1.0f);
 			float opacity = 1.0f;
 			//Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);

@@ -5,9 +5,7 @@
 #include <Engine/Graphics/Ibo.hpp>
 #include <Engine/Graphics/Texture.hpp>
 #include <Engine/Graphics/Fbo.hpp>
-#include <Engine/Graphics/TextureAtlasGenerator.hpp>
 #include <client/Camera.hpp>
-#include <engine/Math/Vec4.hpp>
 #include <client/Rendering/Shaders/deathAnimationData.hpp>
 #include <client/Rendering/Shaders/circleData.hpp>
 #include <client/Rendering/Shaders/lineData.hpp>
@@ -20,13 +18,6 @@
 #include <filesystem>
 
 struct Renderer {
-	struct Sprite {
-		Vec2 offset, size;
-		float aspectRatio;
-
-		Vec2 scaledSize(float scale) const;
-	};
-
 	Renderer();
 
 	void onResize();
@@ -44,29 +35,7 @@ struct Renderer {
 	Vbo instancesVbo;
 	Vbo fullscreenQuadPtVbo;
 	Ibo fullscreenQuadPtIbo;
-
-	Vao spriteVao;
-	struct TexturedQuadInstanceData {
-		Mat3x2 transform = Mat3x2::identity;
-		Vec2 atlasOffset;
-		Vec2 size;
-		Vec4 color;
-	};
-	Vbo texturedQuadPerInstanceDataVbo;
-	TexturedQuadInstanceData texturedQuadPerInstanceData[100];
-
-	ShaderProgram* spriteShader;
-
-	Texture atlasTexture;
-
-	struct SpriteToDraw {
-		Sprite sprite;
-		Vec2 pos;
-		Vec2 size;
-		float rotation;
-		Vec4 color;
-	};
-	std::vector<SpriteToDraw> spritesToDraw;
+	Vao fullscreenQuadPtVao;
 
 	template<typename TypeInstances>
 	struct Instances {
@@ -77,44 +46,21 @@ struct Renderer {
 		Vao vao;
 	};
 
-	/*PlayerInstances playerInstances;
-	ShaderProgram& playerShader;
-	Vao playerVao;*/
-
-
-	/*BulletInstances bulletInstances;
-	ShaderProgram& bulletShader;
-	Vao bulletVao;*/
 	Instances<PlayerInstances> player;
 	Instances<BulletInstances> bullet;
 	Instances<DeathAnimationInstances> deathAnimation;
-
-	Vao cooldownTimerVao;
-	ShaderProgram& cooldownTimerShader;
-	DeathAnimationInstances cooldownTimerInstances;
+	Instances<CooldownTimerInstances> cooldownTimer;
 
 	Font font;
-	/*ShaderProgram* textShader;
-	Vao fontVao;
-	TextInstances textInstances;*/
 	Instances<TextInstances> text;
 	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character);
 	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text);
-	/*void addTextToDrawCenteredX(TextInstances& instances, const Font& font, Vec2 pos, float height, std::string_view utf8Text);*/
 	struct TextInfo {
 		Vec2 size;
 		float bottomY;
 	};
 	TextInfo getTextInfo(const Font& font, float height, std::string_view utf8Text);
 
-	void drawSprite(Sprite sprite, Vec2 pos, float size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));
-	void drawSprite(Sprite sprite, Vec2 pos, Vec2 size, float rotation = 0.0f, Vec4 color = Vec4(1.0f));
-	Sprite playerSprite;
-	Sprite bulletSprite;
-	Sprite bullet2Sprite;
-	Sprite bullet3Sprite;
-
-	ShaderProgram* backgroundShader;
 	ShaderProgram& spaceBackgroundShader;
 	SpaceBackgroundFragUniforms spaceBackgroundUniforms{
 		.color0 = { 0.0f, 0.279424f, 0.509652f },
@@ -149,17 +95,6 @@ struct Renderer {
 	std::vector<DeathAnimation> deathAnimations;
 	std::vector<SpawnAnimation> spawnAnimations;
 
-	/*ShaderProgram* deathAnimationShader;
-	Vao deathAnimationVao;
-	DeathAnimationInstances deathAnimationInstances;*/
-	
-	/*ShaderProgram* circleShader;
-	Vao circleVao;
-	CircleInstances circleInstances;
-
-	ShaderProgram* lineShader;
-	Vao lineVao;
-	LineInstances lineInstances;*/
 	Instances<CircleInstances> circle;
 	Instances<LineInstances> line;
 	void drawDebugShapes();
