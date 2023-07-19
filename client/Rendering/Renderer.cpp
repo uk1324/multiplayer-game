@@ -159,7 +159,6 @@ Renderer::Renderer()
 	}
 
 	camera.zoom /= 3.0f;
-
 }
 
 void Renderer::onResize() {
@@ -232,11 +231,6 @@ void Renderer::update() {
 	}
 	INSTANCES_DRAW_QUAD(deathAnimation);
 
-	glActiveTexture(GL_TEXTURE0);
-	font.fontAtlas.bind();
-	text.shader.setTexture("fontAtlas", 0);
-	INSTANCES_DRAW_QUAD(text);
-
 	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed (for example for downscaled blur. 
 
 	swapFbos();
@@ -250,6 +244,13 @@ void Renderer::update() {
 
 	fullscreenQuadPtVao.bind();
 	glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
+
+	glActiveTexture(GL_TEXTURE0);
+	font.fontAtlas.bind();
+	text.shader.setTexture("fontAtlas", 0);
+	INSTANCES_DRAW_QUAD(text);
+
+	INSTANCES_DRAW_QUAD(cooldownTimer);
 
 	drawDebugShapes();
 }

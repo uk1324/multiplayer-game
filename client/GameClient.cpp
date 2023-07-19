@@ -176,8 +176,10 @@ void GameClient::update() {
 	auto addToRender = [
 		&players = std::as_const(players),
 		clientPlayerIndex = clientPlayerIndex,
+		&clientPlayer = std::as_const(clientPlayer),
 		&gameplayState = std::as_const(gameplayState),
 		selectedPattern = selectedPattern,
+		&input = std::as_const(input),
 
 		&renderer = renderer
 	] {
@@ -268,13 +270,40 @@ void GameClient::update() {
 		}
 
 		const auto aabb = renderer.camera.aabb();
-		Debug::drawPoint(aabb.max);
-		Debug::drawPoint(aabb.min);
-		/*renderer.addTextToDraw(renderer.textInstances, renderer.font, renderer.camera.pos, 2.0f / renderer.camera.zoom, patternInfos[selectedPattern].name);*/
-		// To make the cooldown meter smooth interpolate.
 
-		renderer.addTextToDraw(renderer.text.instances, renderer.font, aabb.min + Vec2(0.03f) / renderer.camera.zoom, 0.1f / renderer.camera.zoom, patternInfos[selectedPattern].name);
-		ImGui::Text("%d", selectedPattern);
+		// Height from -0.5 to 0.5
+		// Width is scaled by aspect ratio.
+		auto transformRelativeToAnchor = [&](Vec2 screenAnchor, Vec2 objectAnchorInObjectSpace, Vec2 objectPos, Vec2 objectSize) -> Mat3x2 {
+			// To go from [-0.5, 0.5] to [-1, 1].
+			const auto scale = 2.0f;
+			const auto toScreenAnchor = Mat3x2::translate(screenAnchor * scale);
+			const auto screenScale = Mat3x2::scale(Vec2(1.0f / renderer.camera.aspectRatio, 1.0f)) * Mat3x2::scale(Vec2(scale));
+			return (Mat3x2::scale(objectSize / 2.0f) * Mat3x2::translate(-objectAnchorInObjectSpace + objectPos)) * (screenScale * toScreenAnchor);
+		};
+
+		auto percentToWidth = [&](float percent) {
+			return percent * renderer.camera.aspectRatio;
+		};
+		//static float t = 0.0f;
+		//ImGui::SliderFloat("t", &t, 0.0f, 1.0f);
+		float t = 1.0f - clientPlayer.cooldown.of[input.selectedPattern] / patternInfos[input.selectedPattern].cooldown;
+
+		{
+			const Vec2 size(percentToWidth(0.35f), 0.075f);
+			const auto objectAnchor = -(size / 2.0f);
+			const Vec2 pos(0.02f);
+			renderer.cooldownTimer.instances.toDraw.push_back(CooldownTimerInstance{
+				.transform = transformRelativeToAnchor(Vec2(-0.5f, -0.5f), objectAnchor, pos, size),
+				.t = t,
+				.size = size
+			});
+
+
+			const auto text = patternInfos[selectedPattern].name;
+			const auto textHeight = 0.05f / renderer.camera.zoom;
+			const auto textPos = pos + Vec2(0.0f, size.y * 2.0f) + Vec2(0.09f, 0.05);
+			renderer.addTextToDraw(renderer.text.instances, renderer.font, aabb.min + textPos / renderer.camera.zoom, textHeight, text);
+		}
 	};
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);

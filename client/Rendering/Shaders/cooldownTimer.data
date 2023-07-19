@@ -5,6 +5,7 @@ shader CooldownTimer {
 	};
 	fragInstance = {
 		float t;
+		Vec2 size;
 	};
 	vertOut = {
 		Vec2 position;

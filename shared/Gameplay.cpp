@@ -122,26 +122,25 @@ void updateGameplayPlayer(
 	const auto deg180 = deg90 * deg90;
 	const auto deg270 = deg45.inversed();
 
-	auto updateCooldown = [&dt](float& cooldown) {
-		cooldown = std::max(0.0f, cooldown - dt);
-	};
-	updateCooldown(player.cooldowns.singleBullet);
-	updateCooldown(player.cooldowns.expandingTriangleStarPattern);
-	updateCooldown(player.cooldowns.spinningPattern);
-	put("%", player.cooldowns.singleBullet);
 
+	for (i32 type = 0; type < PatternType::PatternType::COUNT; type++) {
+		auto& cooldown = player.cooldown.of[type];
+		cooldown = std::max(0.0f, cooldown - dt);
+	}
+
+	using namespace PatternType;
 
 	if (input.shoot) {
-		if (input.selectedPattern == PatternType::SINLGE_BULLET && player.cooldowns.singleBullet == 0.0f) {
+		if (input.selectedPattern == SINLGE_BULLET && player.cooldown.of[SINLGE_BULLET] == 0.0f) {
 			const auto index = createBulletIndex<MoveForwardBulletIndex>(state, ownerFrame, playerIndex);
 			state.moveForwardBullets[index] = MoveForwardBullet{
 				.position = player.position,
 				.velocity = direction * 0.5f
 			};
-			player.cooldowns.singleBullet = patternInfos[PatternType::SINLGE_BULLET].cooldown;
+			player.cooldown.of[SINLGE_BULLET] = patternInfos[SINLGE_BULLET].cooldown;
 		} 
 
-		if (input.selectedPattern == PatternType::EXPANDING_TRIANGLE_STAR_PATTERN && player.cooldowns.expandingTriangleStarPattern == 0.0f) {
+		if (input.selectedPattern == EXPANDING_TRIANGLE_STAR_PATTERN && player.cooldown.of[EXPANDING_TRIANGLE_STAR_PATTERN]== 0.0f) {
 			// Expanding is just so the velocity has to be the vector from the center.
 			auto spawnExpandingPolygon = [&](float rotation, i32 sides, i32 bulletsPerSide) {
 				const auto step = TAU<float> / sides;
@@ -170,10 +169,10 @@ void updateGameplayPlayer(
 			};
 
 			spawnTriangleStar(input.rotation);
-			player.cooldowns.expandingTriangleStarPattern = patternInfos[PatternType::EXPANDING_TRIANGLE_STAR_PATTERN].cooldown;
+			player.cooldown.of[EXPANDING_TRIANGLE_STAR_PATTERN] = patternInfos[EXPANDING_TRIANGLE_STAR_PATTERN].cooldown;
 		}
 
-		if (input.selectedPattern == PatternType::SPINNING_PATTERN && player.cooldowns.spinningPattern == 0.0f) {
+		if (input.selectedPattern == SPINNING_PATTERN && player.cooldown.of[SPINNING_PATTERN] == 0.0f) {
 			auto spawnSpinningPattern = [&]() {
 				const auto index = createBulletIndex<SpinningPatternSpawnerIndex>(state, ownerFrame, playerIndex, SPINNING_PATTERN_BULLETS + 1);
 				state.spinningPatternSpawners[index] = SpinningPatternSpawner{
@@ -181,7 +180,7 @@ void updateGameplayPlayer(
 				};
 			};
 			spawnSpinningPattern();
-			player.cooldowns.spinningPattern = patternInfos[PatternType::SPINNING_PATTERN].cooldown;
+			player.cooldown.of[SPINNING_PATTERN] = patternInfos[SPINNING_PATTERN].cooldown;
 		}
 
 		

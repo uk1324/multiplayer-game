@@ -17,7 +17,8 @@ namespace PatternType {
 	enum PatternType {
 		SINLGE_BULLET,
 		EXPANDING_TRIANGLE_STAR_PATTERN,
-		SPINNING_PATTERN
+		SPINNING_PATTERN,
+		COUNT
 	};
 };
 
@@ -28,15 +29,13 @@ static constexpr PatternInfo patternInfos[] {
 };
 
 struct PlayerPatternCooldowns {
-	float singleBullet = 0.0f;
-	float expandingTriangleStarPattern = 0.0f;
-	float spinningPattern = 0.0f;
+	float of[PatternType::COUNT];
 };
 `
 
 struct [[NetworkSerialize, Json]] GameplayPlayer {
 	Vec2 position;
-	PlayerPatternCooldowns [[NoNetworkSerialize, NoJsonSerialize]] cooldowns;
+	PlayerPatternCooldowns [[NoNetworkSerialize, NoJsonSerialize]] cooldown;
 }
 
 struct ClientBulletSynchronizationData {
