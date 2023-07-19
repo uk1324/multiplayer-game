@@ -62,11 +62,10 @@ Renderer::Renderer()
 	, texturedQuadPerInstanceDataVbo(sizeof(texturedQuadPerInstanceData))
 	, atlasTexture(Texture::null())
 	, spriteVao(Vao::generate())
-	, deathAnimationVao(Vao::null())
-	, circleVao(Vao::null())
-	, lineVao(Vao::null())
+	/*, circleVao(Vao::null())
+	, lineVao(Vao::null())*/
 	, instancesVbo(INSTANCES_VBO_BYTES_SIZE)
-	, fontVao(Vao::null())
+	//, fontVao(Vao::null())
 	, font([]() {
 		Timer timer;
 		auto font = fontLoadSdfWithCaching(
@@ -88,39 +87,56 @@ Renderer::Renderer()
 	, postprocessTexture1(Texture::generate())
 	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag"))
 	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND))
-	, playerShader(CREATE_GENERATED_SHADER(PLAYER))
-	, playerVao(Vao::null())
-	, bulletShader(CREATE_GENERATED_SHADER(BULLET))
-	, bulletVao(Vao::null()) {
 
-	deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+//  Could use a function instead. That would require creating a empty type that that would be passed as a template.
+#define GENERATED_ARGS(NAME) CREATE_GENERATED_SHADER(NAME), createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo), instancesVbo
+
+	, bullet(GENERATED_ARGS(BULLET))
+	, player(GENERATED_ARGS(PLAYER))
+	, deathAnimation(GENERATED_ARGS(DEATH_ANIMATION))
+	, text(GENERATED_ARGS(TEXT))
+	, circle(GENERATED_ARGS(CIRCLE))
+	, line(GENERATED_ARGS(LINE))
+
+#undef GENERATED_ARGS
+
+	, cooldownTimerShader(CREATE_GENERATED_SHADER(COOLDOWN_TIMER))
+	, cooldownTimerVao(Vao::null()) {
+
+	/*deathAnimationVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	deathAnimationVao.bind();
 	instancesVbo.bind();
 	addDeathAnimationInstanceAttributesToVao(deathAnimationVao);
 	
-	deathAnimationShader = &CREATE_GENERATED_SHADER(DEATH_ANIMATION);
+	deathAnimationShader = &CREATE_GENERATED_SHADER(DEATH_ANIMATION);*/
 
-	circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	/*circleVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	circleVao.bind();
 	instancesVbo.bind();
 	addCircleInstanceAttributesToVao(circleVao);
-	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);
+	circleShader = &CREATE_GENERATED_SHADER(CIRCLE);*/
 
-	lineVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	/*lineVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	lineVao.bind();
 	instancesVbo.bind();
 	addLineInstanceAttributesToVao(lineVao);
-	lineShader = &CREATE_GENERATED_SHADER(LINE);
+	lineShader = &CREATE_GENERATED_SHADER(LINE);*/
 
-	playerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+
+	/*playerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 	playerVao.bind();
 	instancesVbo.bind();
-	addPlayerInstanceAttributesToVao(playerVao);
+	addPlayerInstanceAttributesToVao(playerVao);*/
 
-	bulletVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
-	bulletVao.bind();
+	//bulletVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	//bulletVao.bind();
+	//instancesVbo.bind();
+	//addBulletInstanceAttributesToVao(bulletVao);
+
+	cooldownTimerVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
+	cooldownTimerVao.bind();
 	instancesVbo.bind();
-	addBulletInstanceAttributesToVao(bulletVao);
+	addBulletInstanceAttributesToVao(cooldownTimerVao);
 
 	spriteVao.bind();
 	{
@@ -192,13 +208,13 @@ Renderer::Renderer()
 	}
 	camera.zoom /= 3.0f;
 
-	{
+	/*{
 		textShader = &CREATE_GENERATED_SHADER(TEXT);
 		fontVao = createPtVao(fullscreenQuadPtVbo, fullscreenQuadPtIbo);
 		fontVao.bind();
 		instancesVbo.bind();
 		addTextInstanceAttributesToVao(fontVao);
-	}
+	}*/
 
 	{
 		auto initializePostProcessFbo = [](Fbo& fbo, Texture& color) {
@@ -234,11 +250,11 @@ void Renderer::onResize() {
 	glViewport(0, 0, newSize.x, newSize.y);
 }
 
-#define INSTANCED_DRAW_QUAD_PT(instanceName) \
-	instanceName##Shader->use(); \
-	instanceName##Vao.bind(); \
-	instanceName##Instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
-	instanceName##Instances.toDraw.clear();
+//#define INSTANCED_DRAW_QUAD_PT(instanceName) \
+//	instanceName##Shader->use(); \
+//	instanceName##Vao.bind(); \
+//	instanceName##Instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
+//	instanceName##Instances.toDraw.clear();
 
 void Renderer::update() {
 	ShaderManager::update();
@@ -250,13 +266,12 @@ void Renderer::update() {
 	if (Window::resized()) {
 		onResize();
 	}
-	currentWriteFbo().bind();
+	camera.aspectRatio = Window::aspectRatio();
 
+	currentWriteFbo().bind();
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//Debug::keyboardMovementInput(camera.pos, 2.0f);
-	camera.aspectRatio = Window::aspectRatio();
 	{
 		spaceBackgroundShader.use();
 		shaderSetUniforms(spaceBackgroundShader, SpaceBackgroundVertUniforms{ 
@@ -333,17 +348,14 @@ void Renderer::update() {
 	} while (false)
 
 	
-	static float time = 0.0f;
-	time += 1.0 / 60.0f;
-	bulletShader.use();
-	bulletVao.bind();
-	bulletInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
-	bulletInstances.toDraw.clear();
-
-	playerShader.use(); 
-	playerVao.bind(); 
-	playerInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); 
-	playerInstances.toDraw.clear();
+	#define INSTANCES_DRAW_QUAD(type) \
+		type.shader.use(); \
+		type.vao.bind(); \
+		type.instances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices)); \
+		type.instances.toDraw.clear(); \
+	
+	INSTANCES_DRAW_QUAD(bullet);
+	INSTANCES_DRAW_QUAD(player);
 
 	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .color = Vec3(1.0f, 0.0f, 0.0f), .t = 0.0f, .playerIndex = 0});
 	ANIMATION_UPDATE(deathAnimations, 0.025f);
@@ -352,40 +364,36 @@ void Renderer::update() {
 	ANIMATION_UPDATE(spawnAnimations, 0.05f);
 
 	for (const auto& animation : deathAnimations) {
-		deathAnimationInstances.toDraw.push_back(DeathAnimationInstance{
+		deathAnimation.instances.toDraw.push_back(DeathAnimationInstance{
 			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 7.0f * PLAYER_HITBOX_RADIUS }),
 			//.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 60.0f * PLAYER_HITBOX_RADIUS }),
 			.color = animation.color,
 			.time = animation.t,
 		});
 	}
-	INSTANCED_DRAW_QUAD_PT(deathAnimation);
+	INSTANCES_DRAW_QUAD(deathAnimation);
 
 	glActiveTexture(GL_TEXTURE0);
 	font.fontAtlas.bind();
+	text.shader.setTexture("fontAtlas", 0);
+	INSTANCES_DRAW_QUAD(text);
+	/*font.fontAtlas.bind();
 	textShader->use();
-	textShader->setTexture("fontAtlas", 0);
 	fontVao.bind();
 	textInstances.drawCall(instancesVbo, INSTANCES_VBO_BYTES_SIZE, std::size(fullscreenQuadIndices));
-	textInstances.toDraw.clear();
+	textInstances.toDraw.clear();*/
 
 	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed.
 
-	{
-		static BloomFragUniforms uniforms{
-			.color = Color3::WHITE
-		};
-		//GUI_PROPERTY_EDITOR(gui(uniforms));
-		shaderSetUniforms(postprocessShader, uniforms);
-
-	}
-
 	swapFbos();
 	Fbo::unbind();
+
 	postprocessShader.use();
+
 	glActiveTexture(GL_TEXTURE0);
 	currentReadTexture().bind();
 	postprocessShader.setTexture("colorBuffer", 0);
+
 	spriteVao.bind();
 	glDrawElements(GL_TRIANGLES, std::size(fullscreenQuadIndices), GL_UNSIGNED_INT, nullptr);
 
@@ -418,7 +426,7 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 
 	if (info.isVisible()) {
 		const auto pixelSize = getQuadPixelSizeY(maxHeight);
-		textInstances.toDraw.push_back(TextInstance{
+		text.instances.toDraw.push_back(TextInstance{
 			.transform = camera.makeTransform(centerPos, 0.0f, size / 2.0f),
 			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
 			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),
@@ -518,7 +526,7 @@ void Renderer::drawDebugShapes() {
 		const auto direction = vector.normalized();
 		const auto width = line.width.has_value() ? *line.width : 20.0f / Window::size().y;
 		const auto pixelWidth = getQuadPixelSizeY(width);
-		lineInstances.toDraw.push_back(LineInstance{
+		this->line.instances.toDraw.push_back(LineInstance{
 			.transform = camera.makeTransform(line.start + vector / 2.0f, vector.angle(), Vec2(vector.length() / 2.0f + width, width)),
 			.color = Vec4(line.color, 1.0f),
 			.smoothing = 3.0f / pixelWidth,
@@ -526,27 +534,37 @@ void Renderer::drawDebugShapes() {
 			.lineLength = vector.length() + width * 2.0f,
 		});
 	}
-	INSTANCED_DRAW_QUAD_PT(line);
+	INSTANCES_DRAW_QUAD(line);
 
 	for (const auto& circle : Debug::circles) {
 		const auto pixelSize = getQuadPixelSizeY(circle.radius);
-		circleInstances.toDraw.push_back(CircleInstance{
+		this->circle.instances.toDraw.push_back(CircleInstance{
 			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
 			.color = Vec4(circle.color.x, circle.color.y, circle.color.z, 1.0f),
 			.smoothing = 5.0f / pixelSize,
 		});
 	}
-	INSTANCED_DRAW_QUAD_PT(circle);
+	INSTANCES_DRAW_QUAD(circle);
 
 	for (const auto& text : Debug::texts) {
 		const auto info = getTextInfo(font, text.height, text.text);
 		Vec2 pos = text.pos;
 		pos.y -= info.bottomY;
 		pos -= info.size / 2.0f;
-		addTextToDraw(textInstances, font, pos, text.height, text.text);
+		addTextToDraw(this->text.instances, font, pos, text.height, text.text);
 	}
 }
 
 Vec2 Renderer::Sprite::scaledSize(float scale) const {
 	return scale * Vec2(1.0f, aspectRatio);
 }
+
+template<typename TypeInstances>
+Renderer::Instances<TypeInstances>::Instances(ShaderProgram& shader, Vao&& vao, Vbo& instancesVbo)
+	: shader(shader)
+	, vao(std::move(vao)) {
+	this->vao.bind();
+	instancesVbo.bind();
+	TypeInstances::addInstanceAttributesToVao(this->vao);
+}
+

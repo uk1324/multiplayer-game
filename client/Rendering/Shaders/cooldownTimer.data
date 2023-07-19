@@ -1,0 +1,12 @@
+shader CooldownTimer {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	fragInstance = {
+		float t;
+	};
+	vertOut = {
+		Vec2 position;
+	};
+}

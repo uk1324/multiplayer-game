@@ -1,8 +1,5 @@
 shader Bloom {
 	generateVert = false;
-	fragUniforms = [[Gui]] {
-		color color;
-	};
 	vertOut = {
 		Vec2 texturePosition;
 	};

@@ -123,6 +123,8 @@ struct <shader.name>Instances {
     std::vector\<<shader.name>Instance\> toDraw;
 
     void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
+    // For template use.
+    static void addInstanceAttributesToVao(Vao& vao);
 };
 
 static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_VERT_PATH = "<shader.vertPathRelativeToWorkingDirectory>";

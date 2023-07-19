@@ -1,7 +1,5 @@
 #version 430 core
 
-uniform vec4 color; 
-
 in vec2 texturePosition; 
 out vec4 fragColor;
 
@@ -10,5 +8,5 @@ out vec4 fragColor;
 uniform sampler2D colorBuffer;
 
 void main() {
-	fragColor = vec4(texture(colorBuffer, texturePosition).rgb * color.rgb, 1.0);
+	fragColor = vec4(texture(colorBuffer, texturePosition).rgb, 1.0);
 }

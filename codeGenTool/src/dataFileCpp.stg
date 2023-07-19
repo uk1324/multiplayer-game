@@ -187,6 +187,10 @@ void <shader.name>Instances::drawCall(Vbo& instanceBuffer, usize instanceBufferS
         drawn += toDrawInThisDrawCall;
     }
 }
+
+void <shader.name>Instances::addInstanceAttributesToVao(Vao& vao) {
+    add<shader.name>InstanceAttributesToVao(vao);
+}
 >>
 
 setVaoAttribute(name, dataType, layout, instanceName) ::= <<

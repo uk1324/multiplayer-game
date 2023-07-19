@@ -207,7 +207,7 @@ void GameClient::update() {
 			const auto opacityChangeSeconds = 1.0f;
 			const auto opacity = 1.0f - std::clamp((bullet.elapsed - (BULLET_ALIVE_SECONDS - opacityChangeSeconds)) / opacityChangeSeconds, 0.0f, 1.0f);
 
-			renderer.bulletInstances.toDraw.push_back(BulletInstance{
+			renderer.bullet.instances.toDraw.push_back(BulletInstance{
 				// * 1.3f = Actual bullet size 
 				/*.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 1.3f),*/
 				.transform = renderer.camera.makeTransform(bullet.position, 0.0f, Vec2(BULLET_HITBOX_RADIUS) * 1.7f),
@@ -216,7 +216,7 @@ void GameClient::update() {
 		}
 
 		const auto drawPlayer = [&](Vec2 pos, Vec3 color, Vec2 sizeScale) {
-			renderer.playerInstances.toDraw.push_back(PlayerInstance{
+			renderer.player.instances.toDraw.push_back(PlayerInstance{
 				.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
 				.color = color,
 			});
@@ -274,7 +274,7 @@ void GameClient::update() {
 		/*renderer.addTextToDraw(renderer.textInstances, renderer.font, renderer.camera.pos, 2.0f / renderer.camera.zoom, patternInfos[selectedPattern].name);*/
 		// To make the cooldown meter smooth interpolate.
 
-		renderer.addTextToDraw(renderer.textInstances, renderer.font, aabb.min + Vec2(0.03f) / renderer.camera.zoom, 0.1f / renderer.camera.zoom, patternInfos[selectedPattern].name);
+		renderer.addTextToDraw(renderer.text.instances, renderer.font, aabb.min + Vec2(0.03f) / renderer.camera.zoom, 0.1f / renderer.camera.zoom, patternInfos[selectedPattern].name);
 		ImGui::Text("%d", selectedPattern);
 	};
 	renderer.camera.pos = clientPlayer.position;
