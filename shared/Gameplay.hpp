@@ -20,6 +20,10 @@ static constexpr float SHOOT_COOLDOWN = 0.4f;
 
 static constexpr float BULLET_ALIVE_SECONDS = 10.0f;
 
+// Dynamically changing the size of a coolidable border might be hard, because when the message reached the player the border should already be moved forward reliatve to the player. So the player would lag back.
+// Lockstep would be a bad idea.
+static constexpr float BORDER_RADIUS = 10.0f;
+
 Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt);
 
 // The update is separated like this, so when they do an input they see the state the are reacting to when the input is executed.

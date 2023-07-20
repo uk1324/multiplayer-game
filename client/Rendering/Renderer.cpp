@@ -204,7 +204,7 @@ void Renderer::update() {
 			.clipToWorld = camera.clipSpaceToWorldSpace()
 		});
 		spaceBackgroundUniforms.time += 1.0 / 60.0f;
-		spaceBackgroundUniforms.borderRadius = 10.0f;
+		spaceBackgroundUniforms.borderRadius = BORDER_RADIUS;
 		//GUI_PROPERTY_EDITOR(gui(spaceBackgroundUniforms));
 		shaderSetUniforms(spaceBackgroundShader, spaceBackgroundUniforms);
 		fullscreenQuadPtVao.bind();

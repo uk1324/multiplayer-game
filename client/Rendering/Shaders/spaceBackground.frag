@@ -138,6 +138,10 @@ void main() {
 		//col = vec3(d);
 		vec3 c0 = borderColor;
 
+		if (borderShape < 0) {
+			cellPos = vec2(0);
+		}
+		
 		float smoothing = 0.05;
 		c0 = mix(vec3(1.0), c0, smoothstep(0.0, smoothing, d));
 		//col = c0;
@@ -149,6 +153,8 @@ void main() {
 		opacity += (sin(time * 1.0 + n0 * 56) + 0.5) / 2.0 * 0.5;
 		opacity *= smoothstep(-opacitySmoothing, 0.0, borderShape);
 		col = blend(col, c0, opacity);
+
+		
 	}
 
 	fragColor = vec4(col, 1.0);

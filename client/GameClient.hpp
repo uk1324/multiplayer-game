@@ -99,6 +99,3 @@ struct GameClient {
 	} cooldownTimer;
 	
 };
-
-// Dynamically changing the size of the border might be hard, because when the message reached the player the border should already be moved forward reliatve to the player.
-// Lockstep would be a bad idea.

@@ -45,6 +45,13 @@ Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt) {
 	}
 	const auto velocity = input.shift ? PLAYER_SHIFT_SPEED : PLAYER_SPEED;
 	pos += direction.normalized() * dt * velocity;
+
+	const auto dist = pos.length();
+	const auto separation = dist - BORDER_RADIUS + PLAYER_HITBOX_RADIUS;
+	const auto normal = pos / dist;
+	if (separation > 0.0f) {
+		pos -= separation * normal;
+	}
 	return pos;
 }
 
