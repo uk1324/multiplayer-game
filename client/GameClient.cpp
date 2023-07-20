@@ -176,11 +176,8 @@ void GameClient::update() {
 	auto addToRender = [
 		&players = std::as_const(players),
 		clientPlayerIndex = clientPlayerIndex,
-		&clientPlayer = std::as_const(clientPlayer),
 		&gameplayState = std::as_const(gameplayState),
-		selectedPattern = selectedPattern,
-		&input = std::as_const(input),
-
+		
 		&renderer = renderer
 	] {
 		auto playerColor = [&](PlayerIndex playerIndex) {
@@ -268,43 +265,9 @@ void GameClient::update() {
 				drawPlayer(player.position, color, sizeScale);
 			}
 		}
-
-		const auto aabb = renderer.camera.aabb();
-
-		// Height from -0.5 to 0.5
-		// Width is scaled by aspect ratio.
-		auto transformRelativeToAnchor = [&](Vec2 screenAnchor, Vec2 objectAnchorInObjectSpace, Vec2 objectPos, Vec2 objectSize) -> Mat3x2 {
-			// To go from [-0.5, 0.5] to [-1, 1].
-			const auto scale = 2.0f;
-			const auto toScreenAnchor = Mat3x2::translate(screenAnchor * scale);
-			const auto screenScale = Mat3x2::scale(Vec2(1.0f / renderer.camera.aspectRatio, 1.0f)) * Mat3x2::scale(Vec2(scale));
-			return (Mat3x2::scale(objectSize / 2.0f) * Mat3x2::translate(-objectAnchorInObjectSpace + objectPos)) * (screenScale * toScreenAnchor);
-		};
-
-		auto percentToWidth = [&](float percent) {
-			return percent * renderer.camera.aspectRatio;
-		};
-		//static float t = 0.0f;
-		//ImGui::SliderFloat("t", &t, 0.0f, 1.0f);
-		float t = 1.0f - clientPlayer.cooldown.of[input.selectedPattern] / patternInfos[input.selectedPattern].cooldown;
-
-		{
-			const Vec2 size(percentToWidth(0.35f), 0.075f);
-			const auto objectAnchor = -(size / 2.0f);
-			const Vec2 pos(0.02f);
-			renderer.cooldownTimer.instances.toDraw.push_back(CooldownTimerInstance{
-				.transform = transformRelativeToAnchor(Vec2(-0.5f, -0.5f), objectAnchor, pos, size),
-				.t = t,
-				.size = size
-			});
-
-
-			const auto text = patternInfos[selectedPattern].name;
-			const auto textHeight = 0.05f / renderer.camera.zoom;
-			const auto textPos = pos + Vec2(0.0f, size.y * 2.0f) + Vec2(0.09f, 0.05);
-			renderer.addTextToDraw(renderer.text.instances, renderer.font, aabb.min + textPos / renderer.camera.zoom, textHeight, text);
-		}
 	};
+
+
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
 	chk(debugDraw) {
@@ -321,6 +284,20 @@ void GameClient::update() {
 		addToRender();
 	}
 
+	/*auto updateAndAddCooldownTimerToRender = [
+		&input = std::as_const(input),
+		&selectedPattern = selectedPattern,
+		&clientPlayer = std::as_const(clientPlayer),
+
+		&renderer = renderer,
+		&previousFrameSelectedPattern = previousFrameSelectedPattern,
+		&selectedPatternTransition = selectedPatternTransition,
+		&displayedCooldownTs = displayedCooldownTs
+	] {
+		
+	};*/
+	//updateAndAddCooldownTimerToRender();
+	cooldownTimer.updateAndRender(renderer, clientPlayer.cooldown, selectedPattern);
 
 	#ifdef DEBUG_INTERPOLATE_BULLETS
 	if (delays.has_value()) {
@@ -330,8 +307,6 @@ void GameClient::update() {
 		}
 	}
 	#endif 
-
-
 
 	if (delays.has_value()) {
 		/*ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);*/
@@ -586,4 +561,103 @@ void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNu
 			}
 		}
 	}
+}
+
+void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const PlayerPatternCooldowns& cooldown, i32 currentSelectedPattern) {
+	auto drawCooldownTimer = [
+		&renderer,
+		&displayedCooldownTs = std::as_const(displayedCooldownTs)
+	](i32 patternType, float movingDownProgress) {
+		// Height from -0.5 to 0.5
+		// Width is scaled by aspect ratio.
+		auto transformRelativeToAnchor = [&](Vec2 screenAnchor) -> Mat3x2 {
+			// To go from [-0.5, 0.5] to [-1, 1].
+			const auto scale = 2.0f;
+			const auto toScreenAnchor = Mat3x2::translate(screenAnchor * scale);
+			const auto screenScale = Mat3x2::scale(Vec2(1.0f / renderer.camera.aspectRatio, 1.0f)) * Mat3x2::scale(Vec2(scale));
+			return (screenScale * toScreenAnchor);
+		};
+
+		auto percentToWidth = [&](float percent) {
+			return percent * renderer.camera.aspectRatio;
+		};
+
+		const Vec2 size(percentToWidth(0.35f), 0.065f);
+		const auto objectAnchor = -(size / 2.0f);
+		Vec2 pos(0.02f);
+
+		const auto text = patternInfos[patternType].name;
+		const auto textHeight = 0.025f;
+		const auto textInfo = renderer.getTextInfo(renderer.font, textHeight, text);
+		const auto textPosOffset = Vec2(0.03f, -textInfo.bottomY + size.y + 0.01f);
+
+		const auto height = pos.y + textPosOffset.y + textInfo.size.y;
+
+		pos.y -= height * movingDownProgress;
+
+		Vec2 textPos = pos + textPosOffset;
+
+		const auto bottomLeftCorner = Vec2(-0.5f, -0.5f);
+		const auto anchorTransform = transformRelativeToAnchor(bottomLeftCorner);
+		const auto objectTransform = (Mat3x2::scale(size / 2.0f) * Mat3x2::translate(-objectAnchor + pos)) * anchorTransform;
+
+		float t = 1.0f - displayedCooldownTs[patternType];
+		renderer.cooldownTimer.instances.toDraw.push_back(CooldownTimerInstance{
+			.transform = objectTransform,
+			.t = t,
+			.size = size
+			});
+		renderer.addTextToDraw(renderer.text.instances, renderer.font, textPos, anchorTransform, textHeight, text);
+	};
+	const auto betweenTransitions = 0.25;
+	const auto hidingTime = 0.5f - betweenTransitions;
+	const auto hidingTimeLength = hidingTime;
+	const auto showingTime = 0.5 + betweenTransitions;
+	const auto showingTimeLength = hidingTimeLength;
+	if (previousFrameSelectedPattern != currentSelectedPattern) {
+		if (selectedPatternTransition.has_value()) {
+			const auto t = selectedPatternTransition->t;
+			if (const auto newNotDisplayedYet = t <= showingTime) {
+				selectedPatternTransition->newPattern = currentSelectedPattern;
+			} else {
+				selectedPatternTransition = SelectedPatternTransition{
+					.t = 1.0f - selectedPatternTransition->t,
+					.currentPattern = selectedPatternTransition->newPattern,
+					.newPattern = currentSelectedPattern,
+				};
+			}
+		} else {
+			selectedPatternTransition = SelectedPatternTransition{
+				.t = 0.0f,
+				.currentPattern = previousFrameSelectedPattern,
+				.newPattern = currentSelectedPattern
+			};
+		}
+	}
+
+	for (i32 patternType = 0; patternType < PatternType::PatternType::COUNT; patternType++) {
+		const auto actualCooldownT = cooldown.of[patternType] / patternInfos[patternType].cooldown;
+		const auto patternCooldown = patternInfos[patternType].cooldown;
+		const auto speed = 0.18f;
+		auto& displayedCooldown = displayedCooldownTs[patternType];
+		displayedCooldown = lerp(displayedCooldown, actualCooldownT, std::clamp(speed / patternCooldown, 0.0f, 1.0f));
+	}
+
+	if (selectedPatternTransition.has_value()) {
+		auto& t = selectedPatternTransition->t;
+		t += FRAME_DT_SECONDS * 2.0f;
+		if (t <= hidingTime) {
+			drawCooldownTimer(selectedPatternTransition->currentPattern, t / hidingTimeLength);
+		} else if (t > showingTime) {
+			drawCooldownTimer(selectedPatternTransition->newPattern, 1.0f - (t - 0.5f - betweenTransitions) / showingTimeLength);
+		}
+
+		if (t >= 1.0f) {
+			selectedPatternTransition = std::nullopt;
+		}
+	} else {
+		drawCooldownTimer(currentSelectedPattern, 0.0f);
+	}
+
+	previousFrameSelectedPattern = currentSelectedPattern;
 }

@@ -4,7 +4,7 @@
 #include <engine/Window.hpp>
 #include <engine/Input/Input.hpp>
 
-Mat3x2 objectTransform(Vec2 pos, float rotation, Vec2 scale) {
+Mat3x2 makeObjectTransform(Vec2 pos, float rotation, Vec2 scale) {
 	return Mat3x2::scale(scale) * Mat3x2::rotate(rotation) * Mat3x2::translate(Vec2(pos.x, pos.y));
 }
 
@@ -27,7 +27,7 @@ Mat3x2 Camera::clipSpaceToWorldSpace() const {
 }
 
 Mat3x2 Camera::makeTransform(Vec2 pos, float rotation, Vec2 scale) const {
-	const auto objectToWorld = objectTransform(pos, rotation, scale);
+	const auto objectToWorld = makeObjectTransform(pos, rotation, scale);
 	return objectToWorld * worldToCameraToNdc();
 }
 

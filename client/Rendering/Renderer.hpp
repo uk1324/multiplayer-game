@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Engine/Graphics/ShaderProgram.hpp>
 #include <Engine/Graphics/Vao.hpp>
 #include <Engine/Graphics/Ibo.hpp>
 #include <Engine/Graphics/Texture.hpp>
@@ -15,8 +14,8 @@
 #include <client/Rendering/Shaders/spaceBackgroundData.hpp>
 #include <client/Rendering/Shaders/cooldownTimerData.hpp>
 #include <client/Rendering/Font.hpp>
-#include <filesystem>
 
+// Maybe split the Renderer into a renderer and an animator. Animator would call the renderer and add new objects to draw.
 struct Renderer {
 	Renderer();
 
@@ -53,8 +52,8 @@ struct Renderer {
 
 	Font font;
 	Instances<TextInstances> text;
-	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character);
-	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text);
+	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character);
+	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text);
 	struct TextInfo {
 		Vec2 size;
 		float bottomY;

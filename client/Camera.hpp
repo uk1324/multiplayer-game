@@ -3,7 +3,7 @@
 #include <engine/Math/Mat3x2.hpp>
 #include <engine/Math/Aabb.hpp>
 
-Mat3x2 objectTransform(Vec2 pos, float rotation, Vec2 scale);
+Mat3x2 makeObjectTransform(Vec2 pos, float rotation, Vec2 scale);
 
 // When zoom is 1 the width goes from -1 to 1. So the width is 2.
 struct Camera {

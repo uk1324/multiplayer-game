@@ -267,7 +267,7 @@ float Renderer::getQuadPixelSizeY(float scale) const {
 	return scale * camera.zoom * Window::size().y;
 }
 
-Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, char32_t character) {
+Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character) {
 	const auto& characterIt = font.glyphs.find(character);
 	if (characterIt == font.glyphs.end()) {
 		return pos;
@@ -280,9 +280,13 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 	centerPos += size / 2.0f;
 
 	if (info.isVisible()) {
-		const auto pixelSize = getQuadPixelSizeY(maxHeight);
+		const auto characterTransform = makeObjectTransform(centerPos, 0.0f, size / 2.0f) * transform;
+		//const auto scaleTransform = (objectTransform(Vec2(0.0f), 0.0f, Vec2(0.0f, maxHeight)) * transform).removedTranslation();
+		// Using size.y for the scale pixel size calculation instead of max height seems more correct, because the all objects should have more similar smoothing then I think.
+		const auto scaleTransform = (makeObjectTransform(Vec2(0.0f), 0.0f, Vec2(0.0f, size.y)) * transform).removedTranslation();
+		const auto pixelSize = (Vec2(1.0f) * scaleTransform * Window::size()).y;
 		text.instances.toDraw.push_back(TextInstance{
-			.transform = camera.makeTransform(centerPos, 0.0f, size / 2.0f),
+			.transform = characterTransform,
 			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
 			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),
 			// This value is incorrect because it uses pixel size of the quad and not the size of the sdf outline. This looks good enough, but might vary between fonts.
@@ -294,12 +298,12 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 	return Vec2(pos.x + (info.advance.x >> 6) * scale, pos.y);
 }
 
-void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, float maxHeight, std::string_view utf8Text) {
+void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text) {
 	const char* current = utf8Text.data();
 	const char* end = utf8Text.data() + utf8Text.size();
 	while (const auto codepoint = Utf8::readCodePoint(current, end)) {
 		current = codepoint->next;
-		pos = addCharacterToDraw(instances, font, pos, maxHeight, codepoint->codePoint);
+		pos = addCharacterToDraw(instances, font, pos, transform, maxHeight, codepoint->codePoint);
 	}
 }
 
@@ -398,7 +402,7 @@ void Renderer::drawDebugShapes() {
 		Vec2 pos = text.pos;
 		pos.y -= info.bottomY;
 		pos -= info.size / 2.0f;
-		addTextToDraw(this->text.instances, font, pos, text.height, text.text);
+		addTextToDraw(this->text.instances, font, pos, camera.worldToCameraToNdc(), text.height, text.text);
 	}
 }
 

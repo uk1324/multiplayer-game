@@ -84,4 +84,21 @@ struct GameClient {
 
 	yojimbo::Client& client;
 	Renderer& renderer;
+
+	struct CooldownTimer {
+		i32 previousFrameSelectedPattern = 0;
+		struct SelectedPatternTransition {
+			float t;
+			i32 currentPattern;
+			i32 newPattern;
+		};
+		float displayedCooldownTs[PatternType::PatternType::COUNT]{ 0.0f };
+		std::optional<SelectedPatternTransition> selectedPatternTransition;
+
+		void updateAndRender(Renderer& renderer, const PlayerPatternCooldowns& cooldown, i32 currentSelectedPattern);
+	} cooldownTimer;
+	
 };
+
+// Dynamically changing the size of the border might be hard, because when the message reached the player the border should already be moved forward reliatve to the player.
+// Lockstep would be a bad idea.

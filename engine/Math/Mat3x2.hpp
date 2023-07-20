@@ -14,6 +14,7 @@ struct Mat3x2T {
 	auto operator[](isize i) const;
 
 	auto inversed() const -> Mat3x2T;
+	Mat3x2T removedTranslation() const;
 
 	static auto translate(const Vec2T<T> v) -> Mat3x2T;
 	static auto scale(const Vec2T<T> v) -> Mat3x2T;
@@ -69,6 +70,14 @@ auto Mat3x2T<T>::inversed() const -> Mat3x2T {
 		Vec2T{ -m[0][1] / det, m[0][0] / det },
 		Vec2T{ (m[0][1] * m[2][1] - m[2][0] * m[1][1]) / det, -(m[0][0] * m[2][1] - m[2][0] * -m[1][0]) / det }
 	};
+}
+
+template<typename T>
+Mat3x2T<T> Mat3x2T<T>::removedTranslation() const {
+	auto m = *this;
+	m[2][0] = 0.0f;
+	m[2][1] = 0.0f;
+	return m;
 }
 
 template<typename T>

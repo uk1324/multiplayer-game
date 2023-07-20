@@ -27,23 +27,27 @@ void Debug::drawPoint(Vec2 pos, Vec3 color) {
 	circles.push_back({ pos, 35.0f / Window::size().y, color });
 }
 
-void Debug::drawLine(Vec2 pos, Vec2 end, Vec3 color, std::optional<float> width) {
-	lines.push_back({ pos, end, width, color });
+void Debug::drawLine(Vec2 pos, Vec2 end, Vec3 color, std::optional<float> lineWidth) {
+	lines.push_back({ pos, end, lineWidth, color });
 }
 
-void Debug::drawRay(Vec2 start, Vec2 ray, Vec3 color, std::optional<float> width) {
-	drawLine(start, start + ray, color, width);
+void Debug::drawRay(Vec2 start, Vec2 ray, Vec3 color, std::optional<float> lineWidth) {
+	drawLine(start, start + ray, color, lineWidth);
 }
 
-void Debug::drawPolygon(std::span<Vec2> vertices, Vec3 color, std::optional<float> width) {
+void Debug::drawPolygon(std::span<const Vec2> vertices, Vec3 color, std::optional<float> lineWidth) {
 	if (vertices.size() < 2)
 		return;
 
 	int previous = vertices.size() - 1;
 	for (int i = 0; i < vertices.size(); previous = i, i++) {
-		Debug::drawLine(vertices[previous], vertices[i], color, width);
+		Debug::drawLine(vertices[previous], vertices[i], color, lineWidth);
 		previous = i;
 	}
+}
+
+void Debug::drawAabb(const Aabb& aabb, Vec3 color, std::optional<float> lineWidth) {
+	Debug::drawPolygon(aabb.getCorners(), color, lineWidth);
 }
 
 

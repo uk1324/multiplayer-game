@@ -15,9 +15,10 @@ namespace Debug {
 
 	void drawCircle(Vec2 pos, float radius, Vec3 color = DEFAULT_COLOR);
 	void drawPoint(Vec2 pos, Vec3 color = DEFAULT_COLOR);
-	void drawLine(Vec2 pos, Vec2 end, Vec3 color = DEFAULT_COLOR, std::optional<float> width = std::nullopt);
-	void drawRay(Vec2 start, Vec2 ray, Vec3 color = DEFAULT_COLOR, std::optional<float> width = std::nullopt);
-	void drawPolygon(std::span<Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> width = std::nullopt);
+	void drawLine(Vec2 pos, Vec2 end, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawRay(Vec2 start, Vec2 ray, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawPolygon(std::span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawAabb(const Aabb& aabb, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 
 	auto drawStr(Vec2 pos, const char* text, const Vec3& color = DEFAULT_COLOR, float height = 0.1f) -> void;
 	template<typename T>
