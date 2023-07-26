@@ -13,6 +13,7 @@
 #include <client/Rendering/Shaders/bulletData.hpp>
 #include <client/Rendering/Shaders/spaceBackgroundData.hpp>
 #include <client/Rendering/Shaders/cooldownTimerData.hpp>
+#include <client/Rendering/Shaders/transitionScreenData.hpp>
 #include <client/Rendering/Font.hpp>
 
 // Maybe split the Renderer into a renderer and an animator. Animator would call the renderer and add new objects to draw.
@@ -49,6 +50,7 @@ struct Renderer {
 	Instances<BulletInstances> bullet;
 	Instances<DeathAnimationInstances> deathAnimation;
 	Instances<CooldownTimerInstances> cooldownTimer;
+	Instances<TransitionScreenInstances> transitionScreen;
 
 	Font font;
 	Instances<TextInstances> text;
@@ -81,13 +83,12 @@ struct Renderer {
 
 	struct DeathAnimation {
 		Vec2 position;
-		Vec3 color;
 		float t = 0.0f;
-		int playerIndex;
+		u32 playerIndex;
 	};
 
 	struct SpawnAnimation {
-		int playerIndex;
+		u32 playerIndex;
 		float t = 0.0;
 	};
 

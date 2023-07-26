@@ -10,6 +10,10 @@
 #include <optional>
 #include <span>
 
+// TODO: Maybe have way to pass defines to the shader. This could be used to keep constants the same in shader and the c++ code. Like for example length of a part of an animation.
+// Another option could be to create a struct of defines inside the generated struct. 
+// Both those options don't make it harder to change the values at runtime.
+// It might be simpler to just use uniforms.
 class ShaderProgram {
 public:
 	struct Error {

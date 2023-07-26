@@ -12,6 +12,13 @@ MainLoop::MainLoop()
 	//Window::enableWindowedFullscreen();
 }
 
+/*
+C++ doesn't seperate object allocation and intialization. This is probably because of destructors, which require the object to be in a correct state at all times.
+
+Implementing a reset function that reinitializes the object into it's initial state without reallocating is very error prone.
+
+One way to handle this could be to move the allocated objects from the old instance into the new instance. Which lets you choose which objects to take from the old instance, but still doesn't solve the problem of resetting the state of the taken members. The only full soultion might be generating the reset function using a code generator.
+*/
 MainLoop::~MainLoop() {
 	client.Disconnect();
 }
@@ -30,42 +37,68 @@ void MainLoop::update() {
 	}
 
 	Debug::update(renderer.camera, 1.0f / 60.0f);
+	//static float s = -2.0f;
+	//s += 0.05;
+	//ImGui::SliderFloat("s", &s, 0.0f, 1.0f);
+	//renderer.transitionScreen.instances.toDraw.push_back(TransitionScreenInstance{
+	//	.translation = Vec2(s, 0.0f)
+	//});
 	if (client.IsConnected()) {
 		processMessages();
-		if (game.joinedGame()) {
+	}
+
+	switch (state)
+	{
+	case MainLoop::State::MENU:
+		menu();
+		break;
+
+	case MainLoop::State::GAME:
+		if (client.IsConnected()) {
 			game.update();
+		} else {
+			state = State::MENU;
+		}
+		break;
+	default:
+		break;
+	}
+
+	renderer.update();
+	// Should you call sent packets if it isn't connected?
+	client.SendPackets(); // Could send packets eailer, maybe before render.
+}
+
+void MainLoop::menu() {
+	using namespace ImGui;
+
+	Begin("game menu");
+
+	static char input[20] = "127.0.0.1";
+
+	{
+		BeginDisabled(client.IsConnecting());
+		InputText("address", input, sizeof(input));
+		EndDisabled();
+	}
+
+	if (!client.IsConnecting()) {
+		if (Button("connect")) {
+			connect(yojimbo::Address(input, SERVER_PORT));
 		}
 	} else {
-		ImGui::Begin("game menu");
-
-		static char input[20] = "127.0.0.1";
-
-		{
-			ImGui::BeginDisabled(client.IsConnecting());
-			ImGui::InputText("address", input, sizeof(input));
-			ImGui::EndDisabled();
+		if (Button("stop connecting")) {
+			client.Disconnect();
 		}
-
-		if (!client.IsConnecting()) {
-			if (ImGui::Button("connect")) {
-				connect(yojimbo::Address(input, SERVER_PORT));
-			}
-		} else {
-			if (ImGui::Button("stop connecting")) {
-				client.Disconnect();
-			}
-		}
-
-		if (client.ConnectionFailed()) {
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-			ImGui::Text("failed to connect");
-			ImGui::PopStyleColor();
-		}
-
-		ImGui::End();
 	}
-	renderer.update();
-	client.SendPackets(); // Could send packets eailer, maybe right after processing input or after render.
+
+	if (client.ConnectionFailed()) {
+		PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+		Text("failed to connect");
+		PopStyleColor();
+	}
+
+	ImGui::End();
 }
 
 void MainLoop::processMessages() {
@@ -80,22 +113,25 @@ void MainLoop::processMessages() {
 }
 
 void MainLoop::processMessage(yojimbo::Message* message) {
-	if (client.IsConnected() && game.joinedGame()) {
+	if (client.IsConnected() && state == State::GAME) {
 		game.processMessage(message);
 	}
 
 	switch (message->GetType()) {
 		case GameMessageType::JOIN: {
-			if (game.joinedGame()) {
+			if (state == State::GAME) {
 				CHECK_NOT_REACHED();
 				break;
-			} 
+			}
 			const auto msg = static_cast<JoinMessage*>(message);
-			game.onJoin(*msg);
+			GameClient newInstance(*msg, std::move(game));
+			// C++ doesn't allow assigning to objects with references or const fields.
+			// https://stackoverflow.com/questions/7906127/assignment-operator-with-reference-members
+			game.~GameClient();
+			new (&game) GameClient(std::move(newInstance));
+			state = State::GAME;
 			break;
 		}
-	default:
-		break;
 	}
 }
 
@@ -112,6 +148,5 @@ void MainLoop::connect(const yojimbo::Address& address) {
 }
 
 void MainLoop::onDisconnected() {
-	game.onDisconnected();
 }
 

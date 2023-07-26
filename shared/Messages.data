@@ -6,11 +6,22 @@ static const int MAX_CLIENTS = 64;
 
 `
 
+struct [[NetworkSerialize]] LeaderboardEntry {
+    ranged_int<`0`, `INT32_MAX`> kills = `0`;
+    ranged_int<`0`, `INT32_MAX`> deaths = `0`;
+}
+
+struct [[NetworkSerialize]] JoinMessagePlayer {
+    PlayerIndex playerIndex;
+    bool isAlive;
+    LeaderboardEntry leaderboard;
+}
+
 struct
 [[NetworkSerialize, NetworkMessage]]
 JoinMessage {
     ranged_int<`0`, `MAX_CLIENTS`> clientPlayerIndex = `0`;
-    FrameTime serverFrame;
+    vector<JoinMessagePlayer> players;
 }
 
 struct [[NetworkSerialize]] WorldUpdateMessagePlayer {
@@ -25,4 +36,23 @@ struct [[NetworkSerialize, NetworkMessage]] WorldUpdateMessage {
 
     GameplayState gemeplayState;
     vector<WorldUpdateMessagePlayer> players;
+}
+
+struct [[NetworkSerialize]] LeaderboardUpdateEntry {
+    PlayerIndex playerIndex;
+    LeaderboardEntry entry;
+}
+
+struct [[NetworkSerialize, NetworkMessage]] LeaderboardUpdateMessage {
+    vector<LeaderboardUpdateEntry> entries;
+}
+
+struct [[NetworkSerialize, NetworkMessage]] SpawnPlayerMessage {
+    PlayerIndex playerIndex;
+}
+
+struct [[NetworkSerialize, NetworkMessage]] SpawnRequestMessage {}
+
+struct [[NetworkSerialize, NetworkMessage]] PlayerJoinedMessage {
+    JoinMessagePlayer player;
 }

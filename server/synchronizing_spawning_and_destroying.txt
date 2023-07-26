@@ -1,0 +1,15 @@
+1. Send a isAlive field with each player. If the bool changed then based on the previous value either play the death or spawn animation.
+
+Player dies, but message didn't arrive. isAlive = true
+Player spawns. isAlive = true
+The player gets interpolated from the position before death to the position after death. isAlive = true
+
+2. Send ordered messages when an object is created and destroyed.
+
+Bullets from the world update message might spawn before the player spawn message arrived.
+
+3. Use 2 for destruction use 1 for spawning.
+
+4. Sending a last death time might fix some things, but It would make things compilcated.
+
+The ordered and unordered stream might not be in synch with eachother.

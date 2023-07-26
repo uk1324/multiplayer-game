@@ -42,7 +42,7 @@ void main() {
 		a = 1.0 - t;
 	}
 
-	vec3 col = color.rgb * max(0.5, octave01(p * 4.0, 3));
-	col = color * max(0.5, octave01(p * 4.0, 3));
+	vec3 col;
+	col = color.rgb * max(0.5, octave01(p + 5.0, 1));
 	fragColor = mix(vec4(col, 0.0), vec4(col, 1.0), a) * d;
 }

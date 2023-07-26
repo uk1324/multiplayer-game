@@ -1,0 +1,6 @@
+shader TransitionScreen {
+	vertexFormat = PT;
+	vertInstance = {
+		Vec2 translation;
+	};
+}

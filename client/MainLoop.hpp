@@ -16,6 +16,7 @@ struct MainLoop {
 	MainLoop();
 	~MainLoop();
 	void update();
+	void menu();
 
 	void processMessages();
 	void processMessage(yojimbo::Message* message);
@@ -24,9 +25,29 @@ struct MainLoop {
 
 	void onDisconnected();
 
+	enum class State {
+		MENU,
+		GAME,
+	};
+	State state = State::MENU;
+
 	GameClientAdapter adapter;
 	yojimbo::Client client;
 
 	GameClient game;
 	Renderer renderer;
+
+	struct ScreenTransition {
+		void begin();
+		void uncover();
+
+		enum class State {
+			FINISHED,
+			COVERING,
+			COVERED_AND_WATING,
+			UNCOVERING
+		};
+		State state = State::FINISHED;
+		float t = 0.0f;
+	} screenTransition;
 };

@@ -132,6 +132,7 @@ Renderer::Renderer()
 	, circle(GENERATED_ARGS(CIRCLE))
 	, line(GENERATED_ARGS(LINE))
 	, cooldownTimer(GENERATED_ARGS(COOLDOWN_TIMER))
+	, transitionScreen(GENERATED_ARGS(TRANSITION_SCREEN))
 
 #undef GENERATED_ARGS
 	{
@@ -216,19 +217,12 @@ void Renderer::update() {
 	INSTANCES_DRAW_QUAD(bullet);
 	INSTANCES_DRAW_QUAD(player);
 
-	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .color = Vec3(1.0f, 0.0f, 0.0f), .t = 0.0f, .playerIndex = 0});
-	ANIMATION_UPDATE(deathAnimations, 0.025f);
+	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0});
+	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
 	ANIMATION_UPDATE(spawnAnimations, 0.05f);
 
-	for (const auto& animation : deathAnimations) {
-		deathAnimation.instances.toDraw.push_back(DeathAnimationInstance{
-			.transform = camera.makeTransform(animation.position, 0.0f, Vec2{ 7.0f * PLAYER_HITBOX_RADIUS }),
-			.color = animation.color,
-			.time = animation.t,
-		});
-	}
 	INSTANCES_DRAW_QUAD(deathAnimation);
 
 	// Maybe render to only a part of the texture and only read from a part of it in the next pass if needed (for example for downscaled blur. 
@@ -253,6 +247,8 @@ void Renderer::update() {
 	INSTANCES_DRAW_QUAD(cooldownTimer);
 
 	drawDebugShapes();
+
+	INSTANCES_DRAW_QUAD(transitionScreen);
 }
 
 Vec2 Renderer::getQuadPixelSize(Vec2 scale) const {

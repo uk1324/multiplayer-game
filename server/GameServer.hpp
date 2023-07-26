@@ -36,7 +36,10 @@ struct GameServer {
 		};
 		std::queue<InputWithSequenceNumber> inputs;
 
+		LeaderboardEntry leaderboard;
 		GameplayPlayer gameplayPlayer;
+		// TODO: Change to false later.
+		bool isAlive = false;
 	};
 
 	GameplayState gameplayState;

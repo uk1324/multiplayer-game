@@ -106,11 +106,47 @@ void GameServer::update() {
 			player.newestExecutedInputClientSequenceNumber = clientSequenceNumber;
 
 			// Should shoot inputs be applied instantly? There would be a cooldown between shoots so there might not be an issue.
-			updateGameplayPlayer(playerIndex, player.gameplayPlayer, gameplayState, input, clientSequenceNumber, FRAME_DT_SECONDS);
+			if (player.isAlive) {
+				updateGameplayPlayer(playerIndex, player.gameplayPlayer, gameplayState, input, clientSequenceNumber, FRAME_DT_SECONDS);
+			}
 		}
 	}	
 	ServerGameplayContext context(*this);
 	updateGameplayStateAfterProcessingInput(gameplayState, context, FRAME_DT_SECONDS);
+
+	for (auto& [playerIndex, player] : players) {
+		if (!player.isAlive)
+			continue;
+
+		for (const auto& [bulletIndex, bullet] : gameplayState.moveForwardBullets) {
+			if (bulletIndex.ownerPlayerIndex == playerIndex) {
+				continue;
+			}
+
+			const auto collided = (player.gameplayPlayer.position - bullet.position).lengthSq() < pow(BULLET_HITBOX_RADIUS + PLAYER_HITBOX_RADIUS, 2.0f);
+			if (!collided) {
+				continue;
+			}
+
+			auto owner = get(players, bulletIndex.ownerPlayerIndex);
+			if (!owner.has_value()) {
+				CHECK_NOT_REACHED();
+				continue;
+			}
+			owner->leaderboard.kills++;
+			player.leaderboard.deaths++;
+			player.isAlive = false;
+			broadcastMessage<LeaderboardUpdateMessage>(
+				server,
+				GameChannel::RELIABLE,
+				GameMessageType::LEADERBOARD_UPDATE,
+				[&](LeaderboardUpdateMessage& message) {
+					message.entries.push_back({ bulletIndex.ownerPlayerIndex, owner->leaderboard });
+					message.entries.push_back({ playerIndex, player.leaderboard });
+				}
+			);
+		}
+	}
 
 	if (frame % SERVER_UPDATE_SEND_RATE_DIVISOR == 0) {
 		broadcastWorldState();
@@ -182,9 +218,24 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 		break;
 	}
 
-
-	case GameMessageType::SPAWN_REQUEST:
+	case GameMessageType::SPAWN_REQUEST: {
+		put("received spawn request from %", clientIndex);
+		auto player = get(players, clientIndex);
+		if (!player.has_value()) {
+			CHECK_NOT_REACHED();
+			return;
+		}
+		player->isAlive = true;
+		broadcastMessage<SpawnPlayerMessage>(
+			server,
+			GameChannel::RELIABLE,
+			GameMessageType::SPAWN_PLAYER,
+			[&](SpawnPlayerMessage& msg) {
+				msg.playerIndex = clientIndex;
+			}
+		);
 		break;
+	}
 
 	default:
 		break;
@@ -193,16 +244,40 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 
 void GameServer::onClientConnected(int clientIndex) {
 	std::cout << "client connected " << clientIndex << '\n';
-	/*players[clientIndex] = Player{};*/
 	const Player player{
 		.gameplayPlayer = {
 			.position = Vec2(0.0f)
 		}
 	};
-	players.insert({ clientIndex, player });
-	const auto msg = reinterpret_cast<JoinMessage*>(server.CreateMessage(clientIndex, GameMessageType::JOIN));
 
-	//msg->sentTime = frame;
+	auto joinMessagePlayerFromPlayer = [](PlayerIndex playerIndex, const Player& player) {
+		return JoinMessagePlayer{
+			.playerIndex = playerIndex,
+			.isAlive = player.isAlive,
+			.leaderboard = player.leaderboard,
+		};
+	};
+
+	players.insert({ clientIndex, player });
+
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (i == clientIndex) {
+			continue;
+		}
+
+		if (!server.IsClientConnected(i)) {
+			continue;
+		}
+		auto message = reinterpret_cast<PlayerJoinedMessage*>(server.CreateMessage(i, GameMessageType::PLAYER_JOINED));
+		message->player = joinMessagePlayerFromPlayer(clientIndex, player);
+		server.SendMessage(i, GameChannel::RELIABLE, message);
+	}
+
+	const auto msg = reinterpret_cast<JoinMessage*>(server.CreateMessage(clientIndex, GameMessageType::JOIN));
+	for (const auto& [playerIndex, player] : players) {
+		msg->players.push_back(joinMessagePlayerFromPlayer(playerIndex, player));
+	}
+
 	msg->clientPlayerIndex = clientIndex;
 	server.SendMessage(clientIndex, GameChannel::RELIABLE, msg);
 }
@@ -235,9 +310,13 @@ void GameServer::broadcastWorldState() {
 		message->lastReceivedInputClientSequenceNumber = *player->newestReceivedInputClientSequenceNumber;
 		message->serverSequenceNumber = sequenceNumber;
 		for (const auto& [playerIndex, player] : players) {
+			if (!player.isAlive) {
+				continue;
+			}
+				
 			message->players.push_back(WorldUpdateMessagePlayer{
 				.playerIndex = playerIndex,
-				.position = player.gameplayPlayer.position
+				.position = player.gameplayPlayer.position,
 			});
 		}
 		// TODO: Don't copy the whole state. Could just pass a reference (both on the client and server). For the server could add an additional counter to make sure that the data hasn't been modified from the creation time to serialization time. This shouldn't be a problem I think, because this is an unreliable message. If needed could use shared pointers. On the clinet there would just be 2 states one for loading which would be reset before deserizalizing and another for actual use.

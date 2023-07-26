@@ -25,8 +25,21 @@ static float average(const std::vector<T> vs) {
 
 GameClient::GameClient(yojimbo::Client& client, Renderer& renderer)
 	: client(client)
-	, renderer(renderer) {
+	, renderer(renderer) {}
 
+GameClient::GameClient(const JoinMessage& join, GameClient&& old)
+	: clientPlayerIndex(join.clientPlayerIndex)
+	, client(old.client)
+	, renderer(old.renderer)
+	, players(std::move(old.players)) {
+	players.clear();
+
+	for (const auto& player : join.players) {
+		addJoinMessagePlayer(player);
+	}
+
+	replayRecorder.outputFile += std::to_string(clientPlayerIndex);
+	put("join clientPlayerIndex = %", clientPlayerIndex);
 }
  
 void gui(const yojimbo::NetworkInfo& info) {
@@ -45,11 +58,55 @@ void GameClient::update() {
 		CHECK_NOT_REACHED();
 		return;
 	}
+	ImGui::ShowDemoWindow();
+	if (Input::isKeyHeld(KeyCode::TAB)) {
+		using namespace ImGui;
 
-	if (!joinedGame()) {
-		CHECK_NOT_REACHED();
-		return;
+		auto& style = GetStyle();
+		auto& io = GetIO();
+		SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+		SetNextWindowSize(ImVec2(0.0f, 0.0f));
+
+		PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		auto background = GetStyleColorVec4(ImGuiCol_WindowBg);
+		background.w = 0.5f;
+		PushStyleColor(ImGuiCol_WindowBg, background);
+
+		Begin("leaderboard", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+		PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(42.0f, 12.0f));
+
+		if (BeginTable("table1", 3, ImGuiTableFlags_BordersH)) {
+
+			TableNextRow();
+
+			TableNextColumn();
+			Text("player index");
+			TableNextColumn();
+			Text("kills");
+			TableNextColumn();
+			Text("deaths");
+
+			for (const auto& [playerIndex, player] : players) {
+				TableNextRow();
+
+				TableNextColumn();
+				Text("%d", playerIndex);
+				TableNextColumn();
+				Text("%d", player.leaderboard.kills);
+				TableNextColumn();
+				Text("%d", player.leaderboard.deaths);
+			}
+
+			EndTable();
+		}
+		PopStyleVar();
+
+		End();
+		PopStyleVar(2);
+		PopStyleColor();
 	}
+	
 
 	if (replayRecorder.isRecording) {
 		replayRecorder.addFrame({ clientPlayer }, gameplayState);
@@ -89,6 +146,17 @@ void GameClient::update() {
 		};
 	}();
 
+	{
+		auto player = get(players, clientPlayerIndex);
+		if (player.has_value()) {
+			if (!player->isAlive && Input::isKeyDown(KeyCode::SPACE)) {
+				sendSpawnRequest();
+			}
+		} else {
+			CHECK_NOT_REACHED();
+		}
+	}
+
 	auto activateInactiveBullets = [
 		sequenceNumber = sequenceNumber,
 
@@ -112,11 +180,17 @@ void GameClient::update() {
 		sequenceNumber = sequenceNumber,
 		&input,
 		newestUpdateLastReceivedClientSequenceNumber = newestUpdateLastReceivedClientSequenceNumber,
+		players = std::as_const(players),
 
 		&pastInputs = pastInputs,
 		&clientPlayer = clientPlayer,
 		&gameplayState = gameplayState
 	] {
+
+		const auto player = get(players, clientPlayerIndex);
+		if (player.has_value() && !player->isAlive) {
+			return;
+		}
 
 		pastInputs.push_back({ input, sequenceNumber });
 		int toRemoveFromBackCount = 0;
@@ -214,56 +288,73 @@ void GameClient::update() {
 			});
 		}
 
-		const auto drawPlayer = [&](Vec2 pos, Vec3 color, Vec2 sizeScale) {
+		/*const auto drawPlayer = [&](Vec2 pos, Vec3 color, Vec2 sizeScale) {
+			
+		};*/
+
+		auto drawPlayer = [&](PlayerIndex playerIndex, Vec2 pos, Vec2 scale) {
 			renderer.player.instances.toDraw.push_back(PlayerInstance{
-				.transform = renderer.camera.makeTransform(pos, 0.0f, sizeScale * Vec2(PLAYER_HITBOX_RADIUS / 0.1 /* Read shader */)),
-				.color = color,
+				.transform = renderer.camera.makeTransform(pos, 0.0f, scale * Vec2(PLAYER_HITBOX_RADIUS / 0.1f /* Read shader */)),
+				.color = playerColor(playerIndex),
 			});
 		};
 
 		for (const auto& [playerIndex, player] : players) {
-			if (!player.isRendered)
+			if (!player.isAlive)
 				continue;
 
 			Vec2 sizeScale(1.0f);
-			float opacity = 1.0f;
-			//Vec4 color = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 			for (const auto& animation : renderer.spawnAnimations) {
 				if (playerIndex == animation.playerIndex) {
 					auto t = animation.t;
 					sizeScale.y *= lerp(2.0f, 1.0f, t);
 					sizeScale.x *= lerp(0.0f, 1.0f, t); // Identity function lol
-					opacity = t;
 					break;
 				}
 			}
-			//renderer.drawSprite(sprite, player.position, size, 0.0f, color);
-			const auto SNEAKING_ANIMATION_DURATION = 0.3f;
-			static std::optional<float> sneakingElapsed;
-			if (Input::isKeyHeld(KeyCode::LEFT_SHIFT)) {
-				if (!sneakingElapsed.has_value()) {
-					sneakingElapsed = 0.0f;
-				} else {
-					*sneakingElapsed += FRAME_DT_SECONDS;
-					sneakingElapsed = std::min(*sneakingElapsed, SNEAKING_ANIMATION_DURATION);
-				}
-			} else {
-				if (sneakingElapsed.has_value()) {
-					*sneakingElapsed -= FRAME_DT_SECONDS;
-					if (sneakingElapsed <= 0.0f) {
-						sneakingElapsed = std::nullopt;
-					}
-				}
+
+			drawPlayer(playerIndex, player.position, sizeScale);
+			////renderer.drawSprite(sprite, player.position, size, 0.0f, color);
+			//const auto SNEAKING_ANIMATION_DURATION = 0.3f;
+			//static std::optional<float> sneakingElapsed;
+			//if (Input::isKeyHeld(KeyCode::LEFT_SHIFT)) {
+			//	if (!sneakingElapsed.has_value()) {
+			//		sneakingElapsed = 0.0f;
+			//	} else {
+			//		*sneakingElapsed += FRAME_DT_SECONDS;
+			//		sneakingElapsed = std::min(*sneakingElapsed, SNEAKING_ANIMATION_DURATION);
+			//	}
+			//} else {
+			//	if (sneakingElapsed.has_value()) {
+			//		*sneakingElapsed -= FRAME_DT_SECONDS;
+			//		if (sneakingElapsed <= 0.0f) {
+			//			sneakingElapsed = std::nullopt;
+			//		}
+			//	}
+			//}
+			//{
+			//	float t = sneakingElapsed.has_value() ? std::clamp(*sneakingElapsed / SNEAKING_ANIMATION_DURATION, 0.0f, 1.0f) : 0.0f;
+			//	t = smoothstep(t);
+			//	auto color = playerColor(playerIndex);
+			//	if (playerIndex == clientPlayerIndex) {
+			//		color = lerp(color, color / 2.0f, t);
+			//	}
+			//	drawPlayer(player.position, color, sizeScale);
+			//}
+		}
+
+		for (const auto& animation : renderer.deathAnimations) {
+			const auto l0 = 0.5f;
+			if (animation.t <= l0) {
+				const auto t = animation.t / 0.5f;
+				drawPlayer(animation.playerIndex, animation.position, Vec2(1.0f - t));
 			}
-			{
-				float t = sneakingElapsed.has_value() ? std::clamp(*sneakingElapsed / SNEAKING_ANIMATION_DURATION, 0.0f, 1.0f) : 0.0f;
-				t = smoothstep(t);
-				auto color = playerColor(playerIndex);
-				if (playerIndex == clientPlayerIndex) {
-					color = lerp(color, color / 2.0f, t);
-				}
-				drawPlayer(player.position, color, sizeScale);
-			}
+			
+			renderer.deathAnimation.instances.toDraw.push_back(DeathAnimationInstance{
+				.transform = renderer.camera.makeTransform(animation.position, 0.0f, Vec2{ 7.0f * PLAYER_HITBOX_RADIUS }),
+				.color = playerColor(animation.playerIndex),
+				.time = animation.t,
+			});
 		}
 	};
 
@@ -317,6 +408,15 @@ void GameClient::update() {
 	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
 	put("executed: % received: % difference: % RTT: % executed delay: % received delay: %", sequenceNumber + averageExecuteDelay, sequenceNumber + averageReceiveDelay, averageExecuteDelay - averageReceiveDelay, info.RTT, averageExecuteDelay, averageReceiveDelay);*/
+}
+
+void GameClient::sendSpawnRequest() {
+	auto msg = reinterpret_cast<SpawnRequestMessage*>(client.CreateMessage(GameMessageType::SPAWN_REQUEST));
+	client.SendMessage(GameChannel::RELIABLE, msg);
+}
+
+void GameClient::addJoinMessagePlayer(const JoinMessagePlayer& player){
+	players.insert({ player.playerIndex, Player{.leaderboard = player.leaderboard, .isAlive = player.isAlive } });
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {
@@ -485,32 +585,54 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		}
  
 		case GameMessageType::LEADERBOARD_UPDATE: {
+			put("test");
+			const auto& msg = reinterpret_cast<LeaderboardUpdateMessage*>(message);
+			for (const auto& [playerIndex, entry] : msg->entries) {
+				auto player = get(players, playerIndex);
+				if (!player.has_value()) {
+					CHECK_NOT_REACHED();
+					continue;
+				}
+				if (const auto died = player->leaderboard.deaths != entry.deaths) {
+					if (!player->isAlive) {
+						CHECK_NOT_REACHED();
+					}
+					player->isAlive = false;
+					renderer.deathAnimations.push_back(Renderer::DeathAnimation{
+						.position = player->position,
+						.playerIndex = playerIndex,
+					});
+				}
+				player->leaderboard = entry;
+
+			}
 			break;
 		}
 
 		case GameMessageType::SPAWN_PLAYER: {
-			
+			const auto msg = reinterpret_cast<SpawnPlayerMessage*>(message);
+			put("spawning %", msg->playerIndex);
+			auto player = get(players, msg->playerIndex);
+			if (!player.has_value()) {
+				CHECK_NOT_REACHED();
+				return;
+			}
+			player->isAlive = true;
+			renderer.spawnAnimations.push_back(Renderer::SpawnAnimation{
+				.playerIndex = msg->playerIndex,
+			});
+			break;
+		}
+
+		case GameMessageType::PLAYER_JOINED: {
+			const auto msg = reinterpret_cast<PlayerJoinedMessage*>(message);
+			addJoinMessagePlayer(msg->player);
 			break;
 		}
 
 		case GameMessageType::TEST:
-			std::cout << "hit\n";
 			break;
 	}
-}
-
-void GameClient::onJoin(const JoinMessage& msg) {
-	clientPlayerIndex = msg.clientPlayerIndex;
-	replayRecorder.outputFile += std::to_string(msg.clientPlayerIndex);
-	put("join clientPlayerIndex = %", clientPlayerIndex);
-}
-
-void GameClient::onDisconnected() {
-	clientPlayerIndex = -1;
-}
-
-bool GameClient::joinedGame() const {
-	return clientPlayerIndex != -1;
 }
 
 void GameClient::InterpolatedTransform::updatePositions(Vec2 newPosition, FrameTime serverFrame) {

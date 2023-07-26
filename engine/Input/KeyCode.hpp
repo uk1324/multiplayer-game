@@ -41,6 +41,7 @@ enum class KeyCode {
 	Y = 89,
 	Z = 90,
 	ESCAPE = 256,
+	TAB = 258,
 	F3 = 292,
 	LEFT_SHIFT = 340,
 	COUNT,

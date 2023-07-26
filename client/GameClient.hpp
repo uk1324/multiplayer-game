@@ -14,15 +14,17 @@
 // TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
 	// TODO: Use a ring buffer.
 struct GameClient {
+	// Just allocate.
 	GameClient(yojimbo::Client& client, Renderer& renderer);
+	GameClient(const JoinMessage& join, GameClient&& old);
 	void update();
+	void sendSpawnRequest();
+	void addJoinMessagePlayer(const JoinMessagePlayer& player);
 
 	void processMessage(yojimbo::Message* message);
 
 	void onJoin(const JoinMessage& msg);
-	void onDisconnected();
-	PlayerIndex clientPlayerIndex = -1;
-	bool joinedGame() const;
+	const PlayerIndex clientPlayerIndex = -1;
 
 	FrameTime sequenceNumber = 0;
 
@@ -68,11 +70,11 @@ struct GameClient {
 	i32 selectedPattern = 0;
 	GameplayState gameplayState;
 	GameplayState inactiveGameplayState;
-
+	bool receivedFirstUpdate = false;
 	struct Player {
+		LeaderboardEntry leaderboard;
 		Vec2 position;
-		// TODO: Change this to false.
-		bool isRendered = true;
+		bool isAlive = false;
 	};
 	std::unordered_map<PlayerIndex, Player> players;
 
