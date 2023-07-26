@@ -87,6 +87,16 @@ struct GameClient {
 	yojimbo::Client& client;
 	Renderer& renderer;
 
+	struct CameraFollower {
+		enum class State {
+			FOLLOW_PLAYER,
+			PAN_TO_PLAYER,
+		};
+		State state = State::FOLLOW_PLAYER;
+
+		void update(Camera& camera, Vec2 playerPosition);
+	} cameraFollower;
+
 	struct CooldownTimer {
 		i32 previousFrameSelectedPattern = 0;
 		struct SelectedPatternTransition {

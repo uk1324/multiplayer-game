@@ -3,8 +3,10 @@
 #include <engine/Utils/RefOptional.hpp>
 #include <engine/Utils/Put.hpp>
 #include <engine/Utils/MapOptGet.hpp>
+#include <engine/Math/Random.hpp>
 #include <server/ServerGameplayContext.hpp>
 #include <shared/DebugNetworkConfig.hpp>
+#include <random>
 
 // TODO: Idea for sending only spawned objects. 
 // With each object on the server store 2 bitsets of size max players. 
@@ -22,7 +24,7 @@
 // This is less flexible, because each player o receives the same objects even if they don't need them.
 
 template<typename MessageType, typename InitCallable>
-void broadcastMessage(
+static void broadcastMessage(
 	yojimbo::Server& server,
 	GameChannel::GameChannel channel,
 	GameMessageType::GameMessageType type,
@@ -226,6 +228,7 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 			return;
 		}
 		player->isAlive = true;
+		player->gameplayPlayer.position = randomPointInUnitCircle() * (BORDER_RADIUS - PLAYER_HITBOX_RADIUS);
 		broadcastMessage<SpawnPlayerMessage>(
 			server,
 			GameChannel::RELIABLE,

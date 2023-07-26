@@ -33,6 +33,7 @@ struct Vec2T {
 	auto xOverY() const -> float; // This should return a float not T.
 	auto flippedY() const -> Vec2T;
 	T distanceTo(Vec2T p) const;
+	T distanceSquaredTo(Vec2T p) const;
 	Vec2T roundedToDecimalDigits(int digitsCount) const;
 
 	auto operator+(const Vec2T& v) const -> Vec2T;
@@ -212,6 +213,11 @@ auto Vec2T<T>::flippedY() const -> Vec2T {
 template<typename T>
 T Vec2T<T>::distanceTo(Vec2T p) const {
 	return distance(*this, p);
+}
+
+template<typename T>
+T Vec2T<T>::distanceSquaredTo(Vec2T p) const {
+	(*this - p).lengthSquared();
 }
 
 template<typename T>

@@ -358,8 +358,7 @@ void GameClient::update() {
 		}
 	};
 
-
-	renderer.camera.pos = clientPlayer.position;
+	cameraFollower.update(renderer.camera, clientPlayer.position);
 	Debug::scrollInput(renderer.camera.zoom);
 	/*chk(debugDraw) {
 		Vec3 color = Color3::RED;
@@ -416,217 +415,222 @@ void GameClient::addJoinMessagePlayer(const JoinMessagePlayer& player){
 
 void GameClient::processMessage(yojimbo::Message* message) {
 	switch (message->GetType()) {
-		case GameMessageType::CLIENT_INPUT:
-			ASSERT_NOT_REACHED();
-			break;
+	case GameMessageType::CLIENT_INPUT:
+		ASSERT_NOT_REACHED();
+		break;
 
-		case GameMessageType::WORLD_UPDATE: { 
-			const auto& msg = reinterpret_cast<WorldUpdateMessage&>(*message);
+	case GameMessageType::WORLD_UPDATE: { 
+		const auto& msg = reinterpret_cast<WorldUpdateMessage&>(*message);
 
-			// TODO: For interpolated positions could update it with older updates, because they might not have been displayed yet.
-			if (msg.serverSequenceNumber < newestUpdateServerSequenceNumber) {
-				put("out of order update message");
-				break;
-			}
-			newestUpdateServerSequenceNumber = msg.serverSequenceNumber;
-			newestUpdateLastReceivedClientSequenceNumber = msg.lastExecutedInputClientSequenceNumber;
-			
-			const auto serverFrame = msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR;
-
-			auto updatePastDelaysArrays = [
-				serverFrame, 
-				sequenceNumber = sequenceNumber,
-				&msg = std::as_const(msg),
-
-				&pastReceiveDelays = pastReceiveDelays,
-				&pastExecuteDelays = pastExecuteDelays
-			] {
-				auto addDelay = [](std::vector<FrameTime>& delays, FrameTime newDelay) {
-					delays.insert(delays.begin(), newDelay);
-					if (delays.size() > 10) {
-						delays.pop_back();
-					}
-				};
-
-				// https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
-				// Average of the time it takes for the packet to get to the server. The first difference is the time it takes to get to the server the second is how long it takes to get back from the server.
-				const auto delayExecute = ((serverFrame - msg.lastExecutedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f; // Should this be using sequence number or something else?
-				const auto delayReceive = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
-				addDelay(pastReceiveDelays, delayReceive);
-				addDelay(pastExecuteDelays, delayExecute);
-				//put("new delay %", delayReceive);
-				
-				// NOTE: The delay between the server and the client seems to grow don't know why.
-			};
-			updatePastDelaysArrays();
-			averageReceiveDelay = average(pastReceiveDelays);
-			averageExecuteDelay = average(pastExecuteDelays);
-	
-			yojimbo::NetworkInfo networkInfo;
-			client.GetNetworkInfo(networkInfo);
-			// RTT is required to calculate the display delay.
-			if (networkInfo.RTT == 0.0f) {
-				// Messages were exchanged between the server and client so the RTT should be calculated.
-				CHECK_NOT_REACHED();
-				break;
-			}
-
-			auto secondsToFrames = [](float seconds) -> FrameTime {
-				return static_cast<FrameTime>(ceil(seconds / FRAME_DT_SECONDS));
-			};
-
-			const auto rttSeconds = networkInfo.RTT / 1000.0f;
-			if (!delays.has_value()) {
-				/*
-				server frame = client frame + receive delay
-				client frame = server frame - receive delay
-
-				client time when message received = message server frame - receive delay + RTT/2
-
-				client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
-				delay = -receive delay + RTT/2 + delay between server updates
-				*/
-				const auto additionalDelayToHandleJitter = 6;
-				delays = Delays{
-					// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
-					.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_RATE_DIVISOR + additionalDelayToHandleJitter,
-					.receiveDelay = averageReceiveDelay,
-					.executeDelay = averageExecuteDelay
-				};
-			} else {
-				// TODO: Check if synchronized.
-			}
-			#ifdef DEBUG_INTERPOLATION
-				put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
-			#endif
-
-			for (const auto& msgPlayer : msg.players) {
-				if (msgPlayer.playerIndex == clientPlayerIndex) {
-					clientPlayer.position = msgPlayer.position;
-					for (const auto& input : pastInputs) {
-						if (input.sequenceNumber > msg.lastExecutedInputClientSequenceNumber) {
-							clientPlayer.position = applyMovementInput(clientPlayer.position, input.input, FRAME_DT_SECONDS);
-						}
-					}
-				} else {
-					playerIndexToTransform[msgPlayer.playerIndex].updatePositions(msgPlayer.position, serverFrame);
-				}
-			}
-
-			#ifdef DEBUG_INTERPOLATE_BULLETS
-				#define DEBUG_ADD_INTERPOLATED_BULLET(position) \
-					debugInterpolatedBullets[bulletIndex.untypedIndex()].updatePositions(position, serverFrame)
-			#else
-				#define DEBUG_ADD_INTERPOLATED_BULLET(position)
-			#endif
-
-			//put("size %", msg.gemeplayState.moveForwardBullets.size());
-			ASSERT(delays.has_value());
-			for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
-				const auto frameWhenTheBulletInterpolatedBulletWouldBeDisplayed = serverFrame + delays->interpolatedEntitesDisplayDelay;
-				// TODO: Doesn't handle negative values.
-				const auto timeBeforePredictionDisplayed = (frameWhenTheBulletInterpolatedBulletWouldBeDisplayed - sequenceNumber) * FRAME_DT_SECONDS;
-
-				if (bulletIndex.ownerPlayerIndex == clientPlayerIndex) {
-					DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
-					const auto i = bulletIndex.untypedIndex();
-					auto spawnPredictedBullet = get(gameplayState.moveForwardBullets, bulletIndex);
-					if (!spawnPredictedBullet.has_value()) {
-						// If the client spawned the bullet then they should have it.
-						// CHECK_NOT_REACHED();
-						// Except if it got destroyed already.
-						continue;
-					}
-					// @Hack: checking for zero
-					if (spawnPredictedBullet->synchronization.timeToSynchronize != 0.0f) {
-						continue;
-					}
-					const auto bulletCurrentTimeElapsed = msgBullet.elapsed - timeBeforePredictionDisplayed /* + msgBullet.timeToCatchUp*/;
-					auto timeDesynch = spawnPredictedBullet->elapsed - bulletCurrentTimeElapsed;
-					timeDesynch += FRAME_DT_SECONDS; // I think this might need to be added because the bullet will get updated this frame and interpolated versions wont.
-					//timeDesynch = timeDesynch;
-
-					//spawnPredictedBullet->position -= spawnPredictedBullet->velocity * timeDysnych;
-					spawnPredictedBullet->synchronization.timeToSynchronize = timeDesynch;
-					spawnPredictedBullet->synchronization.synchronizationProgressT = 0.0f;
-				} else {
-					DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
-					if (gameplayState.moveForwardBullets.contains(bulletIndex)) {
-						continue;
-					}
-					// The bullet should be synchronized with the server bullet time + half RTT. So the player when a player does an action the the see the same state the server is going to see on the frame the input gets executed on the server.
-					/*const auto whenOnClientReceivedServerTime = serverFrame * FRAME_DT_SECONDS + rttSeconds / 2.0f;
-					const auto whenDisplayed*/
-
-					const auto timeDesynch = timeBeforePredictionDisplayed + rttSeconds + std::max(0, averageExecuteDelay - averageReceiveDelay) * FRAME_DT_SECONDS;
-					auto bullet = msgBullet;
-
-					const auto maxFrameSpeedup = FRAME_DT_SECONDS * 2.0f;
-					// maxFrameSpeedup = catchUpPercentPerFrame * timeToCatchUp
-					// catchUpPercentPerFrame = maxFrameSpeedup / timeToCatchUp
-
-					// TODO: Could use a std::max for maxFrameSpeedup so it doesn't always accelerate that quickly on the first frame. Or maybe it is more balanced this way.
-
-					// The bullets should as close to being shot out of the interpolated entity. Technically the server update most of the time won't be sent on the frame the bullet was spawned.
-					// TODO: This doesn't deal with the case when the frameToActivateAt already passed.
-					bullet.synchronization.frameToActivateAt = serverFrame + delays->interpolatedEntitesDisplayDelay;
-					bullet.synchronization.timeToCatchUp = timeDesynch;
-					bullet.synchronization.catchUpPercentPerFrame = maxFrameSpeedup / bullet.synchronization.timeToCatchUp;
-					inactiveGameplayState.moveForwardBullets.insert({ bulletIndex, bullet });
-				}
-			}
-
+		// TODO: For interpolated positions could update it with older updates, because they might not have been displayed yet.
+		if (msg.serverSequenceNumber < newestUpdateServerSequenceNumber) {
+			put("out of order update message");
 			break;
 		}
- 
-		case GameMessageType::LEADERBOARD_UPDATE: {
-			put("test");
-			const auto& msg = reinterpret_cast<LeaderboardUpdateMessage*>(message);
-			for (const auto& [playerIndex, entry] : msg->entries) {
-				auto player = get(players, playerIndex);
-				if (!player.has_value()) {
-					CHECK_NOT_REACHED();
+		newestUpdateServerSequenceNumber = msg.serverSequenceNumber;
+		newestUpdateLastReceivedClientSequenceNumber = msg.lastExecutedInputClientSequenceNumber;
+			
+		const auto serverFrame = msg.serverSequenceNumber * SERVER_UPDATE_SEND_RATE_DIVISOR;
+
+		auto updatePastDelaysArrays = [
+			serverFrame, 
+			sequenceNumber = sequenceNumber,
+			&msg = std::as_const(msg),
+
+			&pastReceiveDelays = pastReceiveDelays,
+			&pastExecuteDelays = pastExecuteDelays
+		] {
+			auto addDelay = [](std::vector<FrameTime>& delays, FrameTime newDelay) {
+				delays.insert(delays.begin(), newDelay);
+				if (delays.size() > 10) {
+					delays.pop_back();
+				}
+			};
+
+			// https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+			// Average of the time it takes for the packet to get to the server. The first difference is the time it takes to get to the server the second is how long it takes to get back from the server.
+			const auto delayExecute = ((serverFrame - msg.lastExecutedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f; // Should this be using sequence number or something else?
+			const auto delayReceive = ((serverFrame - msg.lastReceivedInputClientSequenceNumber) + (serverFrame - sequenceNumber)) / 2.0f;
+			addDelay(pastReceiveDelays, delayReceive);
+			addDelay(pastExecuteDelays, delayExecute);
+			//put("new delay %", delayReceive);
+				
+			// NOTE: The delay between the server and the client seems to grow don't know why.
+		};
+		updatePastDelaysArrays();
+		averageReceiveDelay = average(pastReceiveDelays);
+		averageExecuteDelay = average(pastExecuteDelays);
+	
+		yojimbo::NetworkInfo networkInfo;
+		client.GetNetworkInfo(networkInfo);
+		// RTT is required to calculate the display delay.
+		if (networkInfo.RTT == 0.0f) {
+			// Messages were exchanged between the server and client so the RTT should be calculated.
+			CHECK_NOT_REACHED();
+			break;
+		}
+
+		auto secondsToFrames = [](float seconds) -> FrameTime {
+			return static_cast<FrameTime>(ceil(seconds / FRAME_DT_SECONDS));
+		};
+
+		const auto rttSeconds = networkInfo.RTT / 1000.0f;
+		if (!delays.has_value()) {
+			/*
+			server frame = client frame + receive delay
+			client frame = server frame - receive delay
+
+			client time when message received = message server frame - receive delay + RTT/2
+
+			client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
+			delay = -receive delay + RTT/2 + delay between server updates
+			*/
+			const auto additionalDelayToHandleJitter = 6;
+			delays = Delays{
+				// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
+				.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_RATE_DIVISOR + additionalDelayToHandleJitter,
+				.receiveDelay = averageReceiveDelay,
+				.executeDelay = averageExecuteDelay
+			};
+		} else {
+			// TODO: Check if synchronized.
+		}
+		#ifdef DEBUG_INTERPOLATION
+			put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
+		#endif
+
+		for (const auto& msgPlayer : msg.players) {
+			if (msgPlayer.playerIndex == clientPlayerIndex) {
+				clientPlayer.position = msgPlayer.position;
+				for (const auto& input : pastInputs) {
+					if (input.sequenceNumber > msg.lastExecutedInputClientSequenceNumber) {
+						clientPlayer.position = applyMovementInput(clientPlayer.position, input.input, FRAME_DT_SECONDS);
+					}
+				}
+			} else {
+				playerIndexToTransform[msgPlayer.playerIndex].updatePositions(msgPlayer.position, serverFrame);
+			}
+		}
+
+		#ifdef DEBUG_INTERPOLATE_BULLETS
+			#define DEBUG_ADD_INTERPOLATED_BULLET(position) \
+				debugInterpolatedBullets[bulletIndex.untypedIndex()].updatePositions(position, serverFrame)
+		#else
+			#define DEBUG_ADD_INTERPOLATED_BULLET(position)
+		#endif
+
+		//put("size %", msg.gemeplayState.moveForwardBullets.size());
+		ASSERT(delays.has_value());
+		for (const auto& [bulletIndex, msgBullet] : msg.gemeplayState.moveForwardBullets) {
+			const auto frameWhenTheBulletInterpolatedBulletWouldBeDisplayed = serverFrame + delays->interpolatedEntitesDisplayDelay;
+			// TODO: Doesn't handle negative values.
+			const auto timeBeforePredictionDisplayed = (frameWhenTheBulletInterpolatedBulletWouldBeDisplayed - sequenceNumber) * FRAME_DT_SECONDS;
+
+			if (bulletIndex.ownerPlayerIndex == clientPlayerIndex) {
+				DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
+				const auto i = bulletIndex.untypedIndex();
+				auto spawnPredictedBullet = get(gameplayState.moveForwardBullets, bulletIndex);
+				if (!spawnPredictedBullet.has_value()) {
+					// If the client spawned the bullet then they should have it.
+					// CHECK_NOT_REACHED();
+					// Except if it got destroyed already.
 					continue;
 				}
-				if (const auto died = player->leaderboard.deaths != entry.deaths) {
-					if (!player->isAlive) {
-						CHECK_NOT_REACHED();
-					}
-					player->isAlive = false;
-					renderer.deathAnimations.push_back(Renderer::DeathAnimation{
-						.position = player->position,
-						.playerIndex = playerIndex,
-					});
+				// @Hack: checking for zero
+				if (spawnPredictedBullet->synchronization.timeToSynchronize != 0.0f) {
+					continue;
 				}
-				player->leaderboard = entry;
+				const auto bulletCurrentTimeElapsed = msgBullet.elapsed - timeBeforePredictionDisplayed /* + msgBullet.timeToCatchUp*/;
+				auto timeDesynch = spawnPredictedBullet->elapsed - bulletCurrentTimeElapsed;
+				timeDesynch += FRAME_DT_SECONDS; // I think this might need to be added because the bullet will get updated this frame and interpolated versions wont.
+				//timeDesynch = timeDesynch;
 
+				//spawnPredictedBullet->position -= spawnPredictedBullet->velocity * timeDysnych;
+				spawnPredictedBullet->synchronization.timeToSynchronize = timeDesynch;
+				spawnPredictedBullet->synchronization.synchronizationProgressT = 0.0f;
+			} else {
+				DEBUG_ADD_INTERPOLATED_BULLET(msgBullet.position);
+				if (gameplayState.moveForwardBullets.contains(bulletIndex)) {
+					continue;
+				}
+				// The bullet should be synchronized with the server bullet time + half RTT. So the player when a player does an action the the see the same state the server is going to see on the frame the input gets executed on the server.
+				/*const auto whenOnClientReceivedServerTime = serverFrame * FRAME_DT_SECONDS + rttSeconds / 2.0f;
+				const auto whenDisplayed*/
+
+				const auto timeDesynch = timeBeforePredictionDisplayed + rttSeconds + std::max(0, averageExecuteDelay - averageReceiveDelay) * FRAME_DT_SECONDS;
+				auto bullet = msgBullet;
+
+				const auto maxFrameSpeedup = FRAME_DT_SECONDS * 2.0f;
+				// maxFrameSpeedup = catchUpPercentPerFrame * timeToCatchUp
+				// catchUpPercentPerFrame = maxFrameSpeedup / timeToCatchUp
+
+				// TODO: Could use a std::max for maxFrameSpeedup so it doesn't always accelerate that quickly on the first frame. Or maybe it is more balanced this way.
+
+				// The bullets should as close to being shot out of the interpolated entity. Technically the server update most of the time won't be sent on the frame the bullet was spawned.
+				// TODO: This doesn't deal with the case when the frameToActivateAt already passed.
+				bullet.synchronization.frameToActivateAt = serverFrame + delays->interpolatedEntitesDisplayDelay;
+				bullet.synchronization.timeToCatchUp = timeDesynch;
+				bullet.synchronization.catchUpPercentPerFrame = maxFrameSpeedup / bullet.synchronization.timeToCatchUp;
+				inactiveGameplayState.moveForwardBullets.insert({ bulletIndex, bullet });
 			}
-			break;
 		}
 
-		case GameMessageType::SPAWN_PLAYER: {
-			const auto msg = reinterpret_cast<SpawnPlayerMessage*>(message);
-			put("spawning %", msg->playerIndex);
-			auto player = get(players, msg->playerIndex);
+		break;
+	}
+ 
+	case GameMessageType::LEADERBOARD_UPDATE: {
+		put("test");
+		const auto& msg = reinterpret_cast<LeaderboardUpdateMessage*>(message);
+		for (const auto& [playerIndex, entry] : msg->entries) {
+			auto player = get(players, playerIndex);
 			if (!player.has_value()) {
 				CHECK_NOT_REACHED();
-				return;
+				continue;
 			}
-			player->isAlive = true;
-			renderer.spawnAnimations.push_back(Renderer::SpawnAnimation{
-				.playerIndex = msg->playerIndex,
-			});
-			break;
-		}
+			if (const auto died = player->leaderboard.deaths != entry.deaths) {
+				if (!player->isAlive) {
+					CHECK_NOT_REACHED();
+				}
+				player->isAlive = false;
+				renderer.deathAnimations.push_back(Renderer::DeathAnimation{
+					.position = player->position,
+					.playerIndex = playerIndex,
+				});
+			}
+			player->leaderboard = entry;
 
-		case GameMessageType::PLAYER_JOINED: {
-			const auto msg = reinterpret_cast<PlayerJoinedMessage*>(message);
-			addJoinMessagePlayer(msg->player);
-			break;
 		}
+		break;
+	}
 
-		case GameMessageType::TEST:
-			break;
+	case GameMessageType::SPAWN_PLAYER: {
+		const auto msg = reinterpret_cast<SpawnPlayerMessage*>(message);
+		put("spawning %", msg->playerIndex);
+		auto player = get(players, msg->playerIndex);
+		if (!player.has_value()) {
+			CHECK_NOT_REACHED();
+			return;
+		}
+		player->isAlive = true;
+		renderer.spawnAnimations.push_back(Renderer::SpawnAnimation{
+			.playerIndex = msg->playerIndex,
+		});
+		if (msg->playerIndex == clientPlayerIndex) {
+			clientPlayer.position = msg->position;
+			player->position = msg->position;
+			cameraFollower.state = CameraFollower::State::PAN_TO_PLAYER;
+		}
+		break;
+	}
+
+	case GameMessageType::PLAYER_JOINED: {
+		const auto msg = reinterpret_cast<PlayerJoinedMessage*>(message);
+		addJoinMessagePlayer(msg->player);
+		break;
+	}
+
+	case GameMessageType::TEST:
+		break;
 	}
 }
 
@@ -679,6 +683,27 @@ void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNu
 		}
 	}
 }
+
+void GameClient::CameraFollower::update(Camera& camera, Vec2 playerPosition) {
+	using enum GameClient::CameraFollower::State;
+	switch (state)
+	{
+	case FOLLOW_PLAYER:
+		camera.pos = playerPosition;
+		break;
+	case PAN_TO_PLAYER:
+		const auto toPlayerPos = playerPosition - camera.pos;
+		const auto distance = toPlayerPos.length();
+		auto move = 0.07f * distance;
+		move = std::max(PLAYER_SPEED * FRAME_DT_SECONDS + 0.01f, move);
+		camera.pos += move * (toPlayerPos / distance);
+		if (camera.pos.distanceTo(playerPosition) < 0.01f) {
+			state = FOLLOW_PLAYER;
+		}
+		break;
+	}
+}
+
 
 // Height from -0.5 to 0.5
 // Width is scaled by aspect ratio
@@ -755,7 +780,6 @@ void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const Player
 
 	for (i32 patternType = 0; patternType < PatternType::PatternType::COUNT; patternType++) {
 		const auto actualCooldownT = cooldown.of[patternType] / patternInfos[patternType].cooldown;
-		put("%", actualCooldownT);
 		const auto patternCooldown = patternInfos[patternType].cooldown;
 		const auto speed = 0.18f;
 		auto& displayedCooldown = displayedCooldownTs[patternType];

@@ -49,6 +49,7 @@ struct [[NetworkSerialize, NetworkMessage]] LeaderboardUpdateMessage {
 
 struct [[NetworkSerialize, NetworkMessage]] SpawnPlayerMessage {
     PlayerIndex playerIndex;
+    Vec2 position;
 }
 
 struct [[NetworkSerialize, NetworkMessage]] SpawnRequestMessage {}
