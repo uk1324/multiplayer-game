@@ -100,4 +100,8 @@ struct GameClient {
 		void updateAndRender(Renderer& renderer, const PlayerPatternCooldowns& cooldown, i32 currentSelectedPattern);
 	} cooldownTimer;
 	
+	struct RespawnText {
+		float opacity = 0.0f;
+		void updateAndRender(Renderer& renderer, bool displayed);
+	} respawnText;
 };

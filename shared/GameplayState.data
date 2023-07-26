@@ -29,7 +29,7 @@ static constexpr PatternInfo patternInfos[] {
 };
 
 struct PlayerPatternCooldowns {
-	float of[PatternType::COUNT];
+	float of[PatternType::COUNT]{ 0.0f };
 };
 `
 

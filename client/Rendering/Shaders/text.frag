@@ -3,6 +3,7 @@
 in vec2 texturePosition; 
 
 in float smoothing; 
+in vec4 color; 
 out vec4 fragColor;
 
 /*generated end*/
@@ -18,5 +19,5 @@ void main() {
 	d -= 0.5 - smoothingWidth;
 	vec2 p = texturePosition;
 	d = smoothstep(0.0, smoothingWidth, d);
-	fragColor = vec4(vec3(d), d);
+	fragColor = vec4(vec3(d), d) * color;
 }

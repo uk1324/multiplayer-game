@@ -54,8 +54,8 @@ struct Renderer {
 
 	Font font;
 	Instances<TextInstances> text;
-	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character);
-	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text);
+	Vec2 addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character, Vec4 color);
+	void addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text, Vec4 color = Vec4(1.0f));
 	struct TextInfo {
 		Vec2 size;
 		float bottomY;

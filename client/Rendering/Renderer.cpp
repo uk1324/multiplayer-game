@@ -217,8 +217,8 @@ void Renderer::update() {
 	INSTANCES_DRAW_QUAD(bullet);
 	INSTANCES_DRAW_QUAD(player);
 
-	ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0});
-	ANIMATION_UPDATE_DEBUG(deathAnimations, 0.025f);
+	//ANIMATION_DEFULAT_SPAWN(deathAnimations, DeathAnimation{ .position = Vec2(0.0f), .t = 0.0f, .playerIndex = 0});
+	ANIMATION_UPDATE(deathAnimations, 0.025f);
 
 	//ANIMATION_DEFULAT_SPAWN(spawnAnimations, SpawnAnimation{ .playerIndex = 0 });
 	ANIMATION_UPDATE(spawnAnimations, 0.05f);
@@ -263,7 +263,7 @@ float Renderer::getQuadPixelSizeY(float scale) const {
 	return scale * camera.zoom * Window::size().y;
 }
 
-Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character) {
+Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, char32_t character, Vec4 color) {
 	const auto& characterIt = font.glyphs.find(character);
 	if (characterIt == font.glyphs.end()) {
 		return pos;
@@ -286,7 +286,8 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
 			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),
 			// This value is incorrect because it uses pixel size of the quad and not the size of the sdf outline. This looks good enough, but might vary between fonts.
-			.smoothing = 15.0f / pixelSize
+			.smoothing = 15.0f / pixelSize,
+			.color = color
 		});
 	}
 
@@ -294,12 +295,12 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 	return Vec2(pos.x + (info.advance.x >> 6) * scale, pos.y);
 }
 
-void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text) {
+void Renderer::addTextToDraw(TextInstances& instances, const Font& font, Vec2 pos, const Mat3x2& transform, float maxHeight, std::string_view utf8Text, Vec4 color) {
 	const char* current = utf8Text.data();
 	const char* end = utf8Text.data() + utf8Text.size();
 	while (const auto codepoint = Utf8::readCodePoint(current, end)) {
 		current = codepoint->next;
-		pos = addCharacterToDraw(instances, font, pos, transform, maxHeight, codepoint->codePoint);
+		pos = addCharacterToDraw(instances, font, pos, transform, maxHeight, codepoint->codePoint, color);
 	}
 }
 

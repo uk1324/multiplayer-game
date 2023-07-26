@@ -7,6 +7,7 @@ shader Text {
 	};
 	fragInstance = {
 		float smoothing;
+		color color;
 	};
 	vertOut = {
 		Vec2 texturePosition;

@@ -6,13 +6,16 @@ layout(location = 2) in mat3x2 instanceTransform;
 layout(location = 5) in vec2 instanceOffsetInAtlas; 
 layout(location = 6) in vec2 instanceSizeInAtlas; 
 layout(location = 7) in float instanceSmoothing; 
+layout(location = 8) in vec4 instanceColor; 
 
 out vec2 texturePosition; 
 
 out float smoothing; 
+out vec4 color; 
 
 void passToFragment() {
     smoothing = instanceSmoothing; 
+    color = instanceColor; 
 }
 
 /*generated end*/

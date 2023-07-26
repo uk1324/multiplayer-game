@@ -34,6 +34,7 @@ GameClient::GameClient(const JoinMessage& join, GameClient&& old)
 	, players(std::move(old.players)) {
 	players.clear();
 
+	clientPlayer.position = Vec2(0.0f);
 	for (const auto& player : join.players) {
 		addJoinMessagePlayer(player);
 	}
@@ -58,7 +59,6 @@ void GameClient::update() {
 		CHECK_NOT_REACHED();
 		return;
 	}
-	ImGui::ShowDemoWindow();
 	if (Input::isKeyHeld(KeyCode::TAB)) {
 		using namespace ImGui;
 
@@ -361,7 +361,7 @@ void GameClient::update() {
 
 	renderer.camera.pos = clientPlayer.position;
 	Debug::scrollInput(renderer.camera.zoom);
-	chk(debugDraw) {
+	/*chk(debugDraw) {
 		Vec3 color = Color3::RED;
 
 		for (const auto& [playerIndex, player] : players) {
@@ -373,22 +373,18 @@ void GameClient::update() {
 		}
 	} else {
 		addToRender();
-	}
+	}*/
+	addToRender();
 
-	/*auto updateAndAddCooldownTimerToRender = [
-		&input = std::as_const(input),
-		&selectedPattern = selectedPattern,
-		&clientPlayer = std::as_const(clientPlayer),
-
-		&renderer = renderer,
-		&previousFrameSelectedPattern = previousFrameSelectedPattern,
-		&selectedPatternTransition = selectedPatternTransition,
-		&displayedCooldownTs = displayedCooldownTs
-	] {
-		
-	};*/
-	//updateAndAddCooldownTimerToRender();
 	cooldownTimer.updateAndRender(renderer, clientPlayer.cooldown, selectedPattern);
+	{
+		const auto player = get(players, clientPlayerIndex);
+		if (player.has_value()) {
+			respawnText.updateAndRender(renderer, !player->isAlive);
+		} else {
+			CHECK_NOT_REACHED();
+		}
+	}
 
 	#ifdef DEBUG_INTERPOLATE_BULLETS
 	if (delays.has_value()) {
@@ -400,8 +396,7 @@ void GameClient::update() {
 	#endif 
 
 	if (delays.has_value()) {
-		/*ImGui::TextWrapped("difference between actual and used clock time %d", delays->executeDelay - averageExecuteDelay);*/
-		ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
+		//ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
 	}
 
 	sequenceNumber++;
@@ -685,26 +680,27 @@ void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNu
 	}
 }
 
+// Height from -0.5 to 0.5
+// Width is scaled by aspect ratio
+static Mat3x2 transformRelativeToAnchor(const Camera& camera, Vec2 screenAnchor) {
+	// To go from [-0.5, 0.5] to [-1, 1].
+	const auto scale = 2.0f;
+	const auto toScreenAnchor = Mat3x2::translate(screenAnchor * scale);
+	const auto screenScale = Mat3x2::scale(Vec2(1.0f / camera.aspectRatio, 1.0f)) * Mat3x2::scale(Vec2(scale));
+	return screenScale * toScreenAnchor;
+}
+
+float percentToWidth(const Camera& camera, float percent) {
+	return percent * camera.aspectRatio;
+}
+
 void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const PlayerPatternCooldowns& cooldown, i32 currentSelectedPattern) {
 	auto drawCooldownTimer = [
 		&renderer,
 		&displayedCooldownTs = std::as_const(displayedCooldownTs)
 	](i32 patternType, float movingDownProgress) {
-		// Height from -0.5 to 0.5
-		// Width is scaled by aspect ratio.
-		auto transformRelativeToAnchor = [&](Vec2 screenAnchor) -> Mat3x2 {
-			// To go from [-0.5, 0.5] to [-1, 1].
-			const auto scale = 2.0f;
-			const auto toScreenAnchor = Mat3x2::translate(screenAnchor * scale);
-			const auto screenScale = Mat3x2::scale(Vec2(1.0f / renderer.camera.aspectRatio, 1.0f)) * Mat3x2::scale(Vec2(scale));
-			return (screenScale * toScreenAnchor);
-		};
 
-		auto percentToWidth = [&](float percent) {
-			return percent * renderer.camera.aspectRatio;
-		};
-
-		const Vec2 size(percentToWidth(0.35f), 0.065f);
+		const Vec2 size(percentToWidth(renderer.camera, 0.35f), 0.065f);
 		const auto objectAnchor = -(size / 2.0f);
 		Vec2 pos(0.02f);
 
@@ -720,7 +716,7 @@ void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const Player
 		Vec2 textPos = pos + textPosOffset;
 
 		const auto bottomLeftCorner = Vec2(-0.5f, -0.5f);
-		const auto anchorTransform = transformRelativeToAnchor(bottomLeftCorner);
+		const auto anchorTransform = transformRelativeToAnchor(renderer.camera, bottomLeftCorner);
 		const auto objectTransform = (Mat3x2::scale(size / 2.0f) * Mat3x2::translate(-objectAnchor + pos)) * anchorTransform;
 
 		float t = 1.0f - displayedCooldownTs[patternType];
@@ -728,7 +724,7 @@ void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const Player
 			.transform = objectTransform,
 			.t = t,
 			.size = size
-			});
+		});
 		renderer.addTextToDraw(renderer.text.instances, renderer.font, textPos, anchorTransform, textHeight, text);
 	};
 	const auto betweenTransitions = 0.25;
@@ -759,6 +755,7 @@ void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const Player
 
 	for (i32 patternType = 0; patternType < PatternType::PatternType::COUNT; patternType++) {
 		const auto actualCooldownT = cooldown.of[patternType] / patternInfos[patternType].cooldown;
+		put("%", actualCooldownT);
 		const auto patternCooldown = patternInfos[patternType].cooldown;
 		const auto speed = 0.18f;
 		auto& displayedCooldown = displayedCooldownTs[patternType];
@@ -780,6 +777,24 @@ void GameClient::CooldownTimer::updateAndRender(Renderer& renderer, const Player
 	} else {
 		drawCooldownTimer(currentSelectedPattern, 0.0f);
 	}
-
 	previousFrameSelectedPattern = currentSelectedPattern;
+}
+
+void GameClient::RespawnText::updateAndRender(Renderer& renderer, bool displayed) {
+	const auto speed = 2.0f * FRAME_DT_SECONDS;
+	if (displayed) {
+		opacity += speed;
+	} else {
+		opacity -= speed;
+	}
+	opacity = std::clamp(opacity, 0.0f, 1.0f);
+
+	const auto textSize = 0.05f;
+	const auto text = "Press space to spawn";
+	const auto transform = transformRelativeToAnchor(renderer.camera, Vec2(0.0f));
+	const auto textInfo = renderer.getTextInfo(renderer.font, textSize, text);
+	Vec2 textPos(0.0f);
+	textPos.y -= textInfo.bottomY;
+	textPos -= textInfo.size / 2.0f;
+	renderer.addTextToDraw(renderer.text.instances, renderer.font, textPos, transform, textSize, text, Vec4(Color3::WHITE, opacity));
 }

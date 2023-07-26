@@ -8,7 +8,7 @@ MainLoop::MainLoop()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0)
 	, adapter(*this)
 	, game(client, renderer) {
-	connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
+	//connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
 	//Window::enableWindowedFullscreen();
 }
 
