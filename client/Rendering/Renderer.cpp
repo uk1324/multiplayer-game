@@ -133,6 +133,8 @@ Renderer::Renderer()
 	, line(GENERATED_ARGS(LINE))
 	, cooldownTimer(GENERATED_ARGS(COOLDOWN_TIMER))
 	, transitionScreen(GENERATED_ARGS(TRANSITION_SCREEN))
+	, map(GENERATED_ARGS(MAP))
+	, mapPlayerMarker(GENERATED_ARGS(MAP_PLAYER_MARKER))
 
 #undef GENERATED_ARGS
 	{
@@ -245,6 +247,9 @@ void Renderer::update() {
 	INSTANCES_DRAW_QUAD(text);
 
 	INSTANCES_DRAW_QUAD(cooldownTimer);
+
+	INSTANCES_DRAW_QUAD(map);
+	INSTANCES_DRAW_QUAD(mapPlayerMarker);
 
 	drawDebugShapes();
 

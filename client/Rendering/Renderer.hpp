@@ -14,6 +14,8 @@
 #include <client/Rendering/Shaders/spaceBackgroundData.hpp>
 #include <client/Rendering/Shaders/cooldownTimerData.hpp>
 #include <client/Rendering/Shaders/transitionScreenData.hpp>
+#include <client/Rendering/Shaders/mapData.hpp>
+#include <client/Rendering/Shaders/mapPlayerMakerData.hpp>
 #include <client/Rendering/Font.hpp>
 
 // Maybe split the Renderer into a renderer and an animator. Animator would call the renderer and add new objects to draw.
@@ -51,6 +53,8 @@ struct Renderer {
 	Instances<DeathAnimationInstances> deathAnimation;
 	Instances<CooldownTimerInstances> cooldownTimer;
 	Instances<TransitionScreenInstances> transitionScreen;
+	Instances<MapInstances> map;
+	Instances<MapPlayerMarkerInstances> mapPlayerMarker;
 
 	Font font;
 	Instances<TextInstances> text;

@@ -114,4 +114,6 @@ struct GameClient {
 		float opacity = 0.0f;
 		void updateAndRender(Renderer& renderer, bool displayed);
 	} respawnText;
+
+	void drawMap(Renderer& renderer, std::unordered_map<PlayerIndex, Player> players, PlayerIndex clientPlayerIndex);
 };

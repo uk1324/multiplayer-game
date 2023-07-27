@@ -1,0 +1,12 @@
+shader MapPlayerMarker {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	fragInstance = {
+		color3 color;
+	};
+	vertOut = {
+		Vec2 position;
+	};
+}

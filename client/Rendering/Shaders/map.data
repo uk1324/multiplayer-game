@@ -1,0 +1,9 @@
+shader Map {
+	vertexFormat = PT;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	vertOut = {
+		Vec2 position;
+	};
+}

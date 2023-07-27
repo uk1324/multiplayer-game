@@ -384,6 +384,7 @@ void GameClient::update() {
 			CHECK_NOT_REACHED();
 		}
 	}
+	drawMap(renderer, players, clientPlayerIndex);
 
 	#ifdef DEBUG_INTERPOLATE_BULLETS
 	if (delays.has_value()) {
@@ -475,16 +476,27 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		};
 
 		const auto rttSeconds = networkInfo.RTT / 1000.0f;
-		if (!delays.has_value()) {
-			/*
-			server frame = client frame + receive delay
-			client frame = server frame - receive delay
+		//if (!delays.has_value()) {
+		//	/*
+		//	server frame = client frame + receive delay
+		//	client frame = server frame - receive delay
 
-			client time when message received = message server frame - receive delay + RTT/2
+		//	client time when message received = message server frame - receive delay + RTT/2
 
-			client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
-			delay = -receive delay + RTT/2 + delay between server updates
-			*/
+		//	client time when next message received = message server frame - receive delay + RTT/2 + delay between server updates
+		//	delay = -receive delay + RTT/2 + delay between server updates
+		//	*/
+		//	const auto additionalDelayToHandleJitter = 6;
+		//	delays = Delays{
+		//		// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
+		//		.interpolatedEntitesDisplayDelay = -averageReceiveDelay + secondsToFrames(rttSeconds / 2.0f) + SERVER_UPDATE_SEND_RATE_DIVISOR + additionalDelayToHandleJitter,
+		//		.receiveDelay = averageReceiveDelay,
+		//		.executeDelay = averageExecuteDelay
+		//	};
+		//} else {
+		//	// TODO: Check if synchronized.
+		//}
+		{
 			const auto additionalDelayToHandleJitter = 6;
 			delays = Delays{
 				// TODO: Maybe later calculate the delay based on if there are enought positions to interpolate between. If the queues are starving the increase the delay. If the jitter is zero you wouldn't need to do that.
@@ -492,9 +504,8 @@ void GameClient::processMessage(yojimbo::Message* message) {
 				.receiveDelay = averageReceiveDelay,
 				.executeDelay = averageExecuteDelay
 			};
-		} else {
-			// TODO: Check if synchronized.
 		}
+
 		#ifdef DEBUG_INTERPOLATION
 			put("time before frame is displayed: %", (serverFrame + delays->interpolatedEntitesDisplayDelay) - sequenceNumber);
 		#endif
@@ -617,8 +628,12 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		});
 		if (msg->playerIndex == clientPlayerIndex) {
 			clientPlayer.position = msg->position;
-			player->position = msg->position;
 			cameraFollower.state = CameraFollower::State::PAN_TO_PLAYER;
+		} else {
+			// @Hack
+			auto& transform = playerIndexToTransform[msg->playerIndex];
+			transform.positions.clear();
+			transform.position = msg->position;
 		}
 		break;
 	}
@@ -653,7 +668,7 @@ void GameClient::InterpolatedTransform::interpolatePosition(FrameTime sequenceNu
 
 	if (positions.size() == 1) {
 		position = positions[0].position;
-	} else {
+	} else if (positions.size() > 1) {
 		int i = 0;
 		for (i = 0; i < positions.size() - 1; i++) {
 			auto frameToDisplayAt = [&](const InterpolatedTransform::Position& position) -> FrameTime {
@@ -696,6 +711,7 @@ void GameClient::CameraFollower::update(Camera& camera, Vec2 playerPosition) {
 		const auto distance = toPlayerPos.length();
 		auto move = 0.07f * distance;
 		move = std::max(PLAYER_SPEED * FRAME_DT_SECONDS + 0.01f, move);
+		move = std::min(distance, move);
 		camera.pos += move * (toPlayerPos / distance);
 		if (camera.pos.distanceTo(playerPosition) < 0.01f) {
 			state = FOLLOW_PLAYER;
@@ -821,4 +837,41 @@ void GameClient::RespawnText::updateAndRender(Renderer& renderer, bool displayed
 	textPos.y -= textInfo.bottomY;
 	textPos -= textInfo.size / 2.0f;
 	renderer.addTextToDraw(renderer.text.instances, renderer.font, textPos, transform, textSize, text, Vec4(Color3::WHITE, opacity));
+}
+
+void GameClient::drawMap(Renderer& renderer, std::unordered_map<PlayerIndex, Player> players, PlayerIndex clientPlayerIndex) {
+	const auto mapAnchor = Vec2(0.5f, -0.5f);
+	const auto transform = transformRelativeToAnchor(renderer.camera, mapAnchor);
+	const auto size = 0.2f;
+	const auto halfSize = size / 2.0f;
+	
+	const Vec2 direction = Vec2(-1.0f, 1.0f);
+	const auto mapPos = direction * (halfSize + 0.03f);
+	renderer.map.instances.toDraw.push_back(MapInstance{
+		.transform = makeObjectTransform(mapPos, 0.0f, Vec2(halfSize)) * transform
+	});
+	const Vec2 mapCenter = mapPos;
+
+	const auto center = renderer.camera.pos;
+	const auto radius = 4.0f;
+	for (const auto& [playerIndex, player] : players) {
+		if (playerIndex == clientPlayerIndex) {
+			continue;
+		}
+
+		if (!player.isAlive) {
+			continue;
+		}
+
+		auto onMapPos = player.position - center;
+		const auto length = onMapPos.length();
+		const auto direction = onMapPos / length;
+		onMapPos = direction * std::min(length, radius) / radius * (halfSize * 0.95f);
+		const auto angle = direction.angle() + PI<float> / 2.0f;
+
+		renderer.mapPlayerMarker.instances.toDraw.push_back(MapPlayerMarkerInstance{
+			.transform = makeObjectTransform(mapCenter + onMapPos, angle, Vec2(size * 0.05f)) * transform,
+			.color = Vec3(1.0f),
+		});
+	}
 }

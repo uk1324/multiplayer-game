@@ -12,10 +12,7 @@ out vec4 fragColor;
 
 #include "Utils/noise.glsl"
 #include "Utils/sdf.glsl"
-
-vec3 blend(vec3 old, vec3 new, float newAlpha) {
-    return old * (1.0 - newAlpha) + new * newAlpha;
-}
+#include "Utils/blend.glsl"
 
 float hash2to1(vec2 p) {
 	p = fract(p * vec2(1534.12, 521.23));
