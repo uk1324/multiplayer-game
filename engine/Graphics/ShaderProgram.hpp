@@ -20,12 +20,12 @@ public:
 		std::optional<Shader::Error> vertexError;
 		std::optional<Shader::Error> fragmentError;
 		std::optional<std::string> linkerErrorMessage;
-
-		std::string toSingleMessage() const;
 	};
 
-	static std::expected<ShaderProgram, Error> compile(std::string_view vertexPath, std::string_view fragmentPath);
-	static ShaderProgram create(std::string_view vertexPath, std::string_view fragmentPath);
+	static std::expected<ShaderProgram, Error> tryCompile(std::string_view vertexPath, std::string_view fragmentPath);
+	static std::expected<ShaderProgram, Error> fromSource(std::string_view vertSource, std::string_view fragSource);
+
+	static ShaderProgram compile(std::string_view vertexPath, std::string_view fragmentPath);
 	~ShaderProgram();
 
 	ShaderProgram(const ShaderProgram&) = delete;
@@ -54,6 +54,9 @@ public:
 	u32 handle() const;
 
 private:
+	static std::expected<ShaderProgram, ShaderProgram::Error> fromShaders(
+		std::expected<Shader, Shader::Error>& fragment,
+		std::expected<Shader, Shader::Error>& vertex);
 	ShaderProgram(u32 handle);
 	// This isn't the best way to cache uniforms.
 	// A better way would to to parse the glsl files and extract the variables declarations.
@@ -69,3 +72,5 @@ private:
 
 	std::unordered_map<std::string, int> m_cachedUniformLocations;
 };
+
+std::ostream& operator<<(std::ostream& os, const ShaderProgram::Error& e);

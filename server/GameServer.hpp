@@ -9,6 +9,11 @@
 #include <unordered_map>
 #include <queue>
 
+#ifndef FINAL_RELEASE
+//#define DEBUG_REPLAY_RECORDER
+#endif
+
+
 struct GameServer {
 	GameServer();
 	~GameServer();
@@ -48,6 +53,8 @@ struct GameServer {
 	yojimbo::Server server;
 	GameServerAdapter adapter;
 
+	#ifdef DEBUG_REPLAY_RECORDER
 	ReplayRecorder replayRecorder;
 	std::vector<GameplayPlayer> gameplayPlayers;
+	#endif
 };

@@ -1,8 +1,10 @@
 #pragma once
 
+#include <engine/Utils/PreprocessIncludes.hpp>
 #include <Types.hpp>
 #include <string_view>
 #include <expected>
+#include <variant>
 
 enum class ShaderType {
 	Vertex = 0x8B31,
@@ -12,16 +14,14 @@ enum class ShaderType {
 
 class Shader {
 public:
-	struct Error {
-		enum class Type {
-			// Maybe slipt preprocess to cannot open file and file doesn't exist then try to reload again if cannot open file but the file exists. This might make it go into a long loop if something is actually blocking the reading of the file.
-			PREPROCESS,
-			COMPILE
-		};
-		Type type;
+	struct CompileError {
 		std::string message;
 	};
+
+	using Error = std::variant<PreprocessIncludesError, CompileError>;
+
 	static std::expected<Shader, Error> compile(std::string_view path, ShaderType type);
+	static std::expected<Shader, Error> fromSource(std::string_view source, ShaderType type);
 	~Shader();
 
 	Shader(const Shader&) = delete;
@@ -35,10 +35,7 @@ public:
 private:
 	Shader(u32 handle);
 
-	struct PreprocessError {
-		std::string message;
-	};
-	static std::expected<std::string, PreprocessError> preprocess(std::string_view path, int depth = 0);
-
 	u32 handle_;
 };
+	
+std::ostream& operator<<(std::ostream& os, const Shader::Error& e);

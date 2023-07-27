@@ -7,4 +7,5 @@ struct ShaderManager {
 	static void update();
 	static void reloadAllShaders();
 	static ShaderProgram& createShader(const char* vertPath, const char* fragPath);
+	static ShaderProgram& createShaderFromSource(const char* vertSource, const char* fragSource);
 };

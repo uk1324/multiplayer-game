@@ -19,7 +19,7 @@ include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
 
-# add_definitions(-DDEBUG_RECORD_REPLAYS)
+add_definitions(-DFINAL_RELEASE)
 
 add_subdirectory(engine)
 add_subdirectory(engine/Json)
@@ -31,6 +31,10 @@ add_subdirectory(server)
 add_subdirectory(replayTool)
 
 add_subdirectory(shortcutTool)
+
+add_subdirectory(buildTool)
+
+add_subdirectory(embedTool)
 
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022

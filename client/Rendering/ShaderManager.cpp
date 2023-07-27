@@ -1,4 +1,5 @@
 #include <client/Rendering/ShaderManager.hpp>
+#include <engine/Utils/Unwrap.hpp>
 #include <filesystem>
 #include <iostream>
 
@@ -10,7 +11,7 @@ struct ShaderEntry {
 	ShaderProgram program;
 
 	void tryReload() {
-		auto result = ShaderProgram::compile(vertPath, fragPath);
+		auto result = ShaderProgram::tryCompile(vertPath, fragPath);
 		if (result.has_value()) {
 			std::cout << "reloaded shader\n"
 				<< "vert: " << vertPath << '\n'
@@ -19,13 +20,14 @@ struct ShaderEntry {
 		} else {
 			std::cout << '\a';
 			std::cout << "tried to reload vert: " << vertPath << " frag: " << fragPath << '\n';
-			std::cout << result.error().toSingleMessage();
+			std::cout << result.error();
 		}
 	}
 };
 
 // Using list so pointers aren't invalidated.
 std::list<ShaderEntry> shaderEntries;
+std::list<ShaderProgram> nonReloadableShaders;
 
 void ShaderManager::terminate() {
 	shaderEntries.clear();
@@ -62,10 +64,16 @@ ShaderProgram& ShaderManager::createShader(const char* vertPath, const char* fra
 	shaderEntries.push_back(ShaderEntry{
 		.vertPath = vertPath,
 		.fragPath = fragPath,
-		.program = ShaderProgram::create(vertPath, fragPath)
+		.program = ShaderProgram::compile(vertPath, fragPath)
 	});
 	auto& shader = shaderEntries.back();
 	shader.vertPathLastWriteTime = std::filesystem::last_write_time(shader.vertPath);
 	shader.fragPathLastWriteTime = std::filesystem::last_write_time(shader.fragPath);
 	return shader.program;
+}
+
+ShaderProgram& ShaderManager::createShaderFromSource(const char* vertSource, const char* fragSource) {
+	auto shader = unwrap(ShaderProgram::fromSource(vertSource, fragSource));
+	nonReloadableShaders.push_back(std::move(shader));
+	return nonReloadableShaders.back();
 }

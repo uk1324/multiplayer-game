@@ -50,7 +50,10 @@ static void broadcastMessage(
 GameServer::GameServer()
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this)
-	, replayRecorder("./generated/serverReplay.json") {
+	#ifdef DEBUG_REPLAY_RECORDER
+	, replayRecorder("./generated/serverReplay.json") 
+	#endif
+{
 
 	server.Start(MAX_CLIENTS);
 
@@ -78,6 +81,7 @@ void GameServer::update() {
 		isRunning = false;
 		return;
 	}
+	#ifdef DEBUG_REPLAY_RECORDER
 	if (replayRecorder.isRecording) {
 		gameplayPlayers.clear();
 		for (const auto& [_, player] : players) {
@@ -85,6 +89,7 @@ void GameServer::update() {
 		}
 		replayRecorder.addFrame(gameplayPlayers, gameplayState);
 	}
+	#endif
 
 	server.AdvanceTime(server.GetTime() + 1.0f / 60.0f);
 	server.ReceivePackets();

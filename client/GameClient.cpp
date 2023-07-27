@@ -37,9 +37,13 @@ GameClient::GameClient(const JoinMessage& join, GameClient&& old)
 	clientPlayer.position = Vec2(0.0f);
 	for (const auto& player : join.players) {
 		addJoinMessagePlayer(player);
+		//playerIndexToTransform[player.playerIndex].position = player
 	}
 
+	#ifdef DEBUG_REPLAY_RECORDER
 	replayRecorder.outputFile += std::to_string(clientPlayerIndex);
+	#endif
+
 	put("join clientPlayerIndex = %", clientPlayerIndex);
 }
  
@@ -108,9 +112,11 @@ void GameClient::update() {
 	}
 	
 
+	#ifdef DEBUG_REPLAY_RECORDER
 	if (replayRecorder.isRecording) {
 		replayRecorder.addFrame({ clientPlayer }, gameplayState);
 	}
+	#endif
 
 	const auto input = [
 		cursorPosWorldSpace = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace(),
@@ -411,7 +417,7 @@ void GameClient::sendSpawnRequest() {
 }
 
 void GameClient::addJoinMessagePlayer(const JoinMessagePlayer& player){
-	players.insert({ player.playerIndex, Player{.leaderboard = player.leaderboard, .isAlive = player.isAlive } });
+	players.insert({ player.playerIndex, Player{ .leaderboard = player.leaderboard, .isAlive = player.isAlive } });
 }
 
 void GameClient::processMessage(yojimbo::Message* message) {

@@ -90,7 +90,12 @@ Vao createPtVao(Vbo& vbo, Ibo& ibo) {
 
 #define SHADERS_PATH "client/Rendering/Shaders/"
 
+#ifdef FINAL_RELEASE
+#include <generated/shaderSources.hpp>
+#define CREATE_GENERATED_SHADER(name) ShaderManager::createShaderFromSource(name##_SHADER_VERT_SOURCE, name##_SHADER_FRAG_SOURCE)
+#else
 #define CREATE_GENERATED_SHADER(name) ShaderManager::createShader(name##_SHADER_VERT_PATH, name##_SHADER_FRAG_PATH)
+#endif
 
 //#define QUAD_SHADER_LIST(macro) \
 //	macro()
@@ -104,9 +109,9 @@ Renderer::Renderer()
 		Timer timer;
 		auto font = fontLoadSdfWithCaching(
 			"assets/fonts/RobotoMono-Regular.ttf",
-			"generated/font.png",
-			"generated/fontInfo.json",
-			POLISH_CHARACTER_RANGES,
+			"cached/font.png",
+			"cached/fontInfo.json",
+			ASCII_CHARACTER_RANGES,
 			64
 		);
 		put("font loading took %", timer.elapsedMilliseconds());
@@ -119,7 +124,12 @@ Renderer::Renderer()
 	, postProcessFbo1(Fbo::generate())
 	, postprocessTexture0(Texture::generate())
 	, postprocessTexture1(Texture::generate())
+#ifdef FINAL_RELEASE
+	, postprocessShader(ShaderManager::createShaderFromSource(POSTPROCESS_SHADER_VERT_SOURCE, BLOOM_SHADER_FRAG_SOURCE))
+#else
 	, postprocessShader(ShaderManager::createShader(SHADERS_PATH "Postprocess/postprocess.vert", SHADERS_PATH "Postprocess/bloom.frag"))
+#endif
+
 	, spaceBackgroundShader(CREATE_GENERATED_SHADER(SPACE_BACKGROUND))
 
 //  Could use a function instead. That would require creating a empty type that that would be passed as a template.

@@ -3,32 +3,26 @@
 #include <glad/glad.h>
 #include <sstream>
 
-std::expected<ShaderProgram, ShaderProgram::Error> ShaderProgram::compile(std::string_view vertexPath, std::string_view fragmentPath) {
+std::expected<ShaderProgram, ShaderProgram::Error> ShaderProgram::tryCompile(std::string_view vertexPath, std::string_view fragmentPath) {
 	auto vertex = Shader::compile(vertexPath, ShaderType::Vertex);
 	auto fragment = Shader::compile(fragmentPath, ShaderType::Fragment);
-	if (!vertex.has_value() || !fragment.has_value()) {
-		return std::unexpected(Error{ 
-			.vertexError = !vertex.has_value() ? std::optional(std::move(vertex.error())) : std::nullopt,
-			.fragmentError = !fragment.has_value() ? std::optional(std::move(fragment.error())) : std::nullopt,
-		});
-	}
-
-	ShaderProgram program(glCreateProgram());
-	program.addShader(*vertex);
-	program.addShader(*fragment);
-	auto linkerError = program.link();
-	if (linkerError.has_value()) {
-		return std::unexpected(Error{ .linkerErrorMessage = std::move(*linkerError) });
-	}
-	return program;
+	return fromShaders(vertex, fragment);
 }
 
-ShaderProgram ShaderProgram::create(std::string_view vertexPath, std::string_view fragmentPath) {
-	auto shader = compile(vertexPath, fragmentPath);
+std::expected<ShaderProgram, ShaderProgram::Error> ShaderProgram::fromSource(std::string_view vertSource, std::string_view fragSource) {
+	auto vertex = Shader::fromSource(vertSource, ShaderType::Vertex);
+	auto fragment = Shader::fromSource(fragSource, ShaderType::Fragment);
+	return fromShaders(vertex, fragment);
+}
+
+ShaderProgram ShaderProgram::compile(std::string_view vertexPath, std::string_view fragmentPath) {
+	auto shader = tryCompile(vertexPath, fragmentPath);
 	if (shader.has_value()) {
 		return std::move(*shader);
 	}
-	LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), shader.error().toSingleMessage().c_str());
+	std::stringstream s;
+	s << shader.error();
+	LOG_FATAL("failed to compile vert = '%s' frag = '%s': %s", vertexPath.data(), fragmentPath.data(), s.str().c_str());
 }
 
 ShaderProgram::~ShaderProgram() {
@@ -121,13 +115,29 @@ void ShaderProgram::set(std::string_view name, std::span<const Vec2> vecs) {
 	glProgramUniform2fv(handle_, getUniformLocation(name.data()), vecs.size(), reinterpret_cast<const float*>(vecs.data()));
 }
 
-//void ShaderProgram::setColor(std::string_view name, const Color& value)
-//{
-//	glProgramUniform4fv(m_handle, getUniformLocation(name.data()), 1, value.data());
-//}
-
 GLuint ShaderProgram::handle() const {
 	return handle_;
+}
+
+std::expected<ShaderProgram, ShaderProgram::Error> ShaderProgram::fromShaders(
+	std::expected<Shader, Shader::Error>& fragment,
+	std::expected<Shader, Shader::Error>& vertex) {
+
+	if (!vertex.has_value() || !fragment.has_value()) {
+		return std::unexpected(ShaderProgram::Error{
+			.vertexError = !vertex.has_value() ? std::optional(std::move(vertex.error())) : std::nullopt,
+			.fragmentError = !fragment.has_value() ? std::optional(std::move(fragment.error())) : std::nullopt,
+		});
+	}
+
+	ShaderProgram program(glCreateProgram());
+	program.addShader(*vertex);
+	program.addShader(*fragment);
+	auto linkerError = program.link();
+	if (linkerError.has_value()) {
+		return std::unexpected(ShaderProgram::Error{ .linkerErrorMessage = std::move(*linkerError) });
+	}
+	return program;
 }
 
 ShaderProgram::ShaderProgram(u32 handle) 
@@ -150,16 +160,15 @@ int ShaderProgram::getUniformLocation(std::string_view name) {
 	return location->second;
 }
 
-std::string ShaderProgram::Error::toSingleMessage() const {
-	std::stringstream errorMessage;
-	if (vertexError.has_value()) {
-		errorMessage << "vert error: " << vertexError->message << '\n';
+std::ostream& operator<<(std::ostream& os, const ShaderProgram::Error& e) {
+	if (e.vertexError.has_value()) {
+		os << "vert error: " << *e.vertexError << '\n';
 	}
-	if (fragmentError.has_value()) {
-		errorMessage << "frag error: " << fragmentError->message << '\n';
+	if (e.fragmentError.has_value()) {
+		os << "frag error: " << *e.fragmentError << '\n';
 	}
-	if (linkerErrorMessage.has_value()) {
-		errorMessage << "linker error: " << *linkerErrorMessage << '\n';
+	if (e.linkerErrorMessage.has_value()) {
+		os << "linker error: " << *e.linkerErrorMessage << '\n';
 	}
-	return errorMessage.str();
+	return os;
 }

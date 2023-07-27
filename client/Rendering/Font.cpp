@@ -174,8 +174,17 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	auto info = Json::Value::emptyObject();
 	info["glyphs"] = mapToJson(glyphs);
 	info["pixelHeight"] = fontPixelHeight;
+
+	auto createDirectories = [](const char* filePath) {
+		using namespace std::filesystem;
+		create_directories(path(filePath).parent_path());
+	};
+
+	createDirectories(cachedFontInfoPath);
 	std::ofstream jsonFile(cachedFontInfoPath);
-	Json::prettyPrint(jsonFile, info);
+	Json::print(jsonFile, info);
+
+	createDirectories(cachedSdfPath);
 	output.atlasImage.saveToPng(cachedSdfPath);
 
 	return Font{

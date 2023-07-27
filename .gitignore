@@ -2,4 +2,5 @@
 !./vs/launch.vs.json
 out/
 generated/
+cached/
 *Data.hpp

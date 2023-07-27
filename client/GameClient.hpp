@@ -7,9 +7,12 @@
 #include <shared/Time.hpp>
 #include <shared/ReplayRecorder.hpp>
 
+#ifndef FINAL_RELEASE
 //#define DEBUG_INTERPOLATE_BULLETS
 // Could use static variables and use Imgui to enable or disable it.
 //#define DEBUG_INTERPOLATION
+//#define DEBUG_REPLAY_RECORDER
+#endif
 
 // TODO: Maybe for safety always use a function that somehow requires you to check if the entity exists before you can access it. The problem with optional is that you can access it without needing to check.
 	// TODO: Use a ring buffer.
@@ -82,7 +85,10 @@ struct GameClient {
 	std::unordered_map<UntypedBulletIndex, InterpolatedTransform> debugInterpolatedBullets;
 	#endif 
 
+	#ifdef DEBUG_REPLAY_RECORDER
 	ReplayRecorder replayRecorder = ReplayRecorder("./generated/clientReplay.json");
+	#endif
+
 
 	yojimbo::Client& client;
 	Renderer& renderer;
