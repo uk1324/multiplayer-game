@@ -38,6 +38,7 @@ namespace GameMessageType {
         SPAWN_REQUEST,
         SPAWN_PLAYER,
         PLAYER_JOINED,
+        PLAYER_DISCONNECTED,
         TEST,
         COUNT
     };
@@ -101,5 +102,6 @@ YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::LEADERBOARD_UPDATE, LeaderboardUpd
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_PLAYER, SpawnPlayerMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::SPAWN_REQUEST, SpawnRequestMessage);
 YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::PLAYER_JOINED, PlayerJoinedMessage);
-YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::TEST, TestMessage);
+YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::PLAYER_DISCONNECTED, PlayerDisconnectedMessage);
+//YOJIMBO_DECLARE_MESSAGE_TYPE(GameMessageType::TEST, TestMessage);
 YOJIMBO_MESSAGE_FACTORY_FINISH();

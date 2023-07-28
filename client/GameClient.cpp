@@ -650,6 +650,14 @@ void GameClient::processMessage(yojimbo::Message* message) {
 		break;
 	}
 
+	case GameMessageType::PLAYER_DISCONNECTED: {
+		// Maybe play death animation.
+		const auto msg = reinterpret_cast<PlayerDisconnectedMessage*>(message);
+		players.erase(msg->playerIndex);
+		playerIndexToTransform.erase(msg->playerIndex);
+		break;
+	}
+
 	case GameMessageType::TEST:
 		break;
 	}

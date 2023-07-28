@@ -12,7 +12,7 @@ void assertImplementation(bool condition, const char* functionName, int line);
 #ifdef FINAL_RELEASE
 #define CHECK(condition)
 #else
-#define CHECK(condition) assertImplementation(condition)
+#define CHECK(condition) assertImplementation(condition, __FUNCSIG__, __LINE__)
 #endif
 
 #define CHECK_NOT_REACHED() CHECK(false)

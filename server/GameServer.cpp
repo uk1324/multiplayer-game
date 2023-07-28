@@ -293,6 +293,14 @@ void GameServer::onClientConnected(int clientIndex) {
 void GameServer::onClientDisconnected(int clientIndex) {
 	std::cout << "client disconnected " << clientIndex << '\n';
 	players.erase(clientIndex);
+	broadcastMessage<PlayerDisconnectedMessage>(
+		server,
+		GameChannel::RELIABLE,
+		GameMessageType::PLAYER_DISCONNECTED,
+		[&](PlayerDisconnectedMessage& msg) {
+			msg.playerIndex = clientIndex;
+		}
+	);
 }
 
 void GameServer::broadcastWorldState() {

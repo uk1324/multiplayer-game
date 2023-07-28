@@ -57,3 +57,7 @@ struct [[NetworkSerialize, NetworkMessage]] SpawnRequestMessage {}
 struct [[NetworkSerialize, NetworkMessage]] PlayerJoinedMessage {
     JoinMessagePlayer player;
 }
+
+struct [[NetworkSerialize, NetworkMessage]] PlayerDisconnectedMessage {
+    PlayerIndex playerIndex;
+}
