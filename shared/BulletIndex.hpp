@@ -1,5 +1,7 @@
 #pragma once
 
+#include <shared/PlayerIndex.hpp>
+
 struct UntypedBulletIndex {
     PlayerIndex ownerPlayerIndex;
     FrameTime spawnFrame;

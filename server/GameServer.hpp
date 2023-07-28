@@ -3,23 +3,19 @@
 #include <yojimbo/yojimbo.h>
 #include <GameServerAdapter.hpp>
 #include <shared/Networking.hpp>
+#include <server/DebugSettings.hpp>
 #include <shared/Time.hpp>
 #include <shared/Gameplay.hpp>
 #include <shared/ReplayRecorder.hpp>
 #include <unordered_map>
 #include <queue>
 
-#ifndef FINAL_RELEASE
-//#define DEBUG_REPLAY_RECORDER
-#endif
-
-
 struct GameServer {
 	GameServer();
 	~GameServer();
 	void update();
 	void processMessages();
-	void processMessage(PlayerIndex clientIndex, yojimbo::Message* message);
+	void processMessage(int clientIndex, yojimbo::Message* message);
 	void onClientConnected(int clientIndex);
 	void onClientDisconnected(int clientIndex);
 
@@ -27,9 +23,7 @@ struct GameServer {
 
 	bool isRunning = true;
 
-	//FrameTime sequenceNumber;
 	FrameTime frame = 0;
-
 
 	struct Player {
 		std::optional<FrameTime> newestReceivedInputClientSequenceNumber;
@@ -49,6 +43,10 @@ struct GameServer {
 
 	GameplayState gameplayState;
 	std::unordered_map<PlayerIndex, Player> players;
+
+	// Using this instead of stroing one of the indices inside the player, because its more flexible. Sometimes you onle have the player index (gameplay). or only have the client index (processing messages).
+	std::unordered_map<int, PlayerIndex> clientIndexToPlayerIndex;
+	PlayerIndex nextPlayerIndex{ 0 };
 
 	yojimbo::Server server;
 	GameServerAdapter adapter;

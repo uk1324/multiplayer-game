@@ -17,6 +17,7 @@
 #include <client/Rendering/Shaders/mapData.hpp>
 #include <client/Rendering/Shaders/mapPlayerMakerData.hpp>
 #include <client/Rendering/Font.hpp>
+#include <shared/PlayerIndex.hpp>
 
 // Maybe split the Renderer into a renderer and an animator. Animator would call the renderer and add new objects to draw.
 struct Renderer {
@@ -88,11 +89,11 @@ struct Renderer {
 	struct DeathAnimation {
 		Vec2 position;
 		float t = 0.0f;
-		u32 playerIndex;
+		PlayerIndex playerIndex;
 	};
 
 	struct SpawnAnimation {
-		u32 playerIndex;
+		PlayerIndex playerIndex;
 		float t = 0.0;
 	};
 

@@ -3,17 +3,21 @@
 #include <iostream>
 #include <shared/WindowsUtils.hpp>
 #include <shared/DebugWindowInfo.hpp>
-#include <replayTool/debugDraw.hpp>
+#include <server/DebugSettings.hpp>
 #include <charconv>
 
+#ifdef DEBUG_DRAW
+#include <replayTool/debugDraw.hpp>
 #include <raylib/raylib.h>
 #include <shared/Gameplay.hpp>
 
 void onClose() {
 	system("taskkill /IM client.exe");
 }
+#endif
 
 int main(int argc, char* argv[]) {
+	#ifdef DEBUG_DRAW
 	std::optional<int> openedClientWindows;
 	if (argc >= 2) {
 		int value;
@@ -41,7 +45,19 @@ int main(int argc, char* argv[]) {
 	const auto windowWidth = GetScreenWidth();
 	const auto windowHeight = GetScreenHeight();
 
+	Camera2D camera{
+		.offset = Vector2{ 0.0f, 0.0f },
+		.target = 0.0f,
+		.rotation = 0.0f,
+		.zoom = 500.0f,
+		//.zoom = 1.0f,
+	};
+	//float scale = 500.0f;
+	camera.offset.x += windowWidth / 2;
+	camera.offset.y += windowHeight / 2;
+	std::vector<GameplayPlayer> players;
 
+	#endif
 	constexpr double FRAME_TIME_CAP = 2.0;
 	auto currentTime = []() {
 		using namespace std::chrono;
@@ -62,21 +78,16 @@ int main(int argc, char* argv[]) {
 
 	GameServer server;
 
-	
-
-	Camera2D camera{
-		.offset = Vector2{ 0.0f, 0.0f },
-		.target = 0.0f,
-		.rotation = 0.0f,
-		.zoom = 500.0f,
-		//.zoom = 1.0f,
+	auto isRunning = [&]() -> bool {
+		#ifdef DEBUG_DRAW
+		return server.isRunning && !WindowShouldClose();
+		#else
+		return server.isRunning;
+		#endif
 	};
-	//float scale = 500.0f;
-	camera.offset.x += windowWidth / 2;
-	camera.offset.y += windowHeight / 2;
-	std::vector<GameplayPlayer> players;
+
 	// TODO: Does raylib slow down the game loop, because of things like vsync.
-	while (server.isRunning && !WindowShouldClose())
+	while (isRunning())
 	{
 		frameStartTime = currentTime();
 		frameTime = frameStartTime - lastFrameStartTime;
@@ -90,39 +101,30 @@ int main(int argc, char* argv[]) {
 		while (accumulatedTime >= updateTime) {
 			server.update();
 			accumulatedTime -= updateTime;
-			//for (const auto& [_, bullet] : server.bullets) {
-			//	std::cout << bullet.timeElapsed << '\n';
-			//}
 
-			//server.update(updateTime);
-			//accumulatedTime -= updateTime;
-
+			#ifdef DEBUG_DRAW
 			BeginDrawing();
 			ClearBackground(BLACK);
 
 			BeginMode2D(camera);
 
-			//if (server.players.contains(0)) {
-			//	//camera.offset = convertPos(server.players[0].pos * scale);
-			//	camera.target = convertPos(server.players[0].gameplayPlayer.position * scale);
-			//	//std::cout << camera.offset.x << ' ' << camera.offset.y << '\n';
-			//}
 			players.clear();
 			for (const auto& player : server.players) {
 				players.push_back(player.second.gameplayPlayer);
 			}
 			debugDraw(server.gameplayState, players, BLUE);
 
-			
-
 			EndMode2D();
 			EndDrawing();
+			#endif
 		}
 	}
+	#ifdef DEBUG_DRAW
 	CloseWindow();
+	#endif
 
 	// Raylib causes yojimbo to leak memory for some reason. If this is commented out the leak check doesn't happen.
-	//ShutdownYojimbo();
+	// ShutdownYojimbo();
 
 	return EXIT_SUCCESS;
 }

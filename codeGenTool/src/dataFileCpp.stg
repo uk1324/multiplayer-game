@@ -38,7 +38,7 @@ template\<>
 
 Json::Value toJson(const <struct.name>Index& value) {
     auto json = Json::Value::emptyObject();
-    json["ownerPlayerIndex"] = Json::Value(static_cast\<Json::Value::IntType>(value.ownerPlayerIndex));
+    json["ownerPlayerIndex"] = Json::Value(static_cast\<Json::Value::IntType>(value.ownerPlayerIndex.value));
     json["spawnFrame"] = Json::Value(value.spawnFrame);
     json["spawnIndexInFrame"] = Json::Value(value.spawnIndexInFrame);
     return json;

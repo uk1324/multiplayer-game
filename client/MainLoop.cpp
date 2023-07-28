@@ -31,18 +31,13 @@ void MainLoop::update() {
 	client.AdvanceTime(client.GetTime() + FRAME_DT_SECONDS);
 	client.ReceivePackets();
 
-	if (Input::isKeyDown(KeyCode::X)) {
+	/*if (Input::isKeyDown(KeyCode::X)) {
 		Window::close();
 		return;
-	}
+	}*/
 
 	Debug::update(renderer.camera, 1.0f / 60.0f);
-	//static float s = -2.0f;
-	//s += 0.05;
-	//ImGui::SliderFloat("s", &s, 0.0f, 1.0f);
-	//renderer.transitionScreen.instances.toDraw.push_back(TransitionScreenInstance{
-	//	.translation = Vec2(s, 0.0f)
-	//});
+
 	if (client.IsConnected()) {
 		processMessages();
 	}

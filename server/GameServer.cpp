@@ -186,12 +186,20 @@ void GameServer::processMessages() {
 	}
 }
 
-void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* message) {
+void GameServer::processMessage(int clientIndex, yojimbo::Message* message) {
+	const auto playerIndex = get(clientIndexToPlayerIndex, clientIndex);
+	if (!playerIndex.has_value()) {
+		CHECK_NOT_REACHED();
+		return;
+	}
+
 	switch (message->GetType()) {
 	case GameMessageType::CLIENT_INPUT: {
 		const auto& msg = *reinterpret_cast<ClientInputMessage*>(message);
 
-		auto player = get(players, clientIndex);
+		
+
+		auto player = get(players, *playerIndex);
 		if (!player.has_value()) {
 			CHECK_NOT_REACHED();
 			return;
@@ -226,8 +234,8 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 	}
 
 	case GameMessageType::SPAWN_REQUEST: {
-		put("received spawn request from %", clientIndex);
-		auto player = get(players, clientIndex);
+		put("received spawn request from clientIndex = % playerIndex = %", clientIndex, playerIndex->value);
+		auto player = get(players, *playerIndex);
 		if (!player.has_value()) {
 			CHECK_NOT_REACHED();
 			return;
@@ -239,7 +247,7 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 			GameChannel::RELIABLE,
 			GameMessageType::SPAWN_PLAYER,
 			[&](SpawnPlayerMessage& msg) {
-				msg.playerIndex = clientIndex;
+				msg.playerIndex = *playerIndex;
 			}
 		);
 		break;
@@ -251,12 +259,18 @@ void GameServer::processMessage(PlayerIndex clientIndex, yojimbo::Message* messa
 }
 
 void GameServer::onClientConnected(int clientIndex) {
-	std::cout << "client connected " << clientIndex << '\n';
+	put("client connected clientIndex = %", clientIndex);
 	const Player player{
 		.gameplayPlayer = {
 			.position = Vec2(0.0f)
 		}
 	};
+
+	const auto playerIndex = nextPlayerIndex;
+	players.insert({ playerIndex, player });
+	clientIndexToPlayerIndex.insert({ clientIndex, playerIndex });
+	put("playerIndex = %", playerIndex);
+	nextPlayerIndex.value++;
 
 	auto joinMessagePlayerFromPlayer = [](PlayerIndex playerIndex, const Player& player) {
 		return JoinMessagePlayer{
@@ -265,8 +279,6 @@ void GameServer::onClientConnected(int clientIndex) {
 			.leaderboard = player.leaderboard,
 		};
 	};
-
-	players.insert({ clientIndex, player });
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (i == clientIndex) {
@@ -277,7 +289,7 @@ void GameServer::onClientConnected(int clientIndex) {
 			continue;
 		}
 		auto message = reinterpret_cast<PlayerJoinedMessage*>(server.CreateMessage(i, GameMessageType::PLAYER_JOINED));
-		message->player = joinMessagePlayerFromPlayer(clientIndex, player);
+		message->player = joinMessagePlayerFromPlayer(playerIndex, player);
 		server.SendMessage(i, GameChannel::RELIABLE, message);
 	}
 
@@ -292,26 +304,37 @@ void GameServer::onClientConnected(int clientIndex) {
 
 void GameServer::onClientDisconnected(int clientIndex) {
 	std::cout << "client disconnected " << clientIndex << '\n';
-	players.erase(clientIndex);
+	const auto playerIndex = get(clientIndexToPlayerIndex, clientIndex);
+	if (!playerIndex.has_value()) {
+		CHECK_NOT_REACHED();
+		return;
+	}
+
 	broadcastMessage<PlayerDisconnectedMessage>(
 		server,
 		GameChannel::RELIABLE,
 		GameMessageType::PLAYER_DISCONNECTED,
 		[&](PlayerDisconnectedMessage& msg) {
-			msg.playerIndex = clientIndex;
+			msg.playerIndex = *playerIndex;
 		}
 	);
+
+	players.erase(*playerIndex);
+	clientIndexToPlayerIndex.erase(clientIndex);
 }
 
 void GameServer::broadcastWorldState() {
 	const auto sequenceNumber = frame / SERVER_UPDATE_SEND_RATE_DIVISOR;
 
-	for (PlayerIndex clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
+	// Maybe iterate over clientIndexToPlayerIndex instead.
+	for (int clientIndex = 0; clientIndex < MAX_CLIENTS; clientIndex++) {
 		if (!server.IsClientConnected(clientIndex)) {
 			continue;
 		}
 
-		const auto player = get(players, clientIndex);
+		const auto playerIndex = get(clientIndexToPlayerIndex, clientIndex);
+
+		const auto player = get(players, *playerIndex);
 		if (!player.has_value()) {
 			CHECK_NOT_REACHED();
 			continue;

@@ -365,7 +365,7 @@ void GameClient::update() {
 	};
 
 	cameraFollower.update(renderer.camera, clientPlayer.position);
-	Debug::scrollInput(renderer.camera.zoom);
+	//Debug::scrollInput(renderer.camera.zoom);
 	/*chk(debugDraw) {
 		Vec3 color = Color3::RED;
 
@@ -596,7 +596,6 @@ void GameClient::processMessage(yojimbo::Message* message) {
 	}
  
 	case GameMessageType::LEADERBOARD_UPDATE: {
-		put("test");
 		const auto& msg = reinterpret_cast<LeaderboardUpdateMessage*>(message);
 		for (const auto& [playerIndex, entry] : msg->entries) {
 			auto player = get(players, playerIndex);

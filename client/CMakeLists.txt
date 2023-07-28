@@ -22,6 +22,7 @@ add_executable(
 	"../dependencies/glad/src/glad.c"
 	"../shared/Gameplay.cpp" 
 	"../shared/WindowsUtils.cpp" 
+	"../shared/PlayerIndex.cpp" 
 	"GameClient.cpp" "GameClientAdapter.cpp" "Rendering/Renderer.cpp" "Camera.cpp" "MainLoop.cpp"
  "Debug.cpp" "Rendering/LineTriangulate.cpp" "Rendering/Font.cpp" "Rendering/ShaderManager.cpp" "GameplayContext.cpp")
 

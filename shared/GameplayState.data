@@ -2,10 +2,6 @@
 #include <vector>
 #include <unordered_map>
 #include <shared/Time.hpp>
-
-using PlayerIndex = u32;
-#define NETWORK_SERIALIZE_PLAYER_INDEX(stream, value) serialize_uint32(stream, value)
-
 #include <shared/BulletIndex.hpp>
 
 struct PatternInfo {
