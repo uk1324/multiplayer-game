@@ -20,3 +20,5 @@ target_link_libraries(server "winmm.lib")
 target_link_libraries(server "kernel32.lib")
 target_link_libraries(server "opengl32.lib")
 target_link_libraries(server "gdi32.lib")
+
+generateReleaseFolder(server)

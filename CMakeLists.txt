@@ -15,11 +15,26 @@ set_property(
 	"${GENERATED_PATH}/cmake.txt"
 )
 
+set(FINAL_RELEASE TRUE)
+if (FINAL_RELEASE)
+	add_definitions(-DFINAL_RELEASE)
+	set(BUILD_TOOL "${CMAKE_BINARY_DIR}/buildTool/buildTool.exe")
+endif()
+
+macro(generateReleaseFolder targetName)
+	if (FINAL_RELEASE)
+		add_custom_command(
+			TARGET ${targetName} POST_BUILD
+			COMMAND ${BUILD_TOOL} ${targetName} ${CMAKE_BINARY_DIR}
+			WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+			DEPENDS ${BUILD_TOOL}
+		)
+	endif()
+endmacro()
+
 include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
-
-add_definitions(-DFINAL_RELEASE)
 
 add_subdirectory(engine)
 add_subdirectory(engine/Json)

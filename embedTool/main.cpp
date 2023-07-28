@@ -136,13 +136,14 @@ int main() {
 	ofstream output("./generated/shaderSources.hpp");
 	
 	for (const auto& file : recursive_directory_iterator("./client/Rendering/Shaders")) {
-		cout << file << '\n';
-		const auto path = file.path();
+		const auto& path = file.path();
 		const auto extension = path.extension();
 		const auto name = path.stem();
 		const auto isVert = extension == ".vert";
 		const auto isFrag = extension == ".frag";
 		if (isVert || isFrag) {
+			// Don't know why cmake prings newlines. They aren't output to the console.
+			cout << "adding " << path.filename().string() << '\n';
 			output << "static const char* ";
 			outputCamelCaseToUpperSnakeCase(output, name.string());
 			output << "_SHADER_";
@@ -151,10 +152,7 @@ int main() {
 			} else if (isFrag) {
 				output << "FRAG";
 			}
-			//std::ifstream shaderFile;
-			//std::stringstream stream;
-			//stream << shaderFile.rdbuf();
-			//const auto source = stream.str();
+
 			const auto result = preprocessIncludes(path.string());
 			if (!result.has_value()) {
 				cerr << result.error();

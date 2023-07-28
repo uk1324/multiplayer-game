@@ -37,3 +37,15 @@ targetAddGenerated(client "./")
 target_link_libraries(client debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
 target_link_libraries(client optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
 target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")
+
+if (FINAL_RELEASE)
+	set(EMBED_TOOL "${CMAKE_BINARY_DIR}/embedTool/embedTool.exe")
+	add_custom_command(
+		TARGET client PRE_BUILD
+		COMMAND ${EMBED_TOOL}
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		DEPENDS ${EMBED_TOOL}
+	)
+endif()
+
+generateReleaseFolder(client)

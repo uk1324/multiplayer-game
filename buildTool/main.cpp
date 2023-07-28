@@ -20,23 +20,26 @@ void outputServer(const path& exePath) {
 	const auto serverOutputPath = outputPath / "server";
 
 	create_directories(serverOutputPath);
-	copy_file(exePath / "server/serve.exe", serverOutputPath / "server.exe");
+	copy_file(exePath / "server/server.exe", serverOutputPath / "server.exe");
 }
 
 int main(int argc, char** argv) {
 	cout << format("working directory = {}\n", current_path().string());
-	static constexpr auto exePath = true ? "./out/build/x64-Debug" : "./out/build/x64-Release";
 
-	if (argc != 2) {
+	if (argc != 3) {
 		cerr << "wrong number of arguments" << '\n';
 		return EXIT_FAILURE;
 	}
 	const string_view typeString(argv[1]);
+	const string_view exePathString(argv[2]);
 
+	const path exePath(exePathString);
 	try {
 		if (typeString == "client") {
+			cout << "output client\n";
 			outputClient(exePath);
 		} else if (typeString == "server") {
+			cout << "output server\n";
 			outputServer(exePath);
 		}
 	} catch (const filesystem_error& e) {
