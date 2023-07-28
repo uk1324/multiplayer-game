@@ -1,5 +1,5 @@
 project(embedTool)
-add_executable(embedTool "main.cpp" "../engine/Utils/PreprocessIncludes.cpp" "../engine/Utils/FileIo.cpp" "../engine/Log/Log.cpp")
+add_executable(embedTool "main.cpp" "../engine/Utils/PreprocessIncludes.cpp" "../engine/Utils/FileIo.cpp" "../engine/Utils/CrashReport.cpp" "../engine/Log/Log.cpp")
 
 target_link_libraries(embedTool json)
 

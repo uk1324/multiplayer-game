@@ -1,6 +1,6 @@
 project(replayTool)
 
-add_executable(replayTool "main.cpp" "DebugDraw.cpp" "../shared/ReplayRecorder.cpp" "../generated/ReplayDataGenerated.cpp" "../generated/GameplayStateDataGenerated.cpp" "../engine/Utils/Json.cpp" "../engine/Utils/FileIo.cpp" "../engine/Log/Log.cpp"
+add_executable(replayTool "main.cpp" "DebugDraw.cpp" "../shared/ReplayRecorder.cpp" "../generated/ReplayDataGenerated.cpp" "../generated/GameplayStateDataGenerated.cpp" "../engine/Utils/Json.cpp" "../engine/Utils/FileIo.cpp" "../engine/Log/Log.cpp" "../engine/Utils/CrashReport.cpp"
 	"../dependencies/imgui/imgui.cpp"
 	"../dependencies/imgui/imgui_draw.cpp"
 	"../dependencies/imgui/imgui_impl_win32.cpp"

@@ -20,14 +20,14 @@ void outputServer(const path& exePath) {
 	const auto serverOutputPath = outputPath / "server";
 
 	create_directories(serverOutputPath);
-	copy_file(exePath / "server/server.exe", serverOutputPath / "server.exe");
+	copy_file(exePath / "server/server.exe", serverOutputPath / "server.exe", copy_options::overwrite_existing);
 }
 
 int main(int argc, char** argv) {
 	cout << format("working directory = {}\n", current_path().string());
 
 	if (argc != 3) {
-		cerr << "wrong number of arguments" << '\n';
+		cerr << "wrong number of arguments " << argc << '\n';
 		return EXIT_FAILURE;
 	}
 	const string_view typeString(argv[1]);

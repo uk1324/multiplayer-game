@@ -1,5 +1,6 @@
 #include "Log.hpp"
 #include <Assertions.hpp>
+#include <CrashReport.hpp>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -35,16 +36,19 @@ void Log::error(const char* filename, int line, const char* format, ...)
 	printf("\n");
 }
 
-void Log::fatal(const char* filename, int line, const char* format, ...)
+void Log::fatal(const char* filename, int line, const char* functionName, const char* format, ...)
 {
 	printf("[%s:%d] fatal: ", filename, line);
 	va_list args;
+	char message[1024];
 	va_start(args, format);
-	vprintf(format, args);
+	vsnprintf(message, sizeof(message), format, args);
 	va_end(args);
-	printf("\n");
-	ASSERT_NOT_REACHED();
-	exit(EXIT_FAILURE);
+	printf("%s\n", message);
+	#ifndef FINAL_RELEASE
+	__debugbreak();
+	#endif
+	crashReportMessageBox(message, functionName, line);
 }
 
 void Log::debug(const char* filename, int line, const char* format, ...)
