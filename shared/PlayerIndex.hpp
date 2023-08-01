@@ -3,6 +3,8 @@
 #include <Types.hpp>
 #include <ostream>
 
+// Maybe use .data file for PlayerIndex.
+
 // Not using a type alias to prevent implicit conversions from clientIndex.
 struct PlayerIndex {
     u32 value;

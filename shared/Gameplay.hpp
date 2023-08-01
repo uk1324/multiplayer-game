@@ -15,7 +15,6 @@ static constexpr float BULLET_HITBOX_RADIUS = 0.04f;
 
 static constexpr float PLAYER_SPEED = 1.0f;
 static constexpr float PLAYER_SHIFT_SPEED = 0.7f;
-static constexpr float BULLET_SPEED = 0.5f;
 static constexpr float SHOOT_COOLDOWN = 0.4f;
 
 static constexpr float BULLET_ALIVE_SECONDS = 10.0f;

@@ -11,7 +11,7 @@
 #include <queue>
 
 struct GameServer {
-	GameServer();
+	GameServer(const char* address);
 	~GameServer();
 	void update();
 	void processMessages();

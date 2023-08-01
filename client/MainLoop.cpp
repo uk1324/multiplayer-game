@@ -2,7 +2,8 @@
 #include <imgui/imgui.h>
 #include <engine/Window.hpp>
 #include <engine/Input/Input.hpp>
-#include <shared/DebugNetworkConfig.hpp>
+#include <engine/Utils/Put.hpp>
+#include <shared/DebugSettings.hpp>
 
 MainLoop::MainLoop()
 	: client(yojimbo::GetDefaultAllocator(), yojimbo::Address("0.0.0.0"), connectionConfig, adapter, 0.0)
@@ -67,7 +68,11 @@ void MainLoop::update() {
 void MainLoop::menu() {
 	using namespace ImGui;
 
-	Begin("game menu");
+	const auto& io = GetIO();
+	SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	SetNextWindowSize(ImVec2(0.0f, 0.0f));
+
+	Begin("menu", nullptr, ImGuiWindowFlags_NoCollapse);
 
 	static char input[20] = "127.0.0.1";
 
@@ -136,10 +141,17 @@ void MainLoop::connect(const yojimbo::Address& address) {
 	}
 	u64 clientId;
 	yojimbo::random_bytes((uint8_t*)&clientId, 8);
-	client.InsecureConnect(DEFAULT_PRIVATE_KEY, clientId, address);
-	client.SetLatency(DEBUG_LATENCY);
-	client.SetJitter(DEBUG_JITTER);
-	client.SetPacketLoss(DEBUG_PACKET_LOSS_PERCENT);
+	const yojimbo::Address addresses[] = {
+		address, yojimbo::Address("127.0.0.1")
+	};
+	client.InsecureConnect(DEFAULT_PRIVATE_KEY, clientId, addresses, std::size(addresses));
+
+	#ifdef DEBUG_NETWORK_SIMULATOR
+	put("using network simulator");
+	client.SetLatency(DEBUG_NETOWRK_SIMULATOR_LATENCY);
+	client.SetJitter(DEBUG_NETOWRK_SIMULATOR_JITTER);
+	client.SetPacketLoss(DEBUG_NETOWRK_SIMULATOR_PACKET_LOSS_PERCENT);
+	#endif
 }
 
 void MainLoop::onDisconnected() {

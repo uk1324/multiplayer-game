@@ -142,7 +142,7 @@ void updateGameplayPlayer(
 			const auto index = createBulletIndex<MoveForwardBulletIndex>(state, ownerFrame, playerIndex);
 			state.moveForwardBullets[index] = MoveForwardBullet{
 				.position = player.position,
-				.velocity = direction * 0.5f
+				.velocity = direction
 			};
 			player.cooldown.of[SINLGE_BULLET] = patternInfos[SINLGE_BULLET].cooldown;
 		} 

@@ -27,7 +27,7 @@ struct GameClient {
 	void processMessage(yojimbo::Message* message);
 
 	void onJoin(const JoinMessage& msg);
-	const PlayerIndex clientPlayerIndex = -1;
+	const PlayerIndex clientPlayerIndex;
 
 	FrameTime sequenceNumber = 0;
 

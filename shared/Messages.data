@@ -20,7 +20,7 @@ struct [[NetworkSerialize]] JoinMessagePlayer {
 struct
 [[NetworkSerialize, NetworkMessage]]
 JoinMessage {
-    ranged_int<`0`, `MAX_CLIENTS`> clientPlayerIndex = `0`;
+    PlayerIndex clientPlayerIndex = `0`;
     vector<JoinMessagePlayer> players;
 }
 

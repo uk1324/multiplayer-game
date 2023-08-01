@@ -1,0 +1,10 @@
+The only difference on the server is having an actual private key that is the same as in the matcher server.
+
+The client before connecting has to connected to the matcher server and request a connecte token that is later passed to connect.
+
+Matcher is just an example and should not be used
+https://github.com/networkprotocol/yojimbo/pull/169
+
+https://github.com/networkprotocol/yojimbo/issues/65
+
+https://github.com/networkprotocol/yojimbo/issues/140

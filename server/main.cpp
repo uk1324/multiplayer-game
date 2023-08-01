@@ -5,6 +5,7 @@
 #include <shared/DebugWindowInfo.hpp>
 #include <server/DebugSettings.hpp>
 #include <charconv>
+#include <server/GetAddress.hpp>
 
 #ifdef DEBUG_DRAW
 #include <replayTool/debugDraw.hpp>
@@ -76,7 +77,14 @@ int main(int argc, char* argv[]) {
 	}
 	yojimbo_log_level(YOJIMBO_LOG_LEVEL_INFO);
 
-	GameServer server;
+	char address[MAX_ADDRESS_SIZE];
+	if (!getAddress(address, sizeof(address))) {
+		std::cerr << "getAddress failed\n";
+		const char defaultAddress[] = "127.0.0.1";
+		memcpy(address, defaultAddress, sizeof(defaultAddress));
+	}
+
+	GameServer server(address);
 
 	auto isRunning = [&]() -> bool {
 		#ifdef DEBUG_DRAW

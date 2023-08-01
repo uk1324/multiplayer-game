@@ -15,7 +15,8 @@ set_property(
 	"${GENERATED_PATH}/cmake.txt"
 )
 
-# set(FINAL_RELEASE TRUE)
+set(FINAL_RELEASE TRUE)
+
 if (FINAL_RELEASE)
 	add_definitions(-DFINAL_RELEASE)
 	set(BUILD_TOOL "${CMAKE_BINARY_DIR}/buildTool/buildTool.exe")

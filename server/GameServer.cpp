@@ -5,7 +5,7 @@
 #include <engine/Utils/MapOptGet.hpp>
 #include <engine/Math/Random.hpp>
 #include <server/ServerGameplayContext.hpp>
-#include <shared/DebugNetworkConfig.hpp>
+#include <shared/DebugSettings.hpp>
 #include <random>
 
 // TODO: Idea for sending only spawned objects. 
@@ -47,8 +47,8 @@ static void broadcastMessage(
 	}
 }
 
-GameServer::GameServer()
-	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address("127.0.0.1", SERVER_PORT), connectionConfig, adapter, 0.0f)
+GameServer::GameServer(const char* address)
+	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address(address, SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this)
 	#ifdef DEBUG_REPLAY_RECORDER
 	, replayRecorder("./generated/serverReplay.json") 
@@ -57,10 +57,13 @@ GameServer::GameServer()
 
 	server.Start(MAX_CLIENTS);
 
+	#ifdef DEBUG_NETWORK_SIMULATOR
 	// Can only set fake network parameters after calling Start the network simulator doesn't exist before this.
-	server.SetLatency(DEBUG_LATENCY);
-	server.SetJitter(DEBUG_JITTER);
-	server.SetPacketLoss(DEBUG_PACKET_LOSS_PERCENT);
+	put("using network simulator");
+	server.SetLatency(DEBUG_NETOWRK_SIMULATOR_LATENCY);
+	server.SetJitter(DEBUG_NETOWRK_SIMULATOR_JITTER);
+	server.SetPacketLoss(DEBUG_NETOWRK_SIMULATOR_PACKET_LOSS_PERCENT);
+	#endif
 
 	if (!server.IsRunning()) {
 		return;
@@ -298,7 +301,7 @@ void GameServer::onClientConnected(int clientIndex) {
 		msg->players.push_back(joinMessagePlayerFromPlayer(playerIndex, player));
 	}
 
-	msg->clientPlayerIndex = clientIndex;
+	msg->clientPlayerIndex = playerIndex;
 	server.SendMessage(clientIndex, GameChannel::RELIABLE, msg);
 }
 

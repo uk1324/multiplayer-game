@@ -29,7 +29,15 @@ int main(int argc, char* argv[]) {
 			Window::setPos(Vec2(x, y));
 			setConsolePosAndSize(x, y + 30 + WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
 		}
+		Window::enableWindowedFullscreen();
 		quit = Engine::run(60);
 		Engine::terminate();
 	}
 }
+
+#ifdef FINAL_RELEASE
+#include <Windows.h>
+int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
+	return main(0, nullptr);
+}
+#endif
