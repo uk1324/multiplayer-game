@@ -13,8 +13,10 @@ target_include_directories(server PUBLIC "." "../dependencies" "../")
 target_link_libraries(server math)
 target_link_libraries(server json)
 
-target_link_libraries(server debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
-target_link_libraries(server optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
+# target_link_libraries(server debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
+# target_link_libraries(server optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
+target_link_libraries(server yojimboLib)
+
 target_link_libraries(server "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/raylib/raylib.lib")
 target_link_libraries(server "winmm.lib")
 target_link_libraries(server "kernel32.lib")
