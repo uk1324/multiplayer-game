@@ -1,14 +1,14 @@
-#include <Engine/Engine.hpp>
-#include <Engine/Window.hpp>
+#include <engine/Engine.hpp>
+#include <engine/Window.hpp>
 #include <Assertions.hpp>
 #include <Log/Log.hpp>
-#include <Engine/Input/Input.hpp>
+#include <engine/Input/Input.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #include <client/MainLoop.hpp>
 #include <glad/glad.h>
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 #include <engine/Utils/Timer.hpp>
 #include <engine/Utils/Put.hpp>
 
@@ -166,7 +166,6 @@ void Engine::openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum s
 		return;
 
 	std::string errorMessage = "source: ";
-
 	switch (source)
 	{
 		case GL_DEBUG_SOURCE_API:             errorMessage += "api"; break;
@@ -176,9 +175,9 @@ void Engine::openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum s
 		case GL_DEBUG_SOURCE_APPLICATION:     errorMessage += "application"; break;
 		case GL_DEBUG_SOURCE_OTHER:           errorMessage += "other"; break;
 	}
+	errorMessage += '\n';
 
 	errorMessage += " type: ";
-
 	switch (type)
 	{
 		case GL_DEBUG_TYPE_ERROR:               errorMessage += "error"; break;
@@ -191,9 +190,9 @@ void Engine::openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum s
 		case GL_DEBUG_TYPE_POP_GROUP:           errorMessage += "pop group"; break;
 		case GL_DEBUG_TYPE_OTHER:               errorMessage += "other"; break;
 	}
+	errorMessage += '\n';
 
 	errorMessage += " severity: ";
-
 	switch (severity)
 	{
 		case GL_DEBUG_SEVERITY_HIGH:         errorMessage += "high"; break;
@@ -201,12 +200,16 @@ void Engine::openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum s
 		case GL_DEBUG_SEVERITY_LOW:          errorMessage += "low"; break;
 		case GL_DEBUG_SEVERITY_NOTIFICATION: errorMessage += "notification"; break;
 	} 
+	errorMessage += '\n';
 
 	errorMessage += " message: ";
 	errorMessage += message;
-	if (id == 1286)
+	errorMessage += '\n';
+
+	if (id == 1286 || severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
 		LOG_ERROR("OpenGL error %s", errorMessage.c_str());
-	else
+	} else {
 		LOG_FATAL("OpenGL error %s", errorMessage.c_str());
+	}
 
 }

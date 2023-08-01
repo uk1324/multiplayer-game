@@ -5,7 +5,7 @@
 #include <Types.hpp>
 #include <shared/MessagesData.hpp>
 #include <shared/GameplayStateData.hpp>
-#include <bit>
+#include <limits.h>
 
 namespace GameChannel {
     enum GameChannel {

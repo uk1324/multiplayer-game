@@ -39,6 +39,8 @@ static std::unordered_map<K, V> fromJson(const Json::Value& value) {
 	return result;
 }
 
+#include <iostream>
+
 std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	const char* fontPath,
 	const char* cachedSdfPath,
@@ -113,11 +115,15 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 			const auto glyphIndex = FT_Get_Char_Index(face, character);
 
 			if (FT_Load_Glyph(face, glyphIndex, FT_LOAD_DEFAULT)) {
-				return std::unexpected(Font::LoadError{ "failed to load glyph with index " + glyphIndex });
+				return std::unexpected(Font::LoadError{ 
+					"failed to load glyph with index " + std::to_string(glyphIndex) + " = U+" + std::to_string(character)
+				});
 			}
 
-			if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_SDF)) {
-				return std::unexpected(Font::LoadError{ "failed to render glyph with index " + glyphIndex });
+			// if (const auto error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_SDF)) {
+			if (const auto error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) {
+				std::cout << error << '\n';
+				return std::unexpected(Font::LoadError{ "failed to render glyph with index " + std::to_string(glyphIndex) });
 			}
 
 			const FT_Bitmap& bitmap = face->glyph->bitmap;

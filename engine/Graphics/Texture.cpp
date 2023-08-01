@@ -1,4 +1,4 @@
-#include <Engine/Graphics/Texture.hpp>
+#include <engine/Graphics/Texture.hpp>
 #include <Log/Log.hpp>
 #include <stb_image/stb_image.h>
 #include <glad/glad.h>

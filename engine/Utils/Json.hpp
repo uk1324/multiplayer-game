@@ -3,6 +3,7 @@
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
 #include <engine/Math/Vec4.hpp>
+#include <optional>
 
 // Cannot overload on return type alone.
 // Because you cannot overload on return type alone you can't do things like templating to have fromJson of a vector map or any other templated type. To fix this you could have function that takes a pointer to uninitialized memory and initialized the object using the copy constructor into it. You would need to be cerful with constrcutors it might be simplest to move it out of that memory. 

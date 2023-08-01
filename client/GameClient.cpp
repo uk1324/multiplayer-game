@@ -1,7 +1,7 @@
 #include <client/GameClient.hpp>
-#include <Engine/Window.hpp>
-#include <Engine/Input/Input.hpp>
-#include <Engine/Engine.hpp>
+#include <engine/Window.hpp>
+#include <engine/Input/Input.hpp>
+#include <engine/Engine.hpp>
 #include <engine/Math/Utils.hpp>
 #include <shared/Networking.hpp>
 #include <Types.hpp>
@@ -13,6 +13,7 @@
 #include <RefOptional.hpp>
 #include <engine/Utils/MapOptGet.hpp>
 #include <engine/Json/JsonPrinter.hpp>
+#include <utility>
 
 template<typename T>
 static float average(const std::vector<T> vs) {
@@ -25,7 +26,8 @@ static float average(const std::vector<T> vs) {
 
 GameClient::GameClient(yojimbo::Client& client, Renderer& renderer)
 	: client(client)
-	, renderer(renderer) {}
+	, renderer(renderer)
+	, clientPlayerIndex(-1) {}
 
 GameClient::GameClient(const JoinMessage& join, GameClient&& old)
 	: clientPlayerIndex(join.clientPlayerIndex)

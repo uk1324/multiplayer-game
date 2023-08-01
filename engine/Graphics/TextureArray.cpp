@@ -1,7 +1,6 @@
-#include <Engine/Graphics/TextureArray.hpp>
+#include <engine/Graphics/TextureArray.hpp>
 #include <Log/Log.hpp>
 #include <stb_image/stb_image.h>
-
 #include <memory>
 
 TextureArray::TextureArray(uint32_t handle)

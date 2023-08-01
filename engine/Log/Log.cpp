@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include <Assertions.hpp>
 #include <CrashReport.hpp>
+#include <DebugBreak.hpp>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -46,7 +47,7 @@ void Log::fatal(const char* filename, int line, const char* functionName, const 
 	va_end(args);
 	printf("%s\n", message);
 	#ifndef FINAL_RELEASE
-	__debugbreak();
+	DEBUG_BREAK
 	#endif
 	crashReportMessageBox(message, functionName, line);
 }

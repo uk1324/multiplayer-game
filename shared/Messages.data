@@ -1,5 +1,6 @@
 `
 #include <shared/GameplayStateData.hpp>
+#include <limits.h>
 #include <vector>
 
 static const int MAX_CLIENTS = 64;
@@ -20,7 +21,7 @@ struct [[NetworkSerialize]] JoinMessagePlayer {
 struct
 [[NetworkSerialize, NetworkMessage]]
 JoinMessage {
-    PlayerIndex clientPlayerIndex = `0`;
+    PlayerIndex clientPlayerIndex;
     vector<JoinMessagePlayer> players;
 }
 

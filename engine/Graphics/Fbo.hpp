@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include <Types.hpp>
 
 class Fbo
 {

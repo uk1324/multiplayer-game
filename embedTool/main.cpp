@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <optional>
 #include "../engine/Utils/PreprocessIncludes.hpp"
 
 using namespace std;

@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <format>
 
 using namespace std;
 using namespace filesystem;
@@ -24,7 +23,7 @@ void outputServer(const path& exePath) {
 }
 
 int main(int argc, char** argv) {
-	cout << format("working directory = {}\n", current_path().string());
+	cout << "working directory = {}\n" << current_path().string();
 
 	if (argc != 3) {
 		cerr << "wrong number of arguments " << argc << '\n';
@@ -44,6 +43,6 @@ int main(int argc, char** argv) {
 		}
 	} catch (const filesystem_error& e) {
 		cerr << e.what() << '\n';
-		return EXIT_FAILURE;
+		//return EXIT_FAILURE;
 	}
 }

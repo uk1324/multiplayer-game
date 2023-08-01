@@ -1,5 +1,5 @@
-#include <Engine/Input/Input.hpp>
-#include <Engine/Window.hpp>
+#include <engine/Input/Input.hpp>
+#include <engine/Window.hpp>
 #include <imgui.h>
 
 auto Input::isKeyDown(KeyCode key) -> bool {

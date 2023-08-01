@@ -2,6 +2,7 @@
 
 #include <engine/Log/Log.hpp>
 #include <expected>
+#include <sstream>
 
 template<typename T, typename E>
 T unwrap(std::expected<T, E>&& v) {

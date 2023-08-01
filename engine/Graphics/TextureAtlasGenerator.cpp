@@ -1,4 +1,4 @@
-#include <Engine/Graphics/TextureAtlasGenerator.hpp>
+#include <engine/Graphics/TextureAtlasGenerator.hpp>
 
 TextureAtlasResult generateTextureAtlas(std::vector<TextureAtlasInputImage>& textures) {
 	struct Image {

@@ -1,7 +1,7 @@
-#include <Engine/Window.hpp>
-#include <Engine/Input/Input.hpp>
+#include <engine/Window.hpp>
+#include <engine/Input/Input.hpp>
 #include <Log/Log.hpp>
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 static GLFWwindow* windowHandle = nullptr;
 static bool resizedThisFrame = true;

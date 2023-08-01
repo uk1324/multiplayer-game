@@ -121,8 +121,9 @@ static void prettyPrintImplementation(std::ostream& os, const Json::Value& value
 			}
 			break;
 
-		case Json::Value::Type::Object:
-			if (value.object().empty())
+		case Json::Value::Type::Object: {
+			const auto map = value.object();
+			if (map.empty())
 			{
 				os << "{}";
 			}
@@ -130,7 +131,10 @@ static void prettyPrintImplementation(std::ostream& os, const Json::Value& value
 			{
 				// std::unordered_map doesn't overload the subtraction operator so the decrement operator is used.
 				os << "{\n";
-				for (auto it = value.object().cbegin(); it != (--value.object().cend()); it++)
+				auto it = map.cbegin();
+				auto index = 0;
+				const auto size = map.size();
+				for (; index < size - 1; it++, index++)
 				{
 					printIndentation(os, depth);
 					os << '"' << it->first << "\": ";
@@ -138,14 +142,17 @@ static void prettyPrintImplementation(std::ostream& os, const Json::Value& value
 					os << ",\n";
 				}
 				printIndentation(os, depth);
-				os << '"' << (--value.object().cend())->first << "\": ";
-				prettyPrintImplementation(os, (--value.object().cend())->second, depth + 1);
+				os << '"' << it->first << "\": ";
+				prettyPrintImplementation(os, it->second, depth + 1);
 				os << "\n";
 
 				printIndentation(os, depth - 1);
 				os << "}";
 			}
 			break;
+		}
+
+			
 	}
 }
 
@@ -188,8 +195,9 @@ static void printImplementation(std::ostream& os, const Json::Value& value)
 		}
 		break;
 
-	case Json::Value::Type::Object:
-		if (value.object().empty())
+	case Json::Value::Type::Object: {
+		const auto map = value.object();
+		if (map.empty())
 		{
 			os << "{}";
 		}
@@ -197,17 +205,22 @@ static void printImplementation(std::ostream& os, const Json::Value& value)
 		{
 			// std::unordered_map doesn't overload the subtraction operator so the decrement operator is used.
 			os << "{";
-			for (auto it = value.object().cbegin(); it != (--value.object().cend()); it++)
+			const auto size = map.size();
+			auto index = 0;
+			auto it = value.object().cbegin();
+			for (; index < size - 1; it++, index++)
 			{
 				os << '"' << it->first << "\":";
 				printImplementation(os, it->second);
 				os << ',';
 			}
-			os << '"' << (--value.object().cend())->first << "\":";
-			printImplementation(os, (--value.object().cend())->second);
+			os << '"' << it->first << "\":";
+			printImplementation(os, it->second);
 			os << "}";
 		}
 		break;
+	}
+		
 	}
 }
 

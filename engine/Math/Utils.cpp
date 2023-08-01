@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include "Utils.hpp"
 
 auto lerpPosAndZoom(const PosAndZoom& current, const PosAndZoom& target, float t) -> PosAndZoom {
 	const auto zoomRatio = current.zoom / target.zoom;

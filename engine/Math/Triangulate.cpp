@@ -1,5 +1,5 @@
-#include "triangulate.hpp"
-#include "polygon.hpp"
+#include "Triangulate.hpp"
+#include "Polygon.hpp"
 
 // https://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf
 auto SimplePolygonTriangulator::operator()(std::span<const Vec2> vertices) -> const std::vector<Triangle>& {

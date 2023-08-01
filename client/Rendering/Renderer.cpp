@@ -1,6 +1,6 @@
 ﻿#include <client/Rendering/Renderer.hpp>
-#include <Engine/Window.hpp>
-#include <Engine/Input/Input.hpp>
+#include <engine/Window.hpp>
+#include <engine/Input/Input.hpp>
 #include <engine/Math/Utils.hpp>
 #include <Gui.hpp>
 #include <imgui/imgui.h>
@@ -118,7 +118,7 @@ Renderer::Renderer()
 		if (font.has_value()) {
 			return std::move(*font);
 		}
-		LOG_FATAL("failed to load font %s", font.error().message.c_str());
+		LOG_FATAL("failed to load font: \n %s", font.error().message.c_str());
 	}())
 	, postProcessFbo0(Fbo::generate())
 	, postProcessFbo1(Fbo::generate())

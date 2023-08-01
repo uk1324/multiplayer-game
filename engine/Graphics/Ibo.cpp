@@ -1,4 +1,4 @@
-#include <Engine/Graphics/Ibo.hpp>
+#include <engine/Graphics/Ibo.hpp>
 #include <glad/glad.h>
 
 Ibo Ibo::generate() {

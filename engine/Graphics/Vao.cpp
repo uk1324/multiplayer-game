@@ -1,4 +1,4 @@
-#include <Engine/Graphics/Vao.hpp>
+#include <engine/Graphics/Vao.hpp>
 #include <glad/glad.h>
 
 Vao::~Vao() {

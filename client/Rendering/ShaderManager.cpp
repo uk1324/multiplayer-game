@@ -2,6 +2,7 @@
 #include <engine/Utils/Unwrap.hpp>
 #include <filesystem>
 #include <iostream>
+#include <list>
 
 struct ShaderEntry {
 	std::string_view vertPath;

@@ -1,10 +1,9 @@
-#include <Engine/Graphics/Shader.hpp>
+#include <engine/Graphics/Shader.hpp>
 #include <Utils/FileIo.hpp>
 #include <Utils/Overloaded.hpp>
 #include <Log/Log.hpp>
 #include <glad/glad.h>
 #include <filesystem>
-#include <format>
 
 std::expected<Shader, Shader::Error> Shader::compile(std::string_view path, ShaderType type) {
 	auto source = preprocessIncludes(path);

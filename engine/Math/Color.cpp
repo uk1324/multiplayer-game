@@ -1,4 +1,5 @@
 #include "Color.hpp"
+#include <math.h>
 
 Vec4 Color::scientificColoring(float v, float minV, float maxV) {
 	v = std::min(std::max(v, minV), maxV - 0.01f);
@@ -29,7 +30,7 @@ Vec4 Color::fromHsv(float h, float s, float v) {
 	float hue = h * 360.f;
 
 	float C = s * v;
-	float X = C * (1.0f - std::abs(std::fmodf(hue / 60.0f, 2) - 1));
+	float X = C * (1.0f - std::abs(fmodf(hue / 60.0f, 2) - 1));
 	float m = v - C;
 	float r, g, b;
 	if (hue >= 0 && hue < 60)

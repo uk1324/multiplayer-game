@@ -1,5 +1,6 @@
 #include "GetAddress.hpp"
 #include <iostream>
+#include <string.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -7,6 +8,7 @@
 #else
 #include <unistd.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #endif
 
 int lastError() {
@@ -20,7 +22,7 @@ int lastError() {
 bool getAddress(char* address, int addressBufferSize) {
     // Maximum host name length is 255 + 1 for null.
     char hostName[256];
-    if (gethostname(hostName, sizeof(hostName)) == SOCKET_ERROR) {
+    if (gethostname(hostName, sizeof(hostName)) == -1) {
         std::cerr << "gethostname error " << lastError() << '\n';
         return false;
     }

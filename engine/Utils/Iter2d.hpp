@@ -1,6 +1,6 @@
 #pragma once
 
-#include <engine/math/vec2.hpp>
+#include <engine/Math/Vec2.hpp>
 
 template<typename T>
 struct Iter2d {

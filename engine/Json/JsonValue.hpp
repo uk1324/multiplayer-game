@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 // Constructors and operators for const char* becuase without them it gets implicitly converted to bool.
 

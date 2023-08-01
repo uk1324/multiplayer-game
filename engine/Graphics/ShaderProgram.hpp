@@ -1,10 +1,10 @@
 #pragma once
 
-#include <Engine/Graphics/Shader.hpp>
+#include <engine/Graphics/Shader.hpp>
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
 #include <engine/Math/Vec4.hpp>
-#include <engine/Math/mat3x2.hpp>
+#include <engine/Math/Mat3x2.hpp>
 
 #include <unordered_map>
 #include <optional>

@@ -6,13 +6,19 @@
 #ifdef CLIENT
 void assertImplementation(bool condition, const char* functionName, int line);
 
-#define ASSERT(condition) assertImplementation(condition, __FUNCSIG__, __LINE__)
+#if defined(__GNUC__) || defined(__GNUG__) 
+#define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#define FUNCTION_SIGNATURE __FUNCSIG__
+#endif
+
+#define ASSERT(condition) assertImplementation(condition, FUNCTION_SIGNATURE, __LINE__)
 #define ASSERT_NOT_REACHED() ASSERT(false)
 
 #ifdef FINAL_RELEASE
 #define CHECK(condition)
 #else
-#define CHECK(condition) assertImplementation(condition, __FUNCSIG__, __LINE__)
+#define CHECK(condition) assertImplementation(condition, FUNCTION_SIGNATURE, __LINE__)
 #endif
 
 #define CHECK_NOT_REACHED() CHECK(false)

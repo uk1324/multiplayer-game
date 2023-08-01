@@ -40,7 +40,7 @@ static void broadcastMessage(
 		init(*message);
 		if (block != nullptr) {
 			const auto msgBlock = server.AllocateBlock(clientIndex, blockByteSize);
-			std::memcpy(msgBlock, block, blockByteSize);
+			memcpy(msgBlock, block, blockByteSize);
 			server.AttachBlockToMessage(clientIndex, message, msgBlock, blockByteSize);
 		}
 		server.SendMessage(clientIndex, channel, message);

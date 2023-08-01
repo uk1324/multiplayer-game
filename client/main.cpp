@@ -1,8 +1,9 @@
-#include <Engine/Engine.hpp>
-#include <Engine/Window.hpp>
+#include <engine/Engine.hpp>
+#include <engine/Window.hpp>
 #include <optional>
 #include <charconv>
 #include <iostream>
+#include <string.h>
 #include <shared/WindowsUtils.hpp>
 #include <shared/DebugWindowInfo.hpp>
 
@@ -36,8 +37,12 @@ int main(int argc, char* argv[]) {
 }
 
 #ifdef FINAL_RELEASE
+
+#ifdef WIN_32
 #include <Windows.h>
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	return main(0, nullptr);
 }
+#endif
+
 #endif

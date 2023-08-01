@@ -16,9 +16,16 @@ target_include_directories(yojimboLib PUBLIC
 
 set(YOJIMBO_LIBS_DIR "${YOJIMBO_DIR}/windows")
 
-target_link_libraries(yojimboLib 
-	"${YOJIMBO_LIBS_DIR}/sodium.lib" 
-	"${YOJIMBO_LIBS_DIR}/mbedtls.lib" 
-	"${YOJIMBO_LIBS_DIR}/mbedx509.lib" 
-	"${YOJIMBO_LIBS_DIR}/mbedcrypto.lib" 
-)
+if (WIN32)
+	target_link_libraries(yojimboLib 
+		"${YOJIMBO_LIBS_DIR}/sodium.lib" 
+		"${YOJIMBO_LIBS_DIR}/mbedtls.lib" 
+		"${YOJIMBO_LIBS_DIR}/mbedx509.lib" 
+		"${YOJIMBO_LIBS_DIR}/mbedcrypto.lib" 
+	)
+else()
+	target_link_libraries(yojimboLib sodium)
+	target_link_libraries(yojimboLib mbedtls)
+	target_link_libraries(yojimboLib mbedx509)
+	target_link_libraries(yojimboLib mbedcrypto)
+endif()

@@ -2,6 +2,7 @@
 #include <stb_image/stb_image.h>
 #include <stb_image/stb_image_write.h>
 #include <stb_image/stb_image_resize.h>
+#include <string.h>
 
 Image32::Image32(const char* path, bool& loadedCorrectly) {
 	int x, y, channelCount;
@@ -165,9 +166,9 @@ Pixel32::Pixel32(const Vec4& color)
 	, a{ 255 } {}
 
 auto Image32::IndexedPixelRange::begin() -> IndexedPixelIterator {
-	return IndexedPixelIterator{ .pos = Vec2T{ 0 }, .data = image.data_, .rowWidth = static_cast<i64>(image.size_.x) };
+	return IndexedPixelIterator{ .pos = Vec2T<i64>{ 0 }, .data = image.data_, .rowWidth = static_cast<i64>(image.size_.x) };
 }
 
 auto Image32::IndexedPixelRange::end() -> IndexedPixelIterator {
-	return IndexedPixelIterator{ .pos = Vec2T{ 0 }, .data = image.data_ + image.size_.y * image.size_.x, .rowWidth = static_cast<i64>(image.size_.x) };
+	return IndexedPixelIterator{ .pos = Vec2T<i64>{ 0 }, .data = image.data_ + image.size_.y * image.size_.x, .rowWidth = static_cast<i64>(image.size_.x) };
 }

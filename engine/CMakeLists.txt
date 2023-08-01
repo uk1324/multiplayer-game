@@ -1,4 +1,4 @@
-add_subdirectory(math)
+add_subdirectory(Math)
 
 add_library(
 	engine 

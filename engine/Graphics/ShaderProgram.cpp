@@ -1,4 +1,4 @@
-#include <Engine/Graphics/ShaderProgram.hpp>
+#include <engine/Graphics/ShaderProgram.hpp>
 #include <Log/Log.hpp>
 #include <glad/glad.h>
 #include <sstream>

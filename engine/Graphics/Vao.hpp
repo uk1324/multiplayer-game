@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Engine/Graphics/Vbo.hpp>
+#include <engine/Graphics/Vbo.hpp>
 
 enum class ShaderDataType : u32 {
 	Byte = 0x1400,

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <engine/Math/vec2.hpp>
-#include <Engine/Input/KeyCode.hpp>
-#include <Engine/Input/MouseButton.hpp>
+#include <engine/Math/Vec2.hpp>
+#include <engine/Input/KeyCode.hpp>
+#include <engine/Input/MouseButton.hpp>
 #include <Types.hpp>
 
 #include <bitset>

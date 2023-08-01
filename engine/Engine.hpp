@@ -18,5 +18,8 @@ private:
 	static void initImGui();
 
 	static void glfwErrorCallback(int errorCode, const char* errorMessage);
+	#ifndef WIN32
+	#define __stdcall
+	#endif
 	static void __stdcall openGlErrorCallback(u32 source, u32 type, u32 id, u32 severity, i32 length, const char* message, const void* userParam);
 };

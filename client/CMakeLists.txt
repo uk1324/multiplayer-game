@@ -27,7 +27,9 @@ add_executable(
  "Debug.cpp" "Rendering/LineTriangulate.cpp" "Rendering/Font.cpp" "Rendering/ShaderManager.cpp" "GameplayContext.cpp")
 
 if (FINAL_RELEASE)
-set_target_properties(client PROPERTIES WIN32_EXECUTABLE TRUE)
+	if (WIN32)
+		set_target_properties(client PROPERTIES WIN32_EXECUTABLE TRUE)
+	endif()
 endif()
 
 target_link_libraries(client engine)
@@ -39,12 +41,20 @@ targetAddGenerated(client "../shared")
 set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
 targetAddGenerated(client "./")
 
-target_link_libraries(client debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
-target_link_libraries(client optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
-target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")
+target_link_libraries(client yojimboLib)
+#target_link_libraries(client debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
+#target_link_libraries(client optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
+if (WIN32)
+	target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")
+else()
+	#find_package(Freetype REQUIRED)
+	#target_link_libraries(client ${FREETYPE_LIBRARIES})
+	target_link_libraries(client freetype)
+endif()
 
 if (FINAL_RELEASE)
-	set(EMBED_TOOL "${CMAKE_BINARY_DIR}/embedTool/embedTool.exe")
+	# set(EMBED_TOOL "${CMAKE_BINARY_DIR}/embedTool/embedTool.exe")
+	set(EMBED_TOOL "$<TARGET_FILE:embedTool>")
 	add_custom_command(
 		TARGET client PRE_BUILD
 		COMMAND ${EMBED_TOOL}

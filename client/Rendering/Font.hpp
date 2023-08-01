@@ -52,6 +52,7 @@ struct Font {
 	std::unordered_map<char32_t, Glyph> glyphs;
 };
 
+// The font info is cached so when it changes it knows it needs to reload the sdf. It might be simpler to just store the ranges and read the info from the font file. Haven't though about it much it might not work idk.
 std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 	const char* fontPath, 
 	const char* cachedSdfPath, 

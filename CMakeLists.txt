@@ -15,11 +15,11 @@ set_property(
 	"${GENERATED_PATH}/cmake.txt"
 )
 
-# set(FINAL_RELEASE TRUE)
+set(FINAL_RELEASE TRUE)
 
 if (FINAL_RELEASE)
 	add_definitions(-DFINAL_RELEASE)
-	set(BUILD_TOOL "${CMAKE_BINARY_DIR}/buildTool/buildTool.exe")
+	set(BUILD_TOOL "$<TARGET_FILE:buildTool>")
 endif()
 
 macro(generateReleaseFolder targetName)
@@ -46,9 +46,10 @@ add_subdirectory(client)
 
 add_subdirectory(server)
 
-add_subdirectory(replayTool)
-
-add_subdirectory(shortcutTool)
+if (WIN32)
+	add_subdirectory(replayTool)
+	add_subdirectory(shortcutTool)
+endif()
 
 add_subdirectory(buildTool)
 

@@ -1,5 +1,4 @@
-#include <Engine/Graphics/Vbo.hpp>
-
+#include <engine/Graphics/Vbo.hpp>
 #include <glad/glad.h>
 
 Vbo::Vbo(usize dataByteSize) {

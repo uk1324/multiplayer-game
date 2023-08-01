@@ -7,6 +7,7 @@
 #include <imgui/imgui.h>
 #include <vector>
 #include <source_location>
+#include <optional>
 
 namespace Debug {
 	void update(const Camera& camera, float dt);

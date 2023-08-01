@@ -1,7 +1,8 @@
-#include "debugDraw.hpp"
+#include "DebugDraw.hpp"
 #include <shared/Gameplay.hpp>
 
 void debugDraw(const GameplayState& gameplayState, const std::vector<GameplayPlayer>& players, Color color) {
+	#ifdef _WIN32
 	auto vector2 = [](Vec2 pos) {
 		return Vector2{ .x = pos.x, .y = pos.y };
 	};
@@ -18,4 +19,5 @@ void debugDraw(const GameplayState& gameplayState, const std::vector<GameplayPla
 	for (const auto& [_, bullet] : gameplayState.moveForwardBullets) {
 		DrawCircleV(convertPos(bullet.position), BULLET_HITBOX_RADIUS, color);
 	}
+	#endif
 }
