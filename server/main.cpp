@@ -81,7 +81,16 @@ int main(int argc, char* argv[]) {
 	char address[MAX_ADDRESS_SIZE];
 	
 	#ifdef FINAL_RELEASE
-	if (!getAddress(address, sizeof(address))) {
+	if (argc == 2) {
+		const auto inputAddress = argv[1];
+		const auto inputAddressLength = strlen(inputAddress);
+		// '>=' because of the '\0' byte.
+		if (inputAddressLength >= sizeof(address)) {
+			std::cerr << "address too long\n";
+			return EXIT_FAILURE;
+		}
+		memcpy(address, inputAddress, inputAddressLength + 1);
+	} else if (!getAddress(address, sizeof(address))) {
 		std::cerr << "getAddress failed\n";
 		memcpy(address, defaultAddress, sizeof(defaultAddress));
 	}
