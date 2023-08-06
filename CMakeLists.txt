@@ -15,23 +15,11 @@ set_property(
 	"${GENERATED_PATH}/cmake.txt"
 )
 
-# set(FINAL_RELEASE TRUE)
+set(FINAL_RELEASE TRUE)
 
 if (FINAL_RELEASE)
 	add_definitions(-DFINAL_RELEASE)
-	set(BUILD_TOOL "$<TARGET_FILE:buildTool>")
 endif()
-
-macro(generateReleaseFolder targetName)
-	if (FINAL_RELEASE)
-		add_custom_command(
-			TARGET ${targetName} POST_BUILD
-			COMMAND ${BUILD_TOOL} ${targetName} ${CMAKE_BINARY_DIR}
-			WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-			DEPENDS ${BUILD_TOOL}
-		)
-	endif()
-endmacro()
 
 include("./codeGenTool/targetAddGenerated.cmake")
 
@@ -40,7 +28,6 @@ add_subdirectory("./dependencies/yojimboLib")
 
 add_subdirectory(engine)
 add_subdirectory(engine/Json)
-
 
 add_subdirectory(client)
 
@@ -58,4 +45,3 @@ add_subdirectory(embedTool)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022
 # https://learn.microsoft.com/en-us/cpp/build/tasks-vs-json-schema-reference-cpp?view=msvc-170
-

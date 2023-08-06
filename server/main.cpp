@@ -77,13 +77,16 @@ int main(int argc, char* argv[]) {
 	}
 	yojimbo_log_level(YOJIMBO_LOG_LEVEL_INFO);
 
-	char address[MAX_ADDRESS_SIZE] = "127.0.0.1";
+	char defaultAddress[] = "127.0.0.1";
+	char address[MAX_ADDRESS_SIZE];
 	
 	#ifdef FINAL_RELEASE
 	if (!getAddress(address, sizeof(address))) {
 		std::cerr << "getAddress failed\n";
 		memcpy(address, defaultAddress, sizeof(defaultAddress));
 	}
+	#else
+	memcpy(address, defaultAddress, sizeof(defaultAddress));
 	#endif
 
 	GameServer server(address);

@@ -13,8 +13,6 @@ target_include_directories(server PUBLIC "." "../dependencies" "../")
 target_link_libraries(server math)
 target_link_libraries(server json)
 
-# target_link_libraries(server debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
-# target_link_libraries(server optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
 target_link_libraries(server yojimboLib)
 
 if(WIN32)
@@ -24,5 +22,3 @@ if(WIN32)
     target_link_libraries(server "opengl32.lib")
     target_link_libraries(server "gdi32.lib")
 endif()
-
-generateReleaseFolder(server)

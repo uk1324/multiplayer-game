@@ -6,43 +6,28 @@ using namespace filesystem;
 
 const path outputPath = "./generated/build/";
 
-void outputClient(const path& exePath) {
-	const auto clientOutputPath = outputPath / "client";
-
-	create_directories(clientOutputPath);
-	copy_file("./freetype.dll", clientOutputPath / "freetype.dll", copy_options::overwrite_existing);
-	copy("./assets", clientOutputPath / "assets", copy_options::recursive | copy_options::overwrite_existing);
-	copy_file(exePath / "client/client.exe", clientOutputPath / "game.exe", copy_options::overwrite_existing);
-}
-
-void outputServer(const path& exePath) {
-	const auto serverOutputPath = outputPath / "server";
-
-	create_directories(serverOutputPath);
-	copy_file(exePath / "server/server.exe", serverOutputPath / "server.exe", copy_options::overwrite_existing);
-}
-
 int main(int argc, char** argv) {
-	cout << "working directory = {}\n" << current_path().string();
+	cout << "working directory = " << current_path().string() << '\n';
 
-	if (argc != 3) {
+	if (argc != 2) {
 		cerr << "wrong number of arguments " << argc << '\n';
 		return EXIT_FAILURE;
 	}
-	const string_view typeString(argv[1]);
-	const string_view exePathString(argv[2]);
+	const string_view executablePathString(argv[1]);
+	cout << "executable path = " << executablePathString << '\n';
 
-	const path exePath(exePathString);
+	const path executablePath(executablePathString);
+
 	try {
-		if (typeString == "client") {
-			cout << "output client\n";
-			outputClient(exePath);
-		} else if (typeString == "server") {
-			cout << "output server\n";
-			outputServer(exePath);
-		}
+		const auto clientOutputPath = outputPath / "client";
+		create_directories(clientOutputPath);
+		#ifdef WIN32
+		copy_file("./freetype.dll", clientOutputPath / "freetype.dll", copy_options::overwrite_existing);
+		#endif
+		copy("./assets", clientOutputPath / "assets", copy_options::recursive | copy_options::overwrite_existing);
+		copy_file(executablePath, clientOutputPath / ("game" + executablePath.extension().string()), copy_options::overwrite_existing);
 	} catch (const filesystem_error& e) {
 		cerr << e.what() << '\n';
-		//return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 }

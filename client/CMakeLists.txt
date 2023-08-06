@@ -42,18 +42,13 @@ set(SHARED_GENERATED_FILES, ${GENERATED_FILES})
 targetAddGenerated(client "./")
 
 target_link_libraries(client yojimboLib)
-#target_link_libraries(client debug "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboDebug.lib")
-#target_link_libraries(client optimized  "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/yojimboRelease.lib")
 if (WIN32)
 	target_link_libraries(client "${CMAKE_CURRENT_SOURCE_DIR}/../dependencies/freetype.lib")
 else()
-	#find_package(Freetype REQUIRED)
-	#target_link_libraries(client ${FREETYPE_LIBRARIES})
 	target_link_libraries(client freetype)
 endif()
 
 if (FINAL_RELEASE)
-	# set(EMBED_TOOL "${CMAKE_BINARY_DIR}/embedTool/embedTool.exe")
 	set(EMBED_TOOL "$<TARGET_FILE:embedTool>")
 	add_custom_command(
 		TARGET client PRE_BUILD
@@ -61,6 +56,12 @@ if (FINAL_RELEASE)
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		DEPENDS ${EMBED_TOOL}
 	)
+	set(BUILD_TOOL "$<TARGET_FILE:buildTool>")
+	set(targetName "client")
+	add_custom_command(
+		TARGET ${targetName} POST_BUILD
+		COMMAND ${BUILD_TOOL} $<TARGET_FILE:client>
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		DEPENDS ${BUILD_TOOL}
+	)
 endif()
-
-generateReleaseFolder(client)
