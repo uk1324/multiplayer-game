@@ -1,0 +1,9 @@
+`
+#include <shared/PlayerIndex.hpp>
+`
+
+struct [[Json]] RequestPlayer {
+	i32 playerIndex;
+	float rttSeconds;
+	float packetLossPercent;
+}

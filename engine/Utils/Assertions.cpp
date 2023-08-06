@@ -9,7 +9,7 @@ void assertImplementation(bool condition, const char* functionName, int line) {
 		return;
 	}
 	#ifndef FINAL_RELEASE
-	DEBUG_BREAK
+	DEBUG_BREAK();
 	#endif
 	crashReportMessageBox("assertion failed", functionName, line);
 }

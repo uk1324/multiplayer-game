@@ -7,6 +7,7 @@
 #include <shared/Time.hpp>
 #include <shared/Gameplay.hpp>
 #include <shared/ReplayRecorder.hpp>
+#include <server/HttpServer/HttpServer.hpp>
 #include <unordered_map>
 #include <queue>
 
@@ -20,6 +21,8 @@ struct GameServer {
 	void onClientDisconnected(int clientIndex);
 
 	void broadcastWorldState();
+
+	void communicateWithHttpServer();
 
 	bool isRunning = true;
 
@@ -44,7 +47,7 @@ struct GameServer {
 	GameplayState gameplayState;
 	std::unordered_map<PlayerIndex, Player> players;
 
-	// Using this instead of stroing one of the indices inside the player, because its more flexible. Sometimes you onle have the player index (gameplay). or only have the client index (processing messages).
+	// Using this instead of stroing one of the indices inside the player, because its more flexible. Sometimes you only have the player index (gameplay). or only have the client index (processing messages).
 	std::unordered_map<int, PlayerIndex> clientIndexToPlayerIndex;
 	PlayerIndex nextPlayerIndex{ 0 };
 
@@ -55,4 +58,7 @@ struct GameServer {
 	ReplayRecorder replayRecorder;
 	std::vector<GameplayPlayer> gameplayPlayers;
 	#endif
+
+	HttpServer httpServer;
+	std::thread httpServerThread;
 };

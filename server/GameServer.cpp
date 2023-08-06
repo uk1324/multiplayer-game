@@ -7,6 +7,7 @@
 #include <server/ServerGameplayContext.hpp>
 #include <shared/DebugSettings.hpp>
 #include <random>
+#include <yojimbo/netcode.io/netcode.h>
 
 // TODO: Idea for sending only spawned objects. 
 // With each object on the server store 2 bitsets of size max players. 
@@ -50,6 +51,7 @@ static void broadcastMessage(
 GameServer::GameServer(const char* address)
 	: server(yojimbo::GetDefaultAllocator(), DEFAULT_PRIVATE_KEY, yojimbo::Address(address, SERVER_PORT), connectionConfig, adapter, 0.0f)
 	, adapter(this)
+	, httpServerThread(&HttpServer::run, &httpServer)
 	#ifdef DEBUG_REPLAY_RECORDER
 	, replayRecorder("./generated/serverReplay.json") 
 	#endif
@@ -80,6 +82,8 @@ GameServer::~GameServer() {
 
 // TODO: Don't allow client to send multiple inputs per frame. Buffer the inputs and execute them on the next frame.
 void GameServer::update() {
+	communicateWithHttpServer();
+
 	if (!server.IsRunning()) {
 		isRunning = false;
 		return;
@@ -262,7 +266,13 @@ void GameServer::processMessage(int clientIndex, yojimbo::Message* message) {
 }
 
 void GameServer::onClientConnected(int clientIndex) {
-	put("client connected clientIndex = %", clientIndex);
+	netcode_address_t* address = server.GetClientAddress(clientIndex);
+	// For some reason only stored in the .c file
+	const auto NETCODE_MAX_ADDRESS_STRING_LENGTH = 256;
+	char addressString[NETCODE_MAX_ADDRESS_STRING_LENGTH];
+	netcode_address_to_string(address, addressString);
+
+	put("client connected clientIndex = %, address = %", clientIndex, addressString);
 	const Player player{
 		.gameplayPlayer = {
 			.position = Vec2(0.0f)
@@ -364,5 +374,45 @@ void GameServer::broadcastWorldState() {
 		// TODO: Don't copy the whole state. Could just pass a reference (both on the client and server). For the server could add an additional counter to make sure that the data hasn't been modified from the creation time to serialization time. This shouldn't be a problem I think, because this is an unreliable message. If needed could use shared pointers. On the clinet there would just be 2 states one for loading which would be reset before deserizalizing and another for actual use.
 		message->gemeplayState = gameplayState;
 		server.SendMessage(clientIndex, GameChannel::UNRELIABLE, message);
+	}
+}
+
+void GameServer::communicateWithHttpServer() {
+	{
+		auto lock = httpServer.messages.lock();
+		const auto messagesString = lock->string();
+
+		struct Result {
+			std::string_view rest;
+			std::string_view message;
+		};
+		auto getNextMessage = [](std::string_view messages) -> std::string_view {
+
+		};
+
+		std::string_view messages(messagesString);
+		for (int i = 0; i < messages.size(); i++) {
+			if (i == 0 || (messages[i] == '\0' && i != messages.size() - 1)) {
+				std::cout << "[HTTP server] ";
+			}
+			std::cout << messages[i];
+		}
+		lock->string().clear();
+	}
+
+	{
+		auto lock = httpServer.players.lock();
+		auto& httpServerPlayers = *lock;
+		httpServerPlayers.clear();
+
+		for (const auto& [clientIndex, playerIndex] : clientIndexToPlayerIndex) {
+			yojimbo::NetworkInfo info;
+			server.GetNetworkInfo(clientIndex, info);
+			httpServerPlayers.push_back(RequestPlayer{
+				.playerIndex = static_cast<i32>(playerIndex.value),
+				.rttSeconds = info.RTT / 1000.0f,
+				.packetLossPercent = info.packetLoss,
+			});
+		}
 	}
 }

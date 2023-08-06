@@ -1,6 +1,7 @@
 #include "GetAddress.hpp"
 #include <iostream>
 #include <string.h>
+#include "Sockets.hpp"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -11,19 +12,11 @@
 #include <arpa/inet.h>
 #endif
 
-int lastError() {
-    #ifdef _WIN32
-    return WSAGetLastError();
-    #else
-    return errno;
-    #endif
-}
-
 bool getAddress(char* address, int addressBufferSize) {
     // Maximum host name length is 255 + 1 for null.
     char hostName[256];
     if (gethostname(hostName, sizeof(hostName)) == -1) {
-        std::cerr << "gethostname error " << lastError() << '\n';
+        Sockets::outputFullLastErrorMessage(std::cerr, "gethostname");
         return false;
     }
 
@@ -33,7 +26,7 @@ bool getAddress(char* address, int addressBufferSize) {
     hints.ai_socktype = SOCK_STREAM;
     addrinfo* result;
     if (const auto status = getaddrinfo(hostName, nullptr, &hints, &result); status != 0) {
-        std::cerr << "getaddrinfo error " << gai_strerror(status) << '\n';
+        Sockets::getaddrinfoOutputFullErrorMessage(std::cerr, status);
         return false;
     }
 
@@ -43,7 +36,7 @@ bool getAddress(char* address, int addressBufferSize) {
             const sockaddr_in* ipv4 = reinterpret_cast<sockaddr_in*>(entry->ai_addr);
             const void* addr = &(ipv4->sin_addr);
             if (inet_ntop(entry->ai_family, addr, address, addressBufferSize) == nullptr) {
-                std::cerr << "inet_ntop error " << lastError() << '\n';
+                Sockets::outputFullLastErrorMessage(std::cerr, "inet_ntop");
                 return false;
             }
             // Prefer IPv4 over IPv6
@@ -57,7 +50,7 @@ bool getAddress(char* address, int addressBufferSize) {
         const sockaddr_in6* ipv6 = reinterpret_cast<sockaddr_in6*>(ipv6Address->ai_addr);
         const void* addr = &(ipv6->sin6_addr);
         if (inet_ntop(ipv6Address->ai_family, addr, address, addressBufferSize) == nullptr) {
-            std::cerr << "inet_ntop error " << lastError() << '\n';
+            Sockets::outputFullErrorMessage(std::cerr, "inet_ntop", Sockets::lastError());
             return false;
         }
         return true;
