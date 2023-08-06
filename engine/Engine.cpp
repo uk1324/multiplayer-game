@@ -142,6 +142,8 @@ void Engine::initImGui()
 	auto& style = ImGui::GetStyle();
 	style.WindowRounding = 5.0f;
 
+	ImGui::GetIO().IniFilename = "./cached/imgui.ini";
+
 	ImGui_ImplGlfw_InitForOpenGL(reinterpret_cast<GLFWwindow*>(Window::handle()), true);
 	ImGui_ImplOpenGL3_Init("#version 430");
 }
