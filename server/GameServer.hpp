@@ -9,6 +9,7 @@
 #include <shared/ReplayRecorder.hpp>
 #include <server/HttpServer/HttpServer.hpp>
 #include <unordered_map>
+#include <thread>
 #include <queue>
 
 struct GameServer {

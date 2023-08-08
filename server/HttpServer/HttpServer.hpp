@@ -43,28 +43,3 @@ private:
 	SocketType createListeningSocket(const char* port);
 	void networkingError(const char* functionName);
 };
-
-template<typename T>
-Mutex<T>::Lock::Lock(T& value, std::mutex& mutex)
-	: value(value)
-	, lock(mutex) {}
-
-template<typename T>
-T* Mutex<T>::Lock::operator->() {
-	return &value;
-}
-
-template<typename T>
-T& Mutex<T>::Lock::operator*() {
-	return value;
-}
-
-template<typename T>
-const T& Mutex<T>::Lock::operator*() const {
-	return value;
-}
-
-template<typename T>
-Mutex<T>::Lock Mutex<T>::lock() {
-	return Lock(value, mutex);
-}

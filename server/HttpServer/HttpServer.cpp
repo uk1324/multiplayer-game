@@ -2,10 +2,18 @@
 #include <engine/Utils/Types.hpp>
 #include <engine/Utils/Json.hpp>
 #include <engine/Json/JsonPrinter.hpp>
-#include <WinSock2.h>
-#include <ws2tcpip.h>
 #include "Sockets.hpp"
 #include <optional>
+
+#ifdef WIN32
+#include <WinSock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <poll.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#endif
 
 #include <stdio.h>
 
@@ -17,8 +25,6 @@ const void* getInAddr(const sockaddr* sa) {
 }
 
 void HttpServer::run() {
-    std::vector<pollfd> pfds;
-
     const char* port = "9034";
 
     const auto serverSocket = createListeningSocket(port);
@@ -33,6 +39,8 @@ void HttpServer::run() {
         auto lock = messages.lock();
         *lock << "server started on port " << port << '\n' << MESSAGE_END;
     }
+
+    std::vector<pollfd> pfds;
 
     pfds.push_back(pollfd{
         .fd = serverSocket,
@@ -218,7 +226,7 @@ void HttpServer::onMessage(int clientSocket, std::string_view message) {
         }();
 
         responseContentBuffer.string().clear();
-        Json::print(responseContentBuffer, json);
+        Json::prettyPrint(responseContentBuffer, json);
 
         sendMessage(HttpStatusCode::OK, jsonContentType, responseContentBuffer.string());
         return;

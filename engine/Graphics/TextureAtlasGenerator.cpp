@@ -49,7 +49,7 @@ TextureAtlasResult generateTextureAtlas(std::vector<TextureAtlasInputImage>& tex
 				.offset = Vec2T<int>(currentXOffset + 1, rowYOffset + 1),
 				.size = Vec2T<int>(texture.image.width(), texture.image.height())
 			};
-			textureNameToPos[texture.name] = Pos{ .index = i, .pos = pos };
+			textureNameToPos.insert({ texture.name, Pos{.index = i, .pos = pos } });
 			currentXOffset += width;
 			i++;
 		} else {

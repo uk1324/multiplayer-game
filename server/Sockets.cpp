@@ -5,7 +5,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
-
+#include <poll.h>
+#include <string.h>
+#include <netdb.h>
 #endif
 
 int Sockets::poll(pollfd* pollFds, int pollFdsCount, int timeout) {
@@ -56,7 +58,8 @@ void Sockets::errorCodeMessage(std::ostream& os, int errorCode) {
 	LocalFree(message);
 
 	#else
-	return strerror(errorCode);
+	const char* message = strerror(errorCode);
+	os < message;
 	#endif
 }
 

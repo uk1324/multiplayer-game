@@ -380,7 +380,7 @@ void GameServer::broadcastWorldState() {
 void GameServer::communicateWithHttpServer() {
 	{
 		auto lock = httpServer.messages.lock();
-		const auto messagesString = lock->string();
+		const auto& messagesString = lock->string();
 
 		struct Result {
 			std::string_view rest;
@@ -401,8 +401,11 @@ void GameServer::communicateWithHttpServer() {
 	}
 
 	{
-		auto lock = httpServer.players.lock();
-		auto& httpServerPlayers = *lock;
+		auto lock = httpServer.players.tryLock();
+		if (!lock.has_value()) {
+			return;
+		}
+		auto& httpServerPlayers = **lock;
 		httpServerPlayers.clear();
 
 		for (const auto& [clientIndex, playerIndex] : clientIndexToPlayerIndex) {
