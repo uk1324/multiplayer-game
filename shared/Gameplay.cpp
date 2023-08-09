@@ -56,6 +56,7 @@ Vec2 applyMovementInput(Vec2 pos, ClientInputMessage::Input input, float dt) {
 }
 
 static float calculateDt(ClientBulletSynchronizationData& synchronization, float dt) {
+	// In addition to this could also accelerate the bullet at the start to the normal velocity (not sure what function maybe smoothstep or erf) to apprixomately match the correct position when the message is received from the server. It might also be good to implement some lag comensation so it is more fair. The issue with this that laggy players then have to accelerate bullets more (first to compensate for lag second to move them into the future).
 #ifdef CLIENT
 	/*if (synchronization.timeToSynchronize < 0.0f) {
 		synchronization.timeToSynchronize = -synchronization.timeToSynchronize;
@@ -71,7 +72,7 @@ static float calculateDt(ClientBulletSynchronizationData& synchronization, float
 		const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
 		const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
 
-		const auto max = dt / 2.0f;
+		const auto max = dt / 6.0f;
 		// max = normalDistMax * functionStep * bullet.timeToSynchronize
 		// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
 		// functionStep = timeStep * scale

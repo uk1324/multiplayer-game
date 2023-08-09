@@ -175,10 +175,12 @@ Renderer::Renderer()
 }
 
 void Renderer::onResize() {
-	const auto newSize = Window::size();
+	const auto newSize = Vec2T<GLsizei>(Window::size());
 
-	if (newSize.x <= 0.0f && newSize.y <= 0.0f)
+	if (newSize.x <= 0 && newSize.y <= 0) {
 		return;
+	}
+		
 
 	put("resized window size: %", newSize);
 	auto updatePostprocessTexture = [&newSize](Texture& texture) {
@@ -296,7 +298,7 @@ Vec2 Renderer::addCharacterToDraw(TextInstances& instances, const Font& font, Ve
 		// Using size.y for the scale pixel size calculation instead of max height seems more correct, because the all objects should have more similar smoothing then I think.
 		const auto scaleTransform = (makeObjectTransform(Vec2(0.0f), 0.0f, Vec2(0.0f, size.y)) * transform).removedTranslation();
 		const auto pixelSize = (Vec2(1.0f) * scaleTransform * Window::size()).y;
-		text.instances.toDraw.push_back(TextInstance{
+		instances.toDraw.push_back(TextInstance{
 			.transform = characterTransform,
 			.offsetInAtlas = Vec2(info.offsetInAtlas) / Vec2(font.fontAtlasPixelSize),
 			.sizeInAtlas = Vec2(info.sizeInAtlas) / Vec2(font.fontAtlasPixelSize),

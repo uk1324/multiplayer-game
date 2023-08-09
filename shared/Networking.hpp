@@ -50,7 +50,18 @@ struct ClientInputMessage : public yojimbo::Message {
         bool up = false, down = false, left = false, right = false, shoot = false, shift = false;
         float rotation = 0.0f;
         i32 selectedPattern = 0;
+        bool operator==(const Input&) const = default;
     };
+#define SERIALIZE_INPUT(index) \
+    serialize_bool(stream, inputs[index].left); \
+    serialize_bool(stream, inputs[index].up); \
+    serialize_bool(stream, inputs[index].right); \
+    serialize_bool(stream, inputs[index].down); \
+    serialize_bool(stream, inputs[index].shoot); \
+    serialize_bool(stream, inputs[index].shift); \
+    serialize_float(stream, inputs[index].rotation); \
+    serialize_int(stream, inputs[index].selectedPattern, 0, std::size(patternInfos) - 1);
+
     static constexpr int INPUTS_COUNT = 15;
     // Most recent input at the last index.
     Input inputs[INPUTS_COUNT];
@@ -58,29 +69,30 @@ struct ClientInputMessage : public yojimbo::Message {
     template <typename Stream>
     bool Serialize(Stream& stream) {
         serialize_int(stream, clientSequenceNumber, 0, INT_MAX);
-        for (int i = 0; i < std::size(inputs); i++) {
-            serialize_bool(stream, inputs[i].left);
-            serialize_bool(stream, inputs[i].up);
-            serialize_bool(stream, inputs[i].right);
-            serialize_bool(stream, inputs[i].down);
-            serialize_bool(stream, inputs[i].shoot);
-            serialize_bool(stream, inputs[i].shift);
-            serialize_float(stream, inputs[i].rotation);
-            serialize_int(stream, inputs[i].selectedPattern, 0, std::size(patternInfos) - 1);
+
+        SERIALIZE_INPUT(0);
+
+        for (int i = 1; i < std::size(inputs); i++) {
+            if (Stream::IsReading) {
+                bool repeatLastInput;
+                serialize_bool(stream, repeatLastInput);
+                if (repeatLastInput) {
+                    inputs[i] = inputs[i - 1];
+                } else {
+                    SERIALIZE_INPUT(i);
+                }
+            } else {
+                bool lastInputRepeated = inputs[i] == inputs[i - 1];
+                serialize_bool(stream, lastInputRepeated);
+                if (!lastInputRepeated) {
+                    SERIALIZE_INPUT(i);
+                }
+            }
         }
         return true;
     }
 
-    YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
-};
-
-struct SpawnMessage : public yojimbo::Message {
-    i32 playerIndex;
-    template <typename Stream>
-    bool Serialize(Stream& stream) {
-        serialize_int(stream, playerIndex, 0, MAX_CLIENTS);
-        return true;
-    }
+#undef SERIALIZE_INPUT
 
     YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();
 };

@@ -8,7 +8,7 @@ void boundVboAllocateData(const void* data, usize dataByteSize);
 class Vbo {
 public:
 	// Dynamic draw
-	explicit Vbo(usize dataByteSize);
+	explicit Vbo(usize dataByteSize); // On 32 bit systems this would be the same constructor as the private one maybe rename to staitc function dynamic draw and static draw.
 	// Static draw
 	Vbo(const void* data, size_t dataByteSize);
 	~Vbo();

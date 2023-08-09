@@ -65,6 +65,7 @@ void GameClient::update() {
 		CHECK_NOT_REACHED();
 		return;
 	}
+
 	if (Input::isKeyHeld(KeyCode::TAB)) {
 		using namespace ImGui;
 
@@ -406,6 +407,10 @@ void GameClient::update() {
 	if (delays.has_value()) {
 		//ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
 	}
+
+	yojimbo::NetworkInfo info;
+	client.GetNetworkInfo(info);
+	gui(info);
 
 	sequenceNumber++;
 	/*yojimbo::NetworkInfo info;

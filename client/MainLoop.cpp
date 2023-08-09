@@ -11,6 +11,7 @@ MainLoop::MainLoop()
 	, game(client, renderer) {
 	//connect(yojimbo::Address("127.0.0.1", SERVER_PORT));
 	//Window::enableWindowedFullscreen();
+
 }
 
 /*
