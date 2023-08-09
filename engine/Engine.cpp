@@ -73,6 +73,10 @@ void Engine::init(int windowWidth, int windowHeight, std::string_view windowTitl
 	put("Engine::init start");
 	initGlfw();
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+	// @Hack
+	#ifdef FINAL_RELEASE
+	glfwWindowHint(GLFW_MAXIMIZED, true);
+	#endif
 	{
 		Timer timer;
 		Window::init(windowWidth, windowHeight, windowTitle);
