@@ -97,12 +97,21 @@ void GameClient::update() {
 			for (const auto& [playerIndex, player] : players) {
 				TableNextRow();
 
+				const auto isClient = playerIndex == clientPlayerIndex;
+				if (isClient) {
+					PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+				}
+
 				TableNextColumn();
 				Text("%d", playerIndex);
 				TableNextColumn();
 				Text("%d", player.leaderboard.kills);
 				TableNextColumn();
 				Text("%d", player.leaderboard.deaths);
+
+				if (isClient) {
+					PopStyleColor();
+				}
 			}
 
 			EndTable();
@@ -408,9 +417,9 @@ void GameClient::update() {
 		//ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
 	}
 
-	yojimbo::NetworkInfo info;
+	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
-	gui(info);
+	gui(info);*/
 
 	sequenceNumber++;
 	/*yojimbo::NetworkInfo info;

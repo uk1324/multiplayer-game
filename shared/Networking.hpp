@@ -66,6 +66,7 @@ struct ClientInputMessage : public yojimbo::Message {
     // Most recent input at the last index.
     Input inputs[INPUTS_COUNT];
 
+    // TODO: Profile compressed vs non.
     template <typename Stream>
     bool Serialize(Stream& stream) {
         serialize_int(stream, clientSequenceNumber, 0, INT_MAX);
