@@ -72,7 +72,7 @@ static float calculateDt(ClientBulletSynchronizationData& synchronization, float
 		const auto normalDistributionMax = 1.0f / sqrt(PI<float>);
 		const auto value = exp(-pow(x, 2.0f)) / sqrt(PI<float>);
 
-		const auto max = dt / 6.0f;
+		const auto max = dt / 4.0f;
 		// max = normalDistMax * functionStep * bullet.timeToSynchronize
 		// functionStep = max / (normalDistMax * bullet.timeToSynchronize)
 		// functionStep = timeStep * scale

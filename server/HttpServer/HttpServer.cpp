@@ -81,7 +81,7 @@ void HttpServer::run() {
                     if (bytesReceived <= 0) {
                         if (bytesReceived == 0) {
                             auto lock = messages.lock();
-                            *lock << "socket" << pfds[i].fd << " disconnected\n" << MESSAGE_END;
+                            *lock << "socket " << pfds[i].fd << " disconnected\n" << MESSAGE_END;
                         } else {
                             networkingError("recv");
                         }

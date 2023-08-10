@@ -74,6 +74,7 @@ GameServer::GameServer(const char* address)
 	char buffer[256];
 	server.GetAddress().ToString(buffer, sizeof(buffer));
 	std::cout << "Server address is " << buffer << std::endl;
+	put("max players = %", MAX_CLIENTS);
 }
 
 GameServer::~GameServer() {

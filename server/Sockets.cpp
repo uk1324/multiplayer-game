@@ -22,7 +22,7 @@ int Sockets::close(SocketType socket) {
 	#ifdef WIN32
 	return closesocket(socket);
 	#else
-	return close(socket);
+	return ::close(socket);
 	#endif
 }
 
@@ -59,7 +59,7 @@ void Sockets::errorCodeMessage(std::ostream& os, int errorCode) {
 
 	#else
 	const char* message = strerror(errorCode);
-	os < message;
+	os << message;
 	#endif
 }
 

@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <vector>
 
-static const int MAX_CLIENTS = 64;
+static const int MAX_CLIENTS = 4;
 
 `
 

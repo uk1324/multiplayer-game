@@ -120,8 +120,11 @@ std::expected<Font, Font::LoadError> fontLoadSdfWithCaching(
 				});
 			}
 
-			// if (const auto error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_SDF)) {
+			#ifdef WIN32
+			if (const auto error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_SDF)) {
+			#else 
 			if (const auto error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) {
+			#endif
 				std::cout << error << '\n';
 				return std::unexpected(Font::LoadError{ "failed to render glyph with index " + std::to_string(glyphIndex) });
 			}

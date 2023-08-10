@@ -17,7 +17,7 @@ set_property(
 	"${GENERATED_PATH}/cmake.txt"
 )
 
-# set(FINAL_RELEASE TRUE)
+set(FINAL_RELEASE TRUE)
 
 if (FINAL_RELEASE)
 	add_definitions(-DFINAL_RELEASE)

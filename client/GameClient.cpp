@@ -413,9 +413,9 @@ void GameClient::update() {
 	}
 	#endif 
 
-	if (delays.has_value()) {
+	//if (delays.has_value()) {
 		//ImGui::TextWrapped("difference between actual and used clock time %d", delays->receiveDelay - averageReceiveDelay);
-	}
+	//}
 
 	/*yojimbo::NetworkInfo info;
 	client.GetNetworkInfo(info);
